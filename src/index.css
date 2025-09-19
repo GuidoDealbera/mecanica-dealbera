@@ -1,0 +1,19 @@
+@import url('https://fonts.googleapis.com/css2?family=Michroma&family=Nunito+Sans:ital,opsz,wght@0,6..12,200..1000;1,6..12,200..1000&display=swap');
+@import "tailwindcss";
+@plugin "../hero.ts";
+@source "../node_modules/@heroui/theme/dist/**/*.{js,ts,jsx,tsx}";
+@custom-variant oscuro ( & : es ( .dark * ) );
+
+@font-face {
+  font-family: 'FE-FONT';
+  src: url(./assets/fonts/FE-FONT.TTF) format('truetype');
+}
+
+.font-michroma {
+  font-family: 'Michroma';
+  text-shadow: 1px 2px 5px white;
+}
+
+body {
+    font-family: 'Nunito Sans';
+}

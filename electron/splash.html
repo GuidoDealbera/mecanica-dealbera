@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Mecánica Dealbera</title>
+  <!-- Fuente Michroma -->
+  <link href="https://fonts.googleapis.com/css2?family=Michroma&display=swap" rel="stylesheet">
+  <style>
+    body {
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #fff;
+    }
+
+    h1 {
+      font-family: 'Michroma', sans-serif;
+      font-style: italic;
+      font-weight: bold;
+      color: #3B82F6; /* HeroUI primary */
+      text-align: center;
+      font-size: 3.75rem; /* text-6xl */
+      margin: 0 0 30px 0;
+    }
+    @media (min-width: 768px) {
+      h1 { font-size: 4.5rem; } /* text-7xl */
+    }
+    @media (min-width: 1024px) {
+      h1 { font-size: 6rem; } /* text-8xl */
+    }
+
+    .spinner {
+      width: 60px;
+      height: 60px;
+      border: 6px solid #ccc;
+      border-top-color: #3B82F6;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    p {
+      margin-top: 16px;
+      font-size: 1rem;
+      font-weight: 500;
+      color: #3B82F6;
+      font-family: 'Michroma', sans-serif;
+    }
+
+    .logo {
+      margin-top: 24px;
+      width: 120px;
+      height: auto;
+    }
+  </style>
+</head>
+<body>
+  <h1>MECÁNICA DEALBERA</h1>
+  <div class="spinner"></div>
+  <p>Cargando...</p>
+  <img class="logo" src="./images/escudo-racing.jpg" alt="Escudo Racing Club de Avellaneda">
+</body>
+</html>
