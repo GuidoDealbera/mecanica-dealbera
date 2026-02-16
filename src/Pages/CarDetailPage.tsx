@@ -6,11 +6,9 @@ import DetailCar from "./Components/DetailCar";
 import Jobs from "./Components/Jobs";
 import { HiOutlineRefresh } from "react-icons/hi";
 import LicenceTable from "../Components/Licenses/LicenceTable";
-import { MdEdit } from "react-icons/md";
 
 const CarDetailPage: React.FC = () => {
   const { licence } = useParams();
-  const [isEditing, setIsEditing] = React.useState<boolean>(false);
   const { car, getCarDetail, loading, refreshing, refreshCar /*updateJob*/ } =
     useCarQueries();
   const isLoading = loading || refreshing;
@@ -27,28 +25,13 @@ const CarDetailPage: React.FC = () => {
     {
       key: "jobs",
       label: "Trabajos",
-      content: <Jobs jobs={car.jobs} isLoading={isLoading} />,
+      content: <Jobs jobs={car.jobs} isLoading={isLoading} license={licence} />,
     },
     {
       key: "car",
       label: "Información",
       content: (
-        <div>
-          <div className="w-full flex justify-end items-center">
-            <Button
-              onPress={() => setIsEditing(!isEditing)}
-              color={isEditing ? "danger" : "primary"}
-              isLoading={isLoading}
-              startContent={
-                !isLoading && !isEditing ? <MdEdit size={20} /> : undefined
-              }
-              isDisabled={isLoading}
-            >
-              {isEditing ? "Cancelar edición" : "Editar"}
-            </Button>
-          </div>
-          <DetailCar car={car} isLoading={loading} isEditing={isEditing} />
-        </div>
+        <DetailCar car={car} isLoading={loading} />
       ),
     },
   ];

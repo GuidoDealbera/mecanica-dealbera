@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { APIResponse } from "../Types/apiTypes";
 import { Client } from "../Types/types";
 

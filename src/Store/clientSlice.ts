@@ -65,7 +65,7 @@ const clientSlice = createSlice({
       })
       .addCase(updateClient.rejected, (state, action) => {
         state.loadingStates.updating = false;
-        state.error = action.payload as any;
+        state.error = action.payload as Error;
       })
       .addCase(updateClient.fulfilled, (state, action) => {
         state.loadingStates.updating = false;

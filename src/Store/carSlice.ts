@@ -5,6 +5,7 @@ import {
   fetchCarByLicence,
   updateJobInCar,
   updatedCar,
+  addJob,
 } from "./carAsync.methods";
 
 const initialState: CarState = {
@@ -61,12 +62,28 @@ const carSlice = createSlice({
         state.loadingStates.fetching = false;
         state.car = action.payload;
       })
+      //POST's
+      .addCase(addJob.pending, state => {
+        state.loadingStates.creating = true
+        state.error = null
+      })
+      .addCase(addJob.rejected, (state, action) => {
+        state.loadingStates.creating = false
+        state.error = action.payload as Error
+      })
+      .addCase(addJob.fulfilled, (state, action) => {
+        state.loadingStates.creating = false
+        if(state.car && action.payload.result){
+          state.car.jobs = [...(state.car.jobs || []), action.payload.result]
+        }
+      })
       //PATCH's
       .addCase(updatedCar.pending, (state) => {
         state.loadingStates.updating = true;
         state.error = null;
       })
       .addCase(updatedCar.rejected, (state, action) => {
+        console.log(action.payload)
         state.loadingStates.updating = false;
         state.error = action.payload as Error;
       })

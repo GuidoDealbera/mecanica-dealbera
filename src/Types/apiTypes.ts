@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { CarBrand } from "../Utils/utils";
 import { Client, Jobs } from "./types";
 

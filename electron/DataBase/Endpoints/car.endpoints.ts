@@ -1,12 +1,8 @@
 import { ipcMain } from "electron";
-import {
-  CreateCarDto,
-  Jobs,
-  UpdateCarDto,
-  UpdateJobDto,
-} from "../Types/car.dto";
-import { v4 } from "uuid";
+import { CreateCarDto, Jobs, UpdateJobDto } from "../Types/car.dto";
 import { getRepositories } from "../dataSource";
+import {v4} from "uuid"
+import { CreateCarJob } from "../../../src/Types/apiTypes";
 
 ipcMain.handle("car:create", async (_event, createCarDto: CreateCarDto) => {
   const carRepo = getRepositories().carRepository;
@@ -86,75 +82,38 @@ ipcMain.handle(
       message: "Automóvil encontrado",
       result: car,
     };
-  }
+  },
 );
 
-ipcMain.handle(
-  "car:update",
-  async (_, id: string, updateCarDto: UpdateCarDto) => {
-    const carRepo = getRepositories().carRepository;
-    const clientRepo = getRepositories().clientRepository;
-    const { owner, kilometers } = updateCarDto;
-    const car = await carRepo.findOne({
-      where: {
-        id: id,
-      },
-      relations: ["owner"],
-    });
-    if (!car) {
-      return {
-        status: "failed",
-        message: "Automóvil no registrado",
-      };
-    }
-    if (owner && (owner !== car.owner || !car.owner)) {
-      const findOwner = await clientRepo.findOne({
-        where: {
-          fullname: owner.fullname,
-        },
-        relations: ["cars"],
-      });
-      if (!findOwner) {
-        const newOwner = clientRepo.create(owner);
-        car.owner = newOwner;
-      }
-    }
-    if (owner && owner.fullname === car.owner?.fullname) {
-      const updatedClient = await clientRepo.findOneBy({
-        fullname: owner.fullname,
-      });
-      if (!updatedClient) {
-        return {
-          status: "failed",
-          message: "Cliente no registrado",
-        };
-      }
-      if (owner.address) updatedClient.address = owner.address;
-      if (owner.city) updatedClient.city = owner.city;
-      if (owner.email) updatedClient.email = owner.email;
-      if (owner.phone) updatedClient.phone = owner.phone;
-
-      await clientRepo.save(updatedClient);
-      car.owner = updatedClient;
-    }
-
-    if (typeof kilometers === "number") {
-      if (kilometers < car.kilometers) {
-        return {
-          status: "failed",
-          message: "No se pueden bajar los kilómetros de un automóvil",
-        };
-      }
-      car.kilometers = kilometers;
-    }
-    const savedCar = await carRepo.save(car);
+ipcMain.handle("car:update", async (_, id: string, kilometers: number) => {
+  const carRepo = getRepositories().carRepository;
+  const car = await carRepo.findOne({
+    where: {
+      id: id,
+    },
+    relations: ["owner"],
+  });
+  if (!car) {
     return {
-      status: "success",
-      message: "Automóvil actualizado correctamente",
-      result: savedCar
+      status: "failed",
+      message: "Automóvil no registrado",
     };
   }
-);
+  if (kilometers < car.kilometers) {
+    return {
+      status: "failed",
+      message: "No se pueden bajar los kilómetros de un automóvil",
+    };
+  }
+  car.kilometers = kilometers;
+
+  const savedCar = await carRepo.save(car);
+  return {
+    status: "success",
+    message: "Automóvil actualizado correctamente",
+    result: savedCar,
+  };
+});
 
 ipcMain.handle(
   "car:delete",
@@ -190,8 +149,40 @@ ipcMain.handle(
       status: "success",
       message: "Automóvil eliminado exitosamente",
     };
-  }
+  },
 );
+
+ipcMain.handle("car:add-job", async (_, license: string, jobDto: CreateCarJob) => {
+  const repo = getRepositories().carRepository;
+  const car = await repo.findOne({
+    where: { licensePlate: license }
+  })
+  if(!car){
+    return {
+      status: 'failed',
+      message: "Automóvil no registrado"
+    }
+  }
+
+  const newJob: Jobs = {
+    id: v4(),
+    price: jobDto.price as number,
+    description: jobDto.description,
+    isThirdParty: jobDto.isThirdParty,
+    status: jobDto.status,
+    createdAt: new Date(),
+    updatedAt: new Date
+  }
+
+  car.jobs = Array.isArray(car.jobs) ? [...car.jobs, newJob] : [newJob]
+
+  await repo.save(car)
+  return {
+    status: 'success',
+    message: "Trabajao registrado exitosamente",
+    result: newJob
+  }
+});
 
 ipcMain.handle("car:find-jobs", async () => {
   const repo = getRepositories().carRepository;
@@ -245,5 +236,5 @@ ipcMain.handle(
       message: "Trabajo actualizado correctamente",
       result: updatedJob,
     };
-  }
+  },
 );

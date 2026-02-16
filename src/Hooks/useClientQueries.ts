@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "../Store/store";
 import { useCallback, useState } from "react";
@@ -53,7 +54,7 @@ export const useClientQueries = () => {
     } finally {
       setRefreshing(false);
     }
-  }, [dispatch]);
+  }, [dispatch, showToast]);
 
   const update = useCallback(async (body: any) => {
     setLoading(true);
@@ -64,7 +65,7 @@ export const useClientQueries = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [dispatch]);
 
   return {
     loading,

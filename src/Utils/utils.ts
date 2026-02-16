@@ -152,3 +152,14 @@ export function formatDate(date: Date): string {
 
   return `${day}/${month}/${year}`;
 }
+
+export const formatThousands = (value?: number | null) => {
+  if (value === null || value === undefined) return ''
+  return value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+}
+
+export const parseNumber = (value: string) => {
+  const clean = value.replace(/\./g, '')
+  const numeric = Number(clean)
+  return isNaN(numeric) ? 0 : numeric
+}

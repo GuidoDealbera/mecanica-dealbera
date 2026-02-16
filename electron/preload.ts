@@ -1,6 +1,7 @@
 import { ipcRenderer, contextBridge } from "electron";
 import { CreateCarDto, UpdateJobDto } from "./DataBase/Types/car.dto";
 import { CreateClientDto } from "./DataBase/Types/client.dto";
+import { Jobs } from "../src/Types/types";
 
 // --------- Expose some API to the Renderer process ---------
 contextBridge.exposeInMainWorld("ipcRenderer", {
@@ -33,8 +34,9 @@ contextBridge.exposeInMainWorld("api", {
     create: (car: CreateCarDto) => ipcRenderer.invoke("car:create", car),
     getAll: async () => await ipcRenderer.invoke("car:get-all"),
     getByLicense: async (licence: string) => await ipcRenderer.invoke("car:get-by-license", licence),
-    update: async (id: string, updateCarDto: UpdateJobDto) => await ipcRenderer.invoke("car:update", id, updateCarDto),
+    update: async (id: string, kilometers: number) => await ipcRenderer.invoke("car:update", id, kilometers),
     delete: async (licence: string) => await ipcRenderer.invoke("car:delete", licence),
+    addJob: async (licence: string, job: Jobs) => await ipcRenderer.invoke("car:add-job", licence, job),
     findJobs: async () => await ipcRenderer.invoke("car:find-jobs"),
     updateJob: async (licence: string, jobId: string, updateJobDto: UpdateJobDto) => await ipcRenderer.invoke("car:update-job", licence, jobId, updateJobDto)
   },

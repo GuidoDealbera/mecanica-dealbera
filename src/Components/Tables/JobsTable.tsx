@@ -1,7 +1,8 @@
 import React from "react";
 import { Jobs } from "../../Types/types";
 import {
-    Pagination,
+  Chip,
+  Pagination,
   Table,
   TableBody,
   TableCell,
@@ -9,53 +10,97 @@ import {
   TableHeader,
   TableRow,
 } from "@heroui/react";
+import { JobStatus } from "../../Types/apiTypes";
 interface JobsProps {
   jobs: Jobs[];
   isLoading: boolean;
   noRowsLabel: string;
+  onEditJob?: (job: Jobs) => void;
 }
 
-const JobsTable: React.FC<JobsProps> = ({ jobs, isLoading, noRowsLabel }) => {
-    const [page, setPage] = React.useState<number>(1);
-    const rowsPerPage = 5;
-    const pages = Math.ceil(jobs.length / rowsPerPage);
+const STATUS_MAP: Record<
+  JobStatus,
+  {
+    label: string;
+    color: "warning" | "success" | "primary" | "secondary" | "default";
+  }
+> = {
+  [JobStatus.IN_PROGRESS]: { label: "En Progreso", color: "primary" },
+  [JobStatus.COMPLETED]: { label: "Completado", color: "success" },
+  [JobStatus.DELIVERED]: { label: "Entregado", color: "secondary" },
+};
+
+const formatJobDate = (date?: string | Date | null): string => {
+  if (!date) return "---";
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return "---";
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const year = d.getFullYear();
+  return `${day}/${month}/${year}`;
+};
+
+const formatPrice = (price: number): string => {
+  return new Intl.NumberFormat("es-AR", {
+    style: "currency",
+    currency: "ARS",
+    maximumFractionDigits: 0,
+  }).format(price);
+};
+
+const JobsTable: React.FC<JobsProps> = ({
+  jobs,
+  isLoading,
+  noRowsLabel,
+  onEditJob,
+}) => {
+  const [page, setPage] = React.useState<number>(1);
+  const rowsPerPage = 5;
+  const pages = Math.ceil(jobs.length / rowsPerPage);
+  const paginatedJobs = React.useMemo(() => {
+    const start = (page - 1) * rowsPerPage;
+    return jobs.slice(start, start + rowsPerPage);
+  }, [jobs, page, rowsPerPage]);
   const columns = [
     {
       key: "description",
       label: "Descripción",
       center: false,
-      width: 350
+      width: 350,
     },
     {
       key: "status",
       label: "Estado",
       center: true,
-      width: 120
+      width: 120,
     },
     {
       key: "isThirdParty",
       label: "Terceros",
       center: true,
-      width: 100
+      width: 100,
     },
     {
       key: "price",
       label: "Precio",
       center: true,
-      width: 120
+      width: 120,
     },
     {
       key: "createdAt",
       label: "Fecha de creación",
       center: true,
-      width: 200
+      width: 150,
     },
     {
       key: "updatedAt",
       label: "Última actualización",
       center: true,
-      width: 200
+      width: 150,
     },
+    ...(onEditJob
+      ? [{ key: "actions", label: "Acciones", center: true, width: 80 }]
+      : []),
   ];
   return (
     <div className="bg-white rounded-lg flex flex-col gap-4">
@@ -93,16 +138,44 @@ const JobsTable: React.FC<JobsProps> = ({ jobs, isLoading, noRowsLabel }) => {
             </div>
           }
         >
-          {jobs.map((job) => (
-            <TableRow key={job.id}>
-              <TableCell>{job.description}</TableCell>
-              <TableCell>{job.status}</TableCell>
-              <TableCell>{job.isThirdParty}</TableCell>
-              <TableCell>{job.price}</TableCell>
-              <TableCell>{job.createdAt}</TableCell>
-              <TableCell>{job.updatedAt}</TableCell>
-            </TableRow>
-          ))}
+          {paginatedJobs.map((job) => {
+            const statusInfo = STATUS_MAP[job.status] ?? {
+              label: job.status,
+              color: "default" as const,
+            };
+            return (
+              <TableRow key={job.id}>
+                <TableCell
+                  className="max-w-[300px] truncate"
+                  title={job.description}
+                >
+                  {job.description}
+                </TableCell>
+                <TableCell className="text-center">
+                  <Chip color={statusInfo.color} variant="flat">
+                    {statusInfo.label}
+                  </Chip>
+                </TableCell>
+                <TableCell className="text-center">
+                  <Chip
+                    color={job.isThirdParty ? "secondary" : "default"}
+                    variant="flat"
+                  >
+                    {job.isThirdParty ? "Sí" : "No"}
+                  </Chip>
+                </TableCell>
+                <TableCell className="text-center font-medium">
+                  {formatPrice(job.price)}
+                </TableCell>
+                <TableCell className="text-center text-sm">
+                  {formatJobDate(job.createdAt)}
+                </TableCell>
+                <TableCell className="text-center text-sm">
+                  {formatJobDate(job.updatedAt)}
+                </TableCell>
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
       {jobs.length > 4 && (

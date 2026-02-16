@@ -14,7 +14,7 @@ export const useToasts = () => {
             shadow: 'lg',
             shouldShowTimeoutProgress: true
         })
-    }, [addToast])
+    }, [])
 
     return {
         showToast

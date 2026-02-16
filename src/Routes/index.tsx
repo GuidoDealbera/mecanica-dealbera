@@ -6,6 +6,7 @@ import AddCarPage from "../Pages/AddCarPage";
 import CarsPage from "../Pages/CarsPage";
 import ClientPage from "../Pages/ClientPage";
 import CarDetailPage from "../Pages/CarDetailPage";
+import AddJobPage from "../Pages/AddJobPage";
 
 const routes: RouteObject[] = [
   {
@@ -23,6 +24,10 @@ const routes: RouteObject[] = [
   {
     path: "/cars/:licence",
     element: createElement(CarDetailPage),
+  },
+  {
+    path: "/cars/add-job",
+    element: createElement(AddJobPage)
   },
   {
     path: "/clients",

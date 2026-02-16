@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React from "react";
 import { CreateCarBody } from "../../Types/apiTypes";
 import { Autocomplete, AutocompleteItem, Button, Input } from "@heroui/react";
 import { Controller, useForm } from "react-hook-form";
@@ -25,7 +25,7 @@ const AddCarForm: React.FC<AddCarFormProps> = ({
   readonly,
 }) => {
   const { getAllClients } = useClientQueries();
-  const INITIAL_STATE: Partial<CreateCarBody> = {
+  const INITIAL_STATE: Partial<CreateCarBody> = React.useMemo(() => ({
     brand: undefined,
     kilometers: undefined,
     licensePlate: "",
@@ -38,8 +38,8 @@ const AddCarForm: React.FC<AddCarFormProps> = ({
       phone: "",
     },
     year: undefined,
-  };
-  const [selectedOwner, setSelectedOwner] = useState<Clients | undefined>();
+  }), []);
+  const [selectedOwner, setSelectedOwner] = React.useState<Clients | undefined>();
 
   const form = useForm<CreateCarBody>({
     mode: "onChange",
@@ -56,7 +56,7 @@ const AddCarForm: React.FC<AddCarFormProps> = ({
   } = form;
   const { allClients } = useSelector((state: RootState) => state.clients);
 
-  const filterClient = useCallback(
+  const filterClient = React.useCallback(
     (fullname: string | null) => {
       const filtered = allClients.find(
         (client) => client.fullname === fullname
@@ -66,7 +66,7 @@ const AddCarForm: React.FC<AddCarFormProps> = ({
     [allClients]
   );
 
-  const clientsNames = useMemo(() => {
+  const clientsNames = React.useMemo(() => {
     if (!allClients || allClients.length === 0) return null;
     return allClients.map((client) => ({
       key: client.fullname,
@@ -90,17 +90,17 @@ const AddCarForm: React.FC<AddCarFormProps> = ({
       !values.year
     );
   };
-  useEffect(() => {
+  React.useEffect(() => {
     if (isDirty && areValuesInitial(watchedValues)) {
       reset(INITIAL_STATE);
     }
-  }, [watchedValues, isDirty, reset]);
+  }, [watchedValues, isDirty, reset, INITIAL_STATE]);
 
-  useEffect(() => {
+  React.useEffect(() => {
     getAllClients();
   }, [getAllClients]);
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (selectedOwner) {
       setValue("owner.address" as const, selectedOwner.address);
       setValue("owner.city" as const, selectedOwner.city);
@@ -116,17 +116,17 @@ const AddCarForm: React.FC<AddCarFormProps> = ({
     }
   }, [selectedOwner, setValue]);
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (!isEditing && initialValues) {
       reset(initialValues);
     }
   }, [initialValues, isEditing, reset]);
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (initialValues) {
       reset(initialValues);
     }
-  }, [initialValues]);
+  }, [initialValues, reset]);
   return (
     <FormWrapper form={form}>
       <form noValidate onSubmit={handleSubmit(onSubmit)} className="p-3">
@@ -142,7 +142,7 @@ const AddCarForm: React.FC<AddCarFormProps> = ({
                 required: { value: true, message: "Campo obligatorio" },
                 validate: (value) => {
                   if (value.length < 4) {
-                    return "El nombre es mui corto";
+                    return "El nombre es muy corto";
                   }
                   return true;
                 },

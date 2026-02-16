@@ -1,6 +1,7 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "../Store/store";
-import { CreateCarBody, UpdateCar, UpdateJobBody } from "../Types/apiTypes";
+import { CreateCarBody, CreateCarJob, UpdateJobBody } from "../Types/apiTypes";
 import {
   createCar,
   fetchCarByLicence,
@@ -8,20 +9,17 @@ import {
   deleteCar,
   updateJobInCar,
   updatedCar,
+  addJob
 } from "../Store/carAsync.methods";
 import { useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  cleanCarsState,
-  cleanCarState,
-  cleanError,
-} from "../Store/carSlice";
+import { cleanCarsState, cleanCarState, cleanError } from "../Store/carSlice";
 import { setByPassNavigation } from "../Utils/utils";
 import { useToasts } from "./useToasts";
 import { CarActions } from "../Constants/car.constants";
 
 export const useCarQueries = () => {
-  const {showToast} = useToasts()
+  const { showToast } = useToasts();
   const navigate = useNavigate();
   const dispatch = useDispatch<AppDispatch>();
 
@@ -43,12 +41,12 @@ export const useCarQueries = () => {
           },
         };
         const response = await dispatch(createCar(data)).unwrap();
-        showToast(response.message, 'success', CarActions.CREATE);
+        showToast(response.message, "success", CarActions.CREATE);
         setByPassNavigation(true);
         navigate("/cars");
         return response;
       } catch (error: any) {
-        showToast(error.message, 'danger', CarActions.CREATE);
+        showToast(error.message, "danger", CarActions.CREATE);
         return error;
       } finally {
         setLoading(false);
@@ -72,9 +70,13 @@ export const useCarQueries = () => {
     setRefreshing(true);
     try {
       await dispatch(fetchCars()).unwrap();
-      showToast("Datos actualizados correctamente", 'success', CarActions.REFRESH);
+      showToast(
+        "Datos actualizados correctamente",
+        "success",
+        CarActions.REFRESH
+      );
     } catch (error) {
-      showToast("Error al actualizar los datos", 'danger', CarActions.REFRESH);
+      showToast("Error al actualizar los datos", "danger", CarActions.REFRESH);
       return error;
     } finally {
       setRefreshing(false);
@@ -86,9 +88,17 @@ export const useCarQueries = () => {
       setRefreshing(true);
       try {
         await dispatch(fetchCarByLicence(licence)).unwrap();
-        showToast("Datos actualizados exitosamente", 'success', CarActions.REFRESH);
+        showToast(
+          "Datos actualizados exitosamente",
+          "success",
+          CarActions.REFRESH
+        );
       } catch (error) {
-        showToast("Error al actualizar los datos", 'danger', CarActions.REFRESH);
+        showToast(
+          "Error al actualizar los datos",
+          "danger",
+          CarActions.REFRESH
+        );
         return error;
       } finally {
         setRefreshing(false);
@@ -103,7 +113,7 @@ export const useCarQueries = () => {
       try {
         await dispatch(fetchCarByLicence(licence));
       } catch (error: any) {
-        showToast(error.message, 'danger', CarActions.FETCH);
+        showToast(error.message, "danger", CarActions.FETCH);
         return error;
       } finally {
         setLoading(false);
@@ -117,9 +127,9 @@ export const useCarQueries = () => {
       setLoading(true);
       try {
         const response = await dispatch(deleteCar(licence)).unwrap();
-        showToast(response.message, 'success', CarActions.DELETE);
+        showToast(response.message, "success", CarActions.DELETE);
       } catch (error: any) {
-        showToast(error.message, 'danger', CarActions.DELETE);
+        showToast(error.message, "danger", CarActions.DELETE);
         return error;
       } finally {
         setLoading(false);
@@ -128,50 +138,59 @@ export const useCarQueries = () => {
     [dispatch, showToast]
   );
 
-  const updateCar = useCallback(async(carId: string, data: UpdateCar) => {
+  const updateCar = useCallback(
+    async (carId: string, kilometers: number) => {
+      setLoading(true);
+      try {
+        const response = await dispatch(
+          updatedCar({ carId, kilometers })
+        ).unwrap();
+        if (response.result) {
+          showToast(response.message, "success", CarActions.UPDATE);
+        } else {
+          showToast(response.message, "warning", CarActions.UPDATE);
+        }
+      } catch (error: any) {
+        showToast(error.message, "danger", CarActions.UPDATE);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [dispatch, showToast]
+  );
+
+  const addCarJob = useCallback(async (licence: string, job: CreateCarJob) => {
     setLoading(true)
     try {
-      const response = await dispatch(updatedCar({carId, data})).unwrap()
-      showToast(response.message, 'success', CarActions.UPDATE)
+      const response = await dispatch(addJob({licence, job})).unwrap()
+      showToast(response.message, 'success', CarActions.JOB_CREATE)
+      return response
     } catch (error: any) {
-      showToast(error.message, 'danger', CarActions.UPDATE)
+      showToast(error.message, 'danger', CarActions.JOB_CREATE)
+      return error
     } finally {
       setLoading(false)
     }
-  }, [dispatch, showToast])
+  }, [showToast, dispatch])
 
-  // const createCarJob = useCallback(
-  //   async (id: string, data: CreateCarJob) => {
-  //     setLoading(true);
-  //     try {
-  //       const response = await dispatch(createJob({ id, data })).unwrap();
-  //       showToast(response.message as string, 'success', CarActions.JOB_CREATE);
-  //       setByPassNavigation(true);
-  //       navigate("/cars");
-  //       return response;
-  //     } catch (error: any) {
-  //       showToast(error.message, 'danger', CarActions.JOB_CREATE);
-  //       return error;
-  //     } finally {
-  //       setLoading(false);
-  //     }
-  //   },
-  //   [dispatch, navigate]
-  // );
-
-  const updateJob = useCallback(async(licence: string, jobId: string, body: UpdateJobBody) => {
-    setLoading(true);
-    try {
-      const response = await dispatch(updateJobInCar({licence, jobId, body})).unwrap();
-      showToast(response.message as string, 'success', CarActions.JOB_UPDATE);
-      return response;
-    } catch (error: any) {
-      showToast(error.message, 'danger', CarActions.JOB_UPDATE);
-      return error;
-    } finally {
-      setLoading(false);
-    }
-  }, [dispatch, showToast])
+  const updateJob = useCallback(
+    async (licence: string, jobId: string, body: UpdateJobBody) => {
+      setLoading(true);
+      try {
+        const response = await dispatch(
+          updateJobInCar({ licence, jobId, body })
+        ).unwrap();
+        showToast(response.message as string, "success", CarActions.JOB_UPDATE);
+        return response;
+      } catch (error: any) {
+        showToast(error.message, "danger", CarActions.JOB_UPDATE);
+        return error;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [dispatch, showToast]
+  );
 
   const clean = useCallback(() => {
     dispatch(cleanCarState());
@@ -195,8 +214,8 @@ export const useCarQueries = () => {
     create,
     getAllCars,
     getCarDetail,
-    // createCarJob,
     updateCar,
+    addCarJob,
     updateJob,
     refresh,
     deleteOneCar,

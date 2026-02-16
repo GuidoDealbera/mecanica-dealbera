@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { UseFormReturn } from 'react-hook-form'
 import CustomDialog from '../CustomDialog'
 import { useFormGuard } from '../../Hooks/useFormGuard'
