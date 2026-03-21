@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { APIResponse } from "../Types/apiTypes";
 import { Client } from "../Types/types";
 
@@ -9,7 +8,7 @@ export const clientService = {
   getOne: async (fullname:string): Promise<APIResponse> => {
     return await window.api.clients.getByName(fullname)
   },
-  update: async (updateClientDto: Partial<any>): Promise<APIResponse> => {
+  update: async (updateClientDto: Partial<Client>): Promise<APIResponse> => {
     return await window.api.clients.update(updateClientDto)
   }
 };

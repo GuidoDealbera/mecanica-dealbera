@@ -1,4 +1,4 @@
-import { IsInt, Matches, Min } from 'class-validator';
+import { IsInt, Matches, Min } from "class-validator";
 import {
   BeforeInsert,
   BeforeUpdate,
@@ -8,20 +8,20 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
-} from 'typeorm';
-import { Client } from './client.entity';
-import { Jobs } from '../Types/car.dto';
-import { CarsBrands } from '../Types/enums';
-import type {CarBrand} from '../Types/enums'
+} from "typeorm";
+import { Client } from "./client.entity";
+import { Jobs } from "../Types/car.dto";
+import { CarsBrands } from "../Types/enums";
+import type { CarBrand } from "../Types/enums";
 
-@Entity({ name: 'car' })
+@Entity({ name: "car" })
 export class Car {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn("uuid")
   id!: string;
 
-  @Column('varchar', { length: 7, unique: true })
+  @Column("varchar", { length: 7, unique: true })
   @Matches(/^([A-Z]{2}\d{3}[A-Z]{2}|[A-Z]{3}\d{3})$/, {
-    message: 'La patente debe tener el formato AA123BB o ABC123',
+    message: "La patente debe tener el formato AA123BB o ABC123",
   })
   licensePlate!: string;
 
@@ -29,11 +29,11 @@ export class Car {
   @BeforeUpdate()
   normalizeLicensePlate() {
     if (this.licensePlate) {
-      this.licensePlate = this.licensePlate.toUpperCase().replace(/\s+/g, '');
+      this.licensePlate = this.licensePlate.toUpperCase().replace(/\s+/g, "");
     }
   }
 
-  @Column('varchar', { unique: true, nullable: false })
+  @Column("varchar", { nullable: false })
   model!: string;
 
   @BeforeInsert()
@@ -44,24 +44,27 @@ export class Car {
     }
   }
 
-  @Column({type: 'simple-enum', enum: CarsBrands})
+  @Column({ type: "simple-enum", enum: CarsBrands })
   brand!: CarBrand;
 
-  @Column('integer', { nullable: false })
+  @Column("integer", { nullable: false })
   year!: number;
 
-  @Column('simple-json', { nullable: true })
+  @Column("simple-json", { nullable: true })
   jobs!: Jobs[];
 
-  @IsInt({ message: 'Los kilómetros deben ser un número entero' })
-  @Min(0, { message: 'Los kilómetros no pueden ser negativos' })
-  @Column('integer', { nullable: false })
+  @IsInt({ message: "Los kilómetros deben ser un número entero" })
+  @Min(0, { message: "Los kilómetros no pueden ser negativos" })
+  @Column("integer", { nullable: false })
   kilometers!: number;
 
-  @CreateDateColumn({ type: 'datetime' })
+  @Column("simple-json", { nullable: true })
+  kmHistory!: { km: number; date: string }[];
+
+  @CreateDateColumn({ type: "datetime" })
   createdAt!: Date;
 
-  @UpdateDateColumn({ type: 'datetime' })
+  @UpdateDateColumn({ type: "datetime" })
   updatedAt!: Date;
 
   @ManyToOne(() => Client, (client) => client.cars, { nullable: true })

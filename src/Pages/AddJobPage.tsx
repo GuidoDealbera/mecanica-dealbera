@@ -17,10 +17,10 @@ const AddJobPage: React.FC = () => {
   }, [getAllCars, cleanCars]);
 
   React.useEffect(() => {
-    if (state.licensePlate) {
-      setSelectedLicense(state.licensePlate);
+    if (state?.license) {
+      setSelectedLicense(state.license);
     }
-  }, [selectedLicense, state]);
+  }, [state]);
 
   const handleSubmit = async (data: CreateCarJob) => {
     return await addCarJob(selectedLicense, data);

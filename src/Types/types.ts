@@ -1,6 +1,10 @@
 import type { CarBrand } from "../Utils/utils";
 import { JobStatus } from "./apiTypes";
 
+export interface KmRecord {
+  km: number
+  date: string
+}
 export interface Client {
   id: string;
   fullname: string;
@@ -8,6 +12,8 @@ export interface Client {
   address: string;
   city: string;
   email?: string;
+  isActive: boolean
+  createdAt?: string
   cars?: Car[];
 }
 
@@ -23,6 +29,7 @@ export interface Car {
   year: number;
   jobs: Jobs[];
   kilometers: number;
+  kmHistory?: KmRecord[];
   owner: Client;
   createdAt: Date;
   updatedAt: Date;
@@ -67,4 +74,35 @@ export interface CarState {
     deleting: boolean;
   };
   error: Error | null;
+}
+
+export interface DashboardStats {
+  totalCars: number
+  totalClients: number
+  activeClients: number
+  newCarsThisMonth: number
+  newClientsThisMonth: number
+  jobsInProgress: number
+  completedThisMonth: number
+  revenueThisMonth: number
+  carsWithAlerts: number
+  recentActiveJobs: {
+    licensePlate: string
+    brand: string
+    model: string
+    description: string
+    price: number
+  }[]
+}
+
+export interface ServiceAlert {
+  licensePlate: string
+  brand: string
+  model: string
+  year: number
+  kilometers: number
+  ownerName: string
+  ownerPhone: string
+  daysSinceLastJob: number | null
+  lastJobDate: string | null
 }

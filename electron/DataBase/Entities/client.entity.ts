@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 import { Car } from './car.entity';
 
 @Entity({ name: 'client' })
@@ -21,6 +21,12 @@ export class Client {
 
   @Column('varchar', { nullable: true })
   email?: string;
+
+  @Column({type: 'boolean', default: true})
+  isActive!: boolean
+
+  @CreateDateColumn({type: 'datetime'})
+  createdAt!: Date
 
   @OneToMany(() => Car, (car) => car.owner)
   cars!: Car[];

@@ -15,24 +15,27 @@ const FilterByLicence: React.FC<Props> = ({ onFilterChange }) => {
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const newValue = e.target.value.toUpperCase();
       setValue(newValue);
-      const isValidLicence = /^([A-Z]{2}\d{3}[A-Z]{2}|[A-Z]{3}\d{3})$/.test(
-        newValue
-      );
       if (newValue === "") {
         setError(null);
+        setIsValid(false);
         onFilterChange("");
         return;
       }
-      if (isValidLicence) {
-        setIsValid(true);
-        setError(null);
-        onFilterChange(newValue);
+      const isValidLicence = /^([A-Z]{2}\d{3}[A-Z]{2}|[A-Z]{3}\d{3})$/.test(
+        newValue,
+      );
+      const isPartial = newValue.length < 6;
+      if (isValidLicence || isPartial) {
+        setIsValid(isValidLicence)
+        setError(null)
+        onFilterChange(newValue)
       } else {
-        setIsValid(false);
-        setError("Formato de patente incorrecto");
+        setIsValid(false)
+        setError('Formato de patente incorrecto')
+        onFilterChange(newValue)
       }
     },
-    [onFilterChange]
+    [onFilterChange],
   );
   return (
     <div className="relative p-1 mt-4 w-fit mb-4">
@@ -52,13 +55,13 @@ const FilterByLicence: React.FC<Props> = ({ onFilterChange }) => {
         >
           <Button
             className="absolute top-8 -right-10"
-            color={isValid ? 'primary' : 'danger'}
+            color={isValid ? "primary" : "danger"}
             isIconOnly
             type="button"
             onPress={() => {
               setValue("");
               setError(null);
-              onFilterChange("")
+              onFilterChange("");
             }}
           >
             <MdDelete size={20} />

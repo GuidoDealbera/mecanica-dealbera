@@ -8,14 +8,15 @@ import {
   updateClient,
 } from "../Store/clientAsync.methods";
 import { useToasts } from "./useToasts";
+import { Client } from "../Types/types";
 
 export const useClientQueries = () => {
-  const {showToast} = useToasts()
+  const { showToast } = useToasts();
   const dispatch = useDispatch<AppDispatch>();
   const [loading, setLoading] = useState<boolean>(false);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const { allClients, client, error, loadingStates } = useSelector(
-    (state: RootState) => state.clients
+    (state: RootState) => state.clients,
   );
 
   const getAllClients = useCallback(async () => {
@@ -40,43 +41,58 @@ export const useClientQueries = () => {
         setLoading(false);
       }
     },
-    [dispatch]
+    [dispatch],
   );
 
   const refresh = useCallback(async () => {
     setRefreshing(true);
     try {
       await dispatch(fetchClients()).unwrap();
-      showToast("Datos actualizados correctamente", 'success', 'Actualizar');
+      showToast("Datos actualizados correctamente", "success", "Actualizar");
     } catch (error) {
-      showToast("Error al actualizar los datos", 'danger', 'Actualizar');
+      showToast("Error al actualizar los datos", "danger", "Actualizar");
       return error;
     } finally {
       setRefreshing(false);
     }
   }, [dispatch, showToast]);
 
-  const update = useCallback(async (body: any) => {
-    setLoading(true);
-    try {
-      return await dispatch(updateClient(body)).unwrap();
-    } catch (error) {
-      return error;
-    } finally {
-      setLoading(false);
-    }
-  }, [dispatch]);
+  const updateOwner = useCallback(
+    async (body: Partial<Client>, isOnly?: boolean) => {
+      setLoading(true);
+      try {
+        await dispatch(updateClient(body)).unwrap();
+        if (isOnly)
+          showToast(
+            "Cliente actualizado correctamente",
+            "success",
+            "Actualizar Cliente",
+          );
+      } catch (error) {
+        if (isOnly)
+          showToast(
+            "Error al actualizar cliente",
+            "danger",
+            "Actualizar Cliente",
+          );
+        return error;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [dispatch, showToast],
+  );
 
   return {
     loading,
     refreshing,
     allClients,
-    client, 
+    client,
     error,
     loadingStates,
     getAllClients,
     getClientByName,
-    update,
+    updateOwner,
     refresh,
   };
 };

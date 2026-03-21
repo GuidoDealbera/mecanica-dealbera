@@ -4,7 +4,6 @@ import JobsTable from "../../Components/Tables/JobsTable";
 import { Button } from "@heroui/react";
 import { IoIosAddCircleOutline } from "react-icons/io";
 import { useNavigate } from "react-router-dom";
-// import { useNavigate } from "react-router-dom";
 
 interface JobsProps {
   jobs: CarJobs[];
@@ -22,7 +21,7 @@ const Jobs: React.FC<JobsProps> = ({ jobs, isLoading, license }) => {
           isDisabled={isLoading}
           startContent={<IoIosAddCircleOutline size={22} />}
           className="font-bold"
-          onPress={() => navigate("/cars/add-job?", {
+          onPress={() => navigate("/cars/add-job", {
             state: {
               license
             }
@@ -36,6 +35,7 @@ const Jobs: React.FC<JobsProps> = ({ jobs, isLoading, license }) => {
         jobs={jobs}
         isLoading={isLoading}
         noRowsLabel="No hay trabajos registrados"
+        onEditJob={() => {}}
       />
     </div>
   );

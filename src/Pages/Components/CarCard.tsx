@@ -47,13 +47,13 @@ const CarCard: React.FC<CarCardProps> = ({
       onPress={() => {
         if (!isSelected) onSelect(licensePlate);
       }}
-      className={`${isSelected ? "text-white bg-primary-700" : "text-white bg-foreground-800 hover:bg-foreground-900 active:bg-primary-600"} w-80 cursor-pointer transition-all duration-200`}
+      className={`${isSelected ? "text-white bg-primary-700" : "text-white bg-foreground-900 hover:bg-primary-700 hover:shadow-lg shadow-primary-500 active:bg-primary-600"} w-80 cursor-pointer transition-all duration-200`}
     >
       <CardHeader className="flex justify-between align-middle gap-2">
         <LicenceTable licence={licensePlate} />
         <div className="flex flex-col justify-center text-center">
           <h5 className="text-lg">{owner.fullname}</h5>
-          <h6 className="text-gray-500 text-sm font-bold">Titular</h6>
+          <h6 className="text-gray-400 text-sm font-bold">Titular</h6>
         </div>
       </CardHeader>
       <CardBody className="grid grid-cols-12">
@@ -69,7 +69,7 @@ const CarCard: React.FC<CarCardProps> = ({
               }`}
             >
               <h5>{value}</h5>
-              <h6 className="text-gray-500 text-sm font-bold">{label}</h6>
+              <h6 className="text-gray-400 text-sm font-bold">{label}</h6>
             </div>
           );
         })}

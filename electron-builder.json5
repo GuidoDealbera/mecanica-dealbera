@@ -1,43 +1,61 @@
 // @see - https://www.electron.build/configuration/configuration
 {
   "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
-  "appId": "YourAppID",
+
+  "appId": "com.dealbera.mecanica",
+  "productName": "Mecánica Dealbera",
   "asar": true,
-  "productName": "YourAppName",
+
   "directories": {
     "output": "release/${version}"
   },
+
   "files": [
     "dist",
     "dist-electron"
   ],
-  "mac": {
-    "target": [
-      "dmg"
-    ],
-    "artifactName": "${productName}-Mac-${version}-Installer.${ext}"
-  },
+
+  "extraResources": [
+    {
+      "from": "electron/splash.html",
+      "to": "splash.html"
+    }
+  ],
+
   "win": {
     "target": [
       {
         "target": "nsis",
-        "arch": [
-          "x64"
-        ]
+        "arch": ["x64"]
       }
     ],
+    "icon": "public/logo-grande.png",
     "artifactName": "${productName}-Windows-${version}-Setup.${ext}"
   },
+
   "nsis": {
     "oneClick": false,
     "perMachine": false,
     "allowToChangeInstallationDirectory": true,
-    "deleteAppDataOnUninstall": false
+    "deleteAppDataOnUninstall": false,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "shortcutName": "Mecánica Dealbera",
+    "installerIcon": "public/logo-grande.png",
+    "uninstallerIcon": "public/logo-grande.png"
   },
+
+  "mac": {
+    "target": ["dmg"],
+    "icon": "public/logo-grande.png",
+    "artifactName": "${productName}-Mac-${version}-Installer.${ext}",
+    "gatekeeperAssess": false
+  },
+
   "linux": {
-    "target": [
-      "AppImage"
-    ],
-    "artifactName": "${productName}-Linux-${version}.${ext}"
+    "target": ["AppImage"],
+    "icon": "public/logo-grande.png",
+    "artifactName": "${productName}-Linux-${version}.${ext}",
+    "category": "Utility"
   }
 }

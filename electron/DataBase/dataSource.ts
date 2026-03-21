@@ -14,7 +14,7 @@ export const AppDataSource = new DataSource({
     subscribers: []
 })
 
-function getDBPath () {
+export function getDBPath () {
     if(process.env.NODE_ENV === 'development'){
         return path.join(process.cwd(), 'data', 'taller.db');
     } else {
@@ -34,6 +34,15 @@ export const initializeDB = async () => {
         return AppDataSource
     } catch (error) {
         console.error('Error al inicializar la base de datos: ', error)
+        const {dialog} = await import('electron')
+        dialog.showErrorBox(
+            'Error de Base de Datos',
+            `
+            No se pudo inicializar la base de datos.\n\n
+            Ruta: ${getDBPath()}\n\n
+            Error: ${error instanceof Error ? error.message : String(error)}
+            `
+        )
         throw error
     }
 }

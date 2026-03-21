@@ -1,12 +1,13 @@
 import { ipcMain } from "electron";
 import { CreateCarDto, Jobs, UpdateJobDto } from "../Types/car.dto";
 import { getRepositories } from "../dataSource";
-import {v4} from "uuid"
+import { v4 } from "uuid";
 import { CreateCarJob } from "../../../src/Types/apiTypes";
+import { Like } from "typeorm";
 
 ipcMain.handle("car:create", async (_event, createCarDto: CreateCarDto) => {
-  const carRepo = getRepositories().carRepository;
-  const clientRepo = getRepositories().clientRepository;
+  const { carRepository: carRepo, clientRepository: clientRepo } =
+    getRepositories();
   const existingCar = await carRepo.findOne({
     where: {
       licensePlate: createCarDto.licensePlate,
@@ -34,7 +35,7 @@ ipcMain.handle("car:create", async (_event, createCarDto: CreateCarDto) => {
     if (existingPhone) {
       return {
         status: "failed",
-        message: "Teléfono ya registrado",
+        message: `El teléfono ya está registrado a nombre de ${existingPhone.fullname}`,
       };
     }
     owner = clientRepo.create(createCarDto.owner);
@@ -44,13 +45,15 @@ ipcMain.handle("car:create", async (_event, createCarDto: CreateCarDto) => {
   const newCar = carRepo.create({
     ...createCarDto,
     owner: savedOwner,
+    kmHistory: [
+      { km: createCarDto.kilometers, date: new Date().toISOString() },
+    ],
   });
 
-  await clientRepo.save(owner);
   await carRepo.save(newCar);
   return {
     status: "success",
-    message: "Automóvil registrado correctamente",
+    message: "Vehículo registrado correctamente",
   };
 });
 
@@ -74,12 +77,12 @@ ipcMain.handle(
     if (!car) {
       return {
         status: "failed",
-        message: "Automóvil no registrado",
+        message: "Vehículo no registrado",
       };
     }
     return {
       status: "success",
-      message: "Automóvil encontrado",
+      message: "Vehículo encontrado",
       result: car,
     };
   },
@@ -96,21 +99,24 @@ ipcMain.handle("car:update", async (_, id: string, kilometers: number) => {
   if (!car) {
     return {
       status: "failed",
-      message: "Automóvil no registrado",
+      message: "Vehículo no registrado",
     };
   }
   if (kilometers < car.kilometers) {
     return {
       status: "failed",
-      message: "No se pueden bajar los kilómetros de un automóvil",
+      message: "No se pueden bajar los kilómetros de un vehículo",
     };
   }
-  car.kilometers = kilometers;
+  const history = Array.isArray(car.kmHistory) ? [...car.kmHistory] : []
+  history.push({km: kilometers, date: new Date().toISOString()})
+  car.kmHistory = history
+  car.kilometers = kilometers
 
   const savedCar = await carRepo.save(car);
   return {
     status: "success",
-    message: "Automóvil actualizado correctamente",
+    message: "Vehículo actualizado correctamente",
     result: savedCar,
   };
 });
@@ -129,7 +135,7 @@ ipcMain.handle(
     if (!carToDelete) {
       return {
         status: "failed",
-        message: "Automóvil no registrado",
+        message: "Vehículo no registrado",
       };
     }
     const owner = carToDelete.owner;
@@ -147,42 +153,45 @@ ipcMain.handle(
     }
     return {
       status: "success",
-      message: "Automóvil eliminado exitosamente",
+      message: "Vehículo eliminado exitosamente",
     };
   },
 );
 
-ipcMain.handle("car:add-job", async (_, license: string, jobDto: CreateCarJob) => {
-  const repo = getRepositories().carRepository;
-  const car = await repo.findOne({
-    where: { licensePlate: license }
-  })
-  if(!car){
-    return {
-      status: 'failed',
-      message: "Automóvil no registrado"
+ipcMain.handle(
+  "car:add-job",
+  async (_, license: string, jobDto: CreateCarJob) => {
+    const repo = getRepositories().carRepository;
+    const car = await repo.findOne({
+      where: { licensePlate: license },
+    });
+    if (!car) {
+      return {
+        status: "failed",
+        message: "Vehículo no registrado",
+      };
     }
-  }
 
-  const newJob: Jobs = {
-    id: v4(),
-    price: jobDto.price as number,
-    description: jobDto.description,
-    isThirdParty: jobDto.isThirdParty,
-    status: jobDto.status,
-    createdAt: new Date(),
-    updatedAt: new Date
-  }
+    const newJob: Jobs = {
+      id: v4(),
+      price: jobDto.price as number,
+      description: jobDto.description,
+      isThirdParty: jobDto.isThirdParty,
+      status: jobDto.status,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
 
-  car.jobs = Array.isArray(car.jobs) ? [...car.jobs, newJob] : [newJob]
+    car.jobs = Array.isArray(car.jobs) ? [...car.jobs, newJob] : [newJob];
 
-  await repo.save(car)
-  return {
-    status: 'success',
-    message: "Trabajao registrado exitosamente",
-    result: newJob
-  }
-});
+    await repo.save(car);
+    return {
+      status: "success",
+      message: "Trabajo registrado exitosamente",
+      result: newJob,
+    };
+  },
+);
 
 ipcMain.handle("car:find-jobs", async () => {
   const repo = getRepositories().carRepository;
@@ -209,7 +218,7 @@ ipcMain.handle(
     if (!car) {
       return {
         status: "failed",
-        message: "Automóvil no registrado",
+        message: "Vehículo no registrado",
       };
     }
     if (car.jobs) {
@@ -217,7 +226,7 @@ ipcMain.handle(
       if (jobIndex === undefined || jobIndex === -1) {
         return {
           status: "failed",
-          message: `El automóvil registrado con patente ${license} no tiene registrado el trabajo que intenta modificar`,
+          message: `El vehículo registrado con patente ${license} no tiene registrado el trabajo que intenta modificar`,
         };
       }
       car.jobs[jobIndex] = {
@@ -238,3 +247,113 @@ ipcMain.handle(
     };
   },
 );
+
+ipcMain.handle("car:service-alerts", async () => {
+  const repo = getRepositories().carRepository;
+  const cars = await repo.find({ relations: ["owner"] });
+  const sixMonthsAgo = new Date();
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+  const threeMontsAgo = new Date();
+  threeMontsAgo.setMonth(threeMontsAgo.getMonth() - 3);
+
+  const alerts = cars
+    .filter((car) => {
+      if (!Array.isArray(car.jobs) || car.jobs.length === 0) {
+        return new Date(car.createdAt) < threeMontsAgo;
+      }
+      const lastJobDate = car.jobs.reduce((latest, job) => {
+        const d = new Date((job.updatedAt || job.createdAt) as Date);
+        return d > latest ? d : latest;
+      }, new Date(0));
+      return lastJobDate < sixMonthsAgo;
+    })
+    .map((car) => {
+      const lastJob =
+        Array.isArray(car.jobs) && car.jobs.length > 0
+          ? car.jobs.reduce((latest, job) => {
+              const d = new Date((job.updatedAt || job.createdAt) as Date);
+              return d >
+                new Date((latest.updatedAt || latest.createdAt) as Date)
+                ? job
+                : latest;
+            })
+          : null;
+
+      const daysSince = lastJob
+        ? Math.floor(
+            (Date.now() -
+              new Date(
+                (lastJob.updatedAt || lastJob.createdAt) as Date,
+              ).getTime()) /
+              86400000,
+          )
+        : null;
+
+      return {
+        licencePlate: car.licensePlate,
+        brand: car.brand,
+        model: car.model,
+        year: car.year,
+        ownerName: car.owner.fullname,
+        ownerPhone: car.owner.phone,
+        daysSinceLastJob: daysSince,
+        lastJobDate: lastJob
+          ? new Date(
+              (lastJob.updatedAt || lastJob.createdAt) as Date,
+            ).toISOString()
+          : null,
+      };
+    });
+
+  return {
+    status: "success",
+    result: alerts,
+  };
+});
+
+ipcMain.handle("global:search", async (_, query: string) => {
+  if (!query || query.trim().length < 2) {
+    return {
+      status: "success",
+      cars: [],
+      clients: [],
+    };
+  }
+  const { carRepository: carRepo, clientRepository: clientRepo } =
+    getRepositories();
+  const q = query.trim();
+
+  const [cars, clients] = await Promise.all([
+    carRepo.find({
+      where: [
+        { licensePlate: Like(`%${q.toUpperCase()}%`) },
+        { model: Like(`%${q.toUpperCase()}%`) },
+      ],
+      relations: ["owner"],
+      take: 6,
+    }),
+    clientRepo.find({
+      where: [{ fullname: Like(`%${q}%`) }, { phone: Like(`%${q}%`) }],
+      take: 6,
+    }),
+  ]);
+
+  return {
+    status: "success",
+    cars: cars.map((car) => ({
+      id: car.id,
+      licensePlate: car.licensePlate,
+      brand: car.brand,
+      model: car.model,
+      year: car.year,
+      ownerName: car.owner.fullname,
+    })),
+    clients: clients.map((client) => ({
+      id: client.id,
+      fullname: client.fullname,
+      phone: client.phone,
+      city: client.city,
+      isActive: client.isActive,
+    })),
+  };
+});

@@ -1,6 +1,7 @@
 import React from "react";
 import { Jobs } from "../../Types/types";
 import {
+  Button,
   Chip,
   Pagination,
   Table,
@@ -9,8 +10,10 @@ import {
   TableColumn,
   TableHeader,
   TableRow,
+  Tooltip,
 } from "@heroui/react";
 import { JobStatus } from "../../Types/apiTypes";
+import { MdEdit } from "react-icons/md";
 interface JobsProps {
   jobs: Jobs[];
   isLoading: boolean;
@@ -172,6 +175,20 @@ const JobsTable: React.FC<JobsProps> = ({
                 </TableCell>
                 <TableCell className="text-center text-sm">
                   {formatJobDate(job.updatedAt)}
+                </TableCell>
+                <TableCell className="text-center">
+                {onEditJob && (
+                    <Tooltip content="Editar trabajo" color="primary">
+                      <Button
+                        isIconOnly
+                        size="sm"
+                        className="bg-transparent"
+                        onPress={() => onEditJob(job)}
+                      >
+                        <MdEdit size={20} className="text-primary-600" />
+                      </Button>
+                    </Tooltip>
+                )}
                 </TableCell>
               </TableRow>
             );

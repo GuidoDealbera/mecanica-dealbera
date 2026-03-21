@@ -1,13 +1,45 @@
-import {
-  CreateCarDto,
-  UpdateCarDto,
-  UpdateJobDto,
-} from "./electron/database/Types/car.dto";
+import { CreateCarDto, UpdateCarDto, UpdateJobDto } from "./electron/DataBase/Types/car.dto";
 import { CreateClientDto } from "./electron/DataBase/Types/client.dto";
 import { ApiResponse } from "./electron/DataBase/Types/types";
 import { APIResponse, CreateCarJob } from "./src/Types/apiTypes";
 import { Car, Client, Jobs } from "./src/Types/types";
 export {};
+
+interface DashboardStats {
+  totalCars: number;
+  totalClients: number;
+  activeClients: number;
+  newCarsThisMonth: number;
+  newClientsThisMonth: number;
+  jobsInProgress: number;
+  completedThisMonth: number;
+  revenueThisMonth: number;
+  carsWithAlerts: number;
+  recentActiveJobs: {
+    licensePlate: string;
+    brand: string;
+    model: string;
+    description: string;
+    price: number;
+  }[];
+}
+
+interface ServiceAlert {
+  licensePlate: string;
+  brand: string;
+  model: string;
+  year: number;
+  kilometers: number;
+  ownerName: string;
+  ownerPhone: string;
+  daysSinceLastJob: number | null;
+  lastJobDate: string | null;
+}
+
+interface SearchResult {
+  cars: { id: string; licensePlate: string; brand: string; model: string; year: number; ownerName: string }[];
+  clients: { id: string; fullname: string; phone: string; city: string; isActive: boolean }[];
+}
 
 declare global {
   interface Window {
@@ -16,26 +48,38 @@ declare global {
         create: (car: CreateCarDto) => Promise<APIResponse>;
         getAll: () => Promise<Car[]>;
         getByLicense: (license: string) => Promise<APIResponse>;
-        update: (
-          id: string,
-          kilometers: number
-        ) => Promise<APIResponse>;
+        update: (id: string, kilometers: number) => Promise<APIResponse>;
         delete: (licence: string) => Promise<APIResponse>;
         findJobs: () => Promise<{ licensePlate: string; jobs: Jobs[] }[]>;
-        addJob: (licence: string, job: CreateCarJob) => Promise<APIResponse>
-        updateJob: (
-          licence: string,
-          jobId: string,
-          updateJobDto: UpdateJobDto
-        ) => Promise<>;
+        addJob: (licence: string, job: CreateCarJob) => Promise<APIResponse>;
+        updateJob: (licence: string, jobId: string, updateJobDto: UpdateJobDto) => Promise<APIResponse>;
+        getServiceAlerts: () => Promise<{ status: string; result: ServiceAlert[] }>;
       };
-
       clients: {
-        create: (createClientDto: CreateClientDto) => Promise<APIResponse>;
+        create: (dto: CreateClientDto) => Promise<APIResponse>;
         getAll: () => Promise<Client[]>;
         getByName: (fullname: string) => Promise<APIResponse>;
-        update: (updateClientDto: Partial<CreateClientDto>) => Promise<APIResponse>;
+        search: (query: string) => Promise<{ status: string; results: Client[] }>;
+        update: (dto: Partial<CreateClientDto>) => Promise<APIResponse>;
+        toggleActive: (id: string) => Promise<APIResponse>;
+        delete: (id: string) => Promise<APIResponse>;
+      };
+      dashboard: {
+        getStats: () => Promise<{ status: string; result: DashboardStats }>;
+      };
+      budget: {
+        print: (data: unknown) => Promise<APIResponse>;
+        printDirect: (data: unknown) => Promise<APIResponse>;
+      };
+      backup: {
+        export: () => Promise<APIResponse>;
+        import: () => Promise<APIResponse>;
+      };
+      global: {
+        search: (query: string) => Promise<{ status: string } & SearchResult>;
       };
     };
   }
 }
+
+type _SuppressUnused = UpdateCarDto | ApiResponse;

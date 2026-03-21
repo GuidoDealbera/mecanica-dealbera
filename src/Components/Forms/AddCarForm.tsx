@@ -10,7 +10,7 @@ import { RootState } from "../../Store/store";
 import { useClientQueries } from "../../Hooks/useClientQueries";
 
 interface AddCarFormProps {
-  onSubmit: (data: CreateCarBody) => void;
+  onSubmit: (data: CreateCarBody) => Promise<void>;
   isLoading?: boolean;
   initialValues?: Partial<Cars>;
   isEditing?: boolean;
@@ -36,6 +36,7 @@ const AddCarForm: React.FC<AddCarFormProps> = ({
       email: "",
       fullname: "",
       phone: "",
+      isActive: true
     },
     year: undefined,
   }), []);
@@ -117,12 +118,6 @@ const AddCarForm: React.FC<AddCarFormProps> = ({
   }, [selectedOwner, setValue]);
 
   React.useEffect(() => {
-    if (!isEditing && initialValues) {
-      reset(initialValues);
-    }
-  }, [initialValues, isEditing, reset]);
-
-  React.useEffect(() => {
     if (initialValues) {
       reset(initialValues);
     }
@@ -147,7 +142,7 @@ const AddCarForm: React.FC<AddCarFormProps> = ({
                   return true;
                 },
               }}
-              disabled={isLoading || readonly}
+              disabled={isLoading || readonly || isEditing}
               render={({ field, fieldState: { error } }) =>
                 !initialValues && clientsNames && clientsNames.length >= 1 ? (
                   <Autocomplete
@@ -165,7 +160,7 @@ const AddCarForm: React.FC<AddCarFormProps> = ({
                     defaultItems={clientsNames}
                     fullWidth
                     isRequired
-                    isDisabled={isLoading || readonly}
+                    isDisabled={isLoading || readonly || isEditing}
                     isInvalid={!!error}
                     errorMessage={error?.message}
                   >
@@ -178,7 +173,7 @@ const AddCarForm: React.FC<AddCarFormProps> = ({
                 ) : (
                   <Input
                     {...field}
-                    isDisabled={isLoading || readonly}
+                    isDisabled={isLoading || readonly || isEditing}
                     label="Nombre completo"
                     onChange={handleCapitalizedChange(field.onChange)}
                     isRequired
@@ -290,7 +285,7 @@ const AddCarForm: React.FC<AddCarFormProps> = ({
                   message: "Formato inválido",
                 },
               }}
-              disabled={isLoading || readonly}
+              disabled={isLoading || readonly || isEditing}
               render={({ field, fieldState: { error } }) => (
                 <Input
                   {...field}
@@ -311,14 +306,14 @@ const AddCarForm: React.FC<AddCarFormProps> = ({
               rules={{
                 required: { value: true, message: "Campo obligatorio" },
               }}
-              disabled={isLoading || readonly}
-              render={({ field, fieldState: { error } }) => (
+              disabled={isLoading || readonly || isEditing}
+              render={({ field: {value, onChange, ref}, fieldState: { error } }) => (
                 <Autocomplete
-                  {...field}
                   label="Marca"
-                  selectedKey={initialValues ? initialValues.brand : ''}
+                  ref={ref}
+                  selectedKey={value ?? null}
                   allowsCustomValue={false}
-                  onSelectionChange={(key) => field.onChange(key)}
+                  onSelectionChange={(key) => onChange(key)}
                   defaultItems={BRANDS_OPTIONS}
                   fullWidth
                   isRequired
@@ -340,7 +335,7 @@ const AddCarForm: React.FC<AddCarFormProps> = ({
               rules={{
                 required: { value: true, message: "Campo obligatorio" },
               }}
-              disabled={isLoading || readonly}
+              disabled={isLoading || readonly || isEditing}
               render={({ field, fieldState: { error } }) => (
                 <Input
                   {...field}
@@ -366,7 +361,7 @@ const AddCarForm: React.FC<AddCarFormProps> = ({
                   return true;
                 },
               }}
-              disabled={isLoading || readonly}
+              disabled={isLoading || readonly || isEditing}
               render={({
                 field: { value, onChange, ...field },
                 fieldState: { error },
