@@ -90,6 +90,9 @@ const CarDetailPage: React.FC = () => {
     }
   };
 
+  const jobs = React.useMemo(() => car?.jobs ?? [], [car?.jobs])
+  const kmHistory = React.useMemo(() => car?.kmHistory ?? [], [car?.kmHistory])
+
   // ── Loading inicial ────────────────────────────────────────────────────
   if (isLoading && !car) {
     return (
@@ -114,7 +117,6 @@ const CarDetailPage: React.FC = () => {
     car.jobs?.filter((j) => j.status === JobStatus.IN_PROGRESS).length ?? 0;
   const pending =
     car.jobs?.filter((j) => j.status === JobStatus.PENDING).length ?? 0;
-
   return (
     <div className="w-full bg-foreground-800 rounded-xl p-3 min-h-full flex flex-col gap-4 text-white">
       {/* ═══════════════════════════════════════════════════════════════════
@@ -193,7 +195,7 @@ const CarDetailPage: React.FC = () => {
 
             {/* Acciones */}
             <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
-              <BudgetButton car={car} jobs={car.jobs ?? []} />
+              <BudgetButton car={car} jobs={jobs} />
               <Button
                 isDisabled={isEditing || isLoading}
                 startContent={<MdHistory size={16} />}
@@ -221,7 +223,7 @@ const CarDetailPage: React.FC = () => {
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 items-start">
         {/* Columna principal: trabajos */}
         <div className="xl:col-span-2">
-          <Jobs jobs={car.jobs ?? []} isLoading={isLoading} license={licence} />
+          <Jobs jobs={jobs} isLoading={isLoading} license={licence} />
         </div>
 
         {/* Sidebar: info del vehículo + titular */}
@@ -367,7 +369,7 @@ const CarDetailPage: React.FC = () => {
       <KmHistoryModal
         isOpen={kmHistoryOpen}
         onClose={() => setKmHistoryOpen(false)}
-        kmHistory={car.kmHistory ?? []}
+        kmHistory={kmHistory}
         currentKm={car.kilometers}
         licensePlate={licence}
       />
