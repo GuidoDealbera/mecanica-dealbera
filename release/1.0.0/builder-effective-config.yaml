@@ -1,0 +1,44 @@
+directories:
+  output: release/${version}
+  buildResources: build
+$schema: https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json
+appId: com.dealbera.mecanica
+productName: Mecánica Dealbera
+asar: true
+files:
+  - filter:
+      - dist
+      - dist-electron
+extraResources:
+  - from: electron/splash.html
+    to: splash.html
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: public/logo-grande.png
+  artifactName: ${productName}-Windows-${version}-Setup.${ext}
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  deleteAppDataOnUninstall: false
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Mecánica Dealbera
+  installerIcon: public/logo-grande.png
+  uninstallerIcon: public/logo-grande.png
+mac:
+  target:
+    - dmg
+  icon: public/logo-grande.png
+  artifactName: ${productName}-Mac-${version}-Installer.${ext}
+  gatekeeperAssess: false
+linux:
+  target:
+    - AppImage
+  icon: public/logo-grande.png
+  artifactName: ${productName}-Linux-${version}.${ext}
+  category: Utility
+electronVersion: 30.5.1

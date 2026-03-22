@@ -5,7 +5,7 @@ import { Car } from "./Entities/car.entity";
 import { Client } from "./Entities/client.entity";
 
 export const AppDataSource = new DataSource({
-    type: 'sqlite',
+    type: 'better-sqlite3',
     database: getDBPath(),
     entities: [Car, Client],
     synchronize: true,

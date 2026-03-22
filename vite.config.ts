@@ -20,7 +20,7 @@ export default defineConfig({
                        id.startsWith('typeorm/') ||
                        id === '@google-cloud/spanner' ||
                        id.startsWith('@google-cloud/') ||
-                       ['sqlite3', 'better-sqlite3', 'mysql2', 'pg', 'mongodb'].includes(id)
+                       ['better-sqlite3', 'mysql2', 'pg', 'mongodb'].includes(id)
               }
             }
           }
