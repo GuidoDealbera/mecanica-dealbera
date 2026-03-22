@@ -7,7 +7,7 @@
   "asar": true,
 
   "directories": {
-    "output": "release/${version}"
+    "output": "C:/Users/ASUS/Downloads/MecanicaDealbera-Release"
   },
 
   "files": [
@@ -40,9 +40,7 @@
     "deleteAppDataOnUninstall": false,
     "createDesktopShortcut": true,
     "createStartMenuShortcut": true,
-    "shortcutName": "Mecánica Dealbera",
-    "installerIcon": "public/logo-grande.png",
-    "uninstallerIcon": "public/logo-grande.png"
+    "shortcutName": "Mecánica Dealbera"
   },
 
   "mac": {
