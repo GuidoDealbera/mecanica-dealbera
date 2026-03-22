@@ -4,6 +4,7 @@ import { getRepositories } from "../dataSource";
 import { v4 } from "uuid";
 import { CreateCarJob } from "../../../src/Types/apiTypes";
 import { Like } from "typeorm";
+import { CreateClientDto } from "../Types/client.dto";
 
 ipcMain.handle("car:create", async (_event, createCarDto: CreateCarDto) => {
   const { carRepository: carRepo, clientRepository: clientRepo } =
@@ -310,6 +311,70 @@ ipcMain.handle("car:service-alerts", async () => {
     result: alerts,
   };
 });
+
+ipcMain.handle(
+  "car:reassign-owner",
+  async (
+    _,
+    licensePlate: string,
+    payload:
+      | { mode: "existing"; existingOwnerFullname: string }
+      | { mode: "new"; newOwner: CreateClientDto }
+  ) => {
+    const { carRepository: carRepo, clientRepository: clientRepo } = getRepositories();
+ 
+    const car = await carRepo.findOne({
+      where: { licensePlate },
+      relations: ["owner"],
+    });
+    if (!car) {
+      return { status: "failed", message: "Vehículo no registrado" };
+    }
+ 
+    let newOwner;
+ 
+    if (payload.mode === "existing") {
+      newOwner = await clientRepo.findOne({
+        where: { fullname: payload.existingOwnerFullname },
+      });
+      if (!newOwner) {
+        return { status: "failed", message: "El cliente seleccionado no existe" };
+      }
+      if (newOwner.id === car.owner?.id) {
+        return { status: "failed", message: "El cliente ya es el titular de este vehículo" };
+      }
+    } else {
+      // Verificar duplicado de nombre
+      const existingByName = await clientRepo.findOne({
+        where: { fullname: payload.newOwner.fullname },
+      });
+      if (existingByName) {
+        return { status: "failed", message: `Ya existe un cliente llamado "${payload.newOwner.fullname}"` };
+      }
+      // Verificar duplicado de teléfono
+      const existingByPhone = await clientRepo.findOne({
+        where: { phone: payload.newOwner.phone },
+      });
+      if (existingByPhone) {
+        return {
+          status: "failed",
+          message: `El teléfono ya está registrado a nombre de ${existingByPhone.fullname}`,
+        };
+      }
+      newOwner = clientRepo.create({ ...payload.newOwner, isActive: true });
+      await clientRepo.save(newOwner);
+    }
+ 
+    car.owner = newOwner;
+    const savedCar = await carRepo.save(car);
+ 
+    return {
+      status: "success",
+      message: `Titular actualizado a "${newOwner.fullname}"`,
+      result: savedCar,
+    };
+  }
+);
 
 ipcMain.handle("global:search", async (_, query: string) => {
   if (!query || query.trim().length < 2) {

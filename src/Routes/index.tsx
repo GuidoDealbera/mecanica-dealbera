@@ -26,12 +26,12 @@ const routes: RouteObject[] = [
     element: createElement(AddCarPage),
   },
   {
-    path: "/cars/:licence",
-    element: createElement(CarDetailPage),
-  },
-  {
     path: "/cars/add-job",
     element: createElement(AddJobPage),
+  },
+  {
+    path: "/cars/:licence",
+    element: createElement(CarDetailPage),
   },
   {
     path: "/clients",

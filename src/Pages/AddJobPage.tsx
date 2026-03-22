@@ -7,7 +7,8 @@ import { CreateCarJob } from "../Types/apiTypes";
 
 const AddJobPage: React.FC = () => {
   const { state } = useLocation();
-  const { allCars, addCarJob, getAllCars, cleanCars } = useCarQueries();
+  const { allCars, loading, addCarJob, getAllCars, cleanCars } =
+    useCarQueries();
   const [selectedLicense, setSelectedLicense] = React.useState<string>("");
 
   React.useEffect(() => {
@@ -31,8 +32,8 @@ const AddJobPage: React.FC = () => {
       <h4 className="mb-1 font-semibold text-4xl text-shadow-2xs text-shadow-primary">
         Registrar nuevo trabajo
       </h4>
-      {!selectedLicense && (
-        <h5 className="mt-4 font-semibold w-fit text-2xl py-2 px-4 bg-primary-700 rounded-md shadow shadow-primary-500">
+      {allCars.length > 0 && (
+        <h5 className="mt-4 mb-2 font-semibold w-fit text-2xl py-2 px-4 bg-primary-700 rounded-md shadow shadow-primary-500">
           Seleccione un automóvil
         </h5>
       )}
@@ -40,6 +41,7 @@ const AddJobPage: React.FC = () => {
         cars={allCars}
         selectedLicense={selectedLicense}
         onSelect={setSelectedLicense}
+        isLoading={loading}
       />
 
       <AddJobForm license={selectedLicense} onSubmit={handleSubmit} />

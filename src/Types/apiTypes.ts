@@ -3,10 +3,19 @@ import type { CarBrand } from "../Utils/utils";
 import { Client, Jobs } from "./types";
 
 export enum JobStatus {
+  PENDING = "pending",
   IN_PROGRESS = "in-progress",
   COMPLETED = "completed",
   DELIVERED = "delivered",
 }
+
+
+export const STATUS_LABELS: Record<JobStatus, string> = {
+  [JobStatus.IN_PROGRESS]: "En progreso",
+  [JobStatus.COMPLETED]: "Completado",
+  [JobStatus.DELIVERED]: "Entregado",
+  [JobStatus.PENDING]: "Sin comenzar"
+};
 
 export interface UpdateJobBody {
   status?: JobStatus;

@@ -2,39 +2,8 @@ import { CreateCarDto, UpdateCarDto, UpdateJobDto } from "./electron/DataBase/Ty
 import { CreateClientDto } from "./electron/DataBase/Types/client.dto";
 import { ApiResponse } from "./electron/DataBase/Types/types";
 import { APIResponse, CreateCarJob } from "./src/Types/apiTypes";
-import { Car, Client, Jobs } from "./src/Types/types";
+import { Car, Client, DashboardStats, Jobs, ServiceAlert } from "./src/Types/types";
 export {};
-
-interface DashboardStats {
-  totalCars: number;
-  totalClients: number;
-  activeClients: number;
-  newCarsThisMonth: number;
-  newClientsThisMonth: number;
-  jobsInProgress: number;
-  completedThisMonth: number;
-  revenueThisMonth: number;
-  carsWithAlerts: number;
-  recentActiveJobs: {
-    licensePlate: string;
-    brand: string;
-    model: string;
-    description: string;
-    price: number;
-  }[];
-}
-
-interface ServiceAlert {
-  licensePlate: string;
-  brand: string;
-  model: string;
-  year: number;
-  kilometers: number;
-  ownerName: string;
-  ownerPhone: string;
-  daysSinceLastJob: number | null;
-  lastJobDate: string | null;
-}
 
 interface SearchResult {
   cars: { id: string; licensePlate: string; brand: string; model: string; year: number; ownerName: string }[];
@@ -54,6 +23,12 @@ declare global {
         addJob: (licence: string, job: CreateCarJob) => Promise<APIResponse>;
         updateJob: (licence: string, jobId: string, updateJobDto: UpdateJobDto) => Promise<APIResponse>;
         getServiceAlerts: () => Promise<{ status: string; result: ServiceAlert[] }>;
+        reassignOwner: (
+          licensePlate: string,
+          payload:
+            | { mode: "existing"; existingOwnerFullname: string }
+            | { mode: "new"; newOwner: CreateClientDto }
+        ) => Promise<APIResponse>;
       };
       clients: {
         create: (dto: CreateClientDto) => Promise<APIResponse>;

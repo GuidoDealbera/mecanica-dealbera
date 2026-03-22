@@ -32,7 +32,7 @@ const Header = () => {
 
   const ICON_BUTTONS = [
     { path: "/alerts", icon: <MdWarning size={18} />, tooltip: "Alertas de service", color: "warning" as const },
-    { path: "/backup", icon: <MdBackup size={18} />, tooltip: "Gestión de datos", color: "default" as const },
+    { path: "/backup", icon: <MdBackup size={18} />, tooltip: "Gestión de datos", color: "primary" as const },
   ];
 
   return (
@@ -80,7 +80,6 @@ const Header = () => {
                   isIconOnly
                   radius="full"
                   color={isActive ? color : "default"}
-                  variant={isActive ? "solid" : "flat"}
                   className={isActive ? "" : "bg-foreground-700 text-foreground-300"}
                   onPress={() => navigate(path)}
                 >

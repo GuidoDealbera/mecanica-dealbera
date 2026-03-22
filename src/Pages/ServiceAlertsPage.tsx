@@ -157,7 +157,6 @@ const ServiceAlertsPage: React.FC = () => {
                       <Chip
                         size="sm"
                         color={urgency(alert.daysSinceLastJob)}
-                        variant="flat"
                       >
                         {urgencyLabel(alert.daysSinceLastJob)}
                       </Chip>
@@ -166,7 +165,6 @@ const ServiceAlertsPage: React.FC = () => {
                       <Button
                         size="sm"
                         color="primary"
-                        variant="flat"
                         onPress={() => navigate(`/cars/${alert.licensePlate}`)}
                       >
                         Ver

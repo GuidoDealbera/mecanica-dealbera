@@ -82,11 +82,27 @@ export interface DashboardStats {
   activeClients: number
   newCarsThisMonth: number
   newClientsThisMonth: number
+  pendingJobs: number
   jobsInProgress: number
   completedThisMonth: number
   revenueThisMonth: number
   carsWithAlerts: number
+  deliveredThisMonth: number
   recentActiveJobs: {
+    licensePlate: string
+    brand: string
+    model: string
+    description: string
+    price: number
+  }[]
+  recentCompletedJobs: {
+    licensePlate: string
+    brand: string
+    model: string
+    description: string
+    price: number
+  }[]
+  recentDeliveredJobs: {
     licensePlate: string
     brand: string
     model: string

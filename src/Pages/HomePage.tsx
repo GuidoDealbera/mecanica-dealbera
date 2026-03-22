@@ -2,10 +2,13 @@ import React from "react";
 import { Button, Card, CardBody, Chip, Spinner } from "@heroui/react";
 import { IoCarSportSharp } from "react-icons/io5";
 import { MdPostAdd, MdWarning, MdPeople, MdBuild } from "react-icons/md";
+import { FaSackDollar } from "react-icons/fa6";
 import { HiOutlineRefresh } from "react-icons/hi";
 import { useNavigate } from "react-router-dom";
 import { DashboardStats } from "../Types/types";
 import LicenceTable from "../Components/Licenses/LicenceTable";
+import { formatARS } from "../Utils/utils";
+import { useToasts } from "../Hooks/useToasts";
 
 const StatCard: React.FC<{
   label: string;
@@ -24,33 +27,37 @@ const StatCard: React.FC<{
       <div>
         <p className="text-foreground-400 text-sm">{label}</p>
         <p className={`text-3xl font-bold text-${color}-400`}>{value}</p>
-        {sub && <p className="text-foreground-500 text-xs mt-1">{sub}</p>}
+        {sub && <p className="text-foreground-400 text-xs mt-1">{sub}</p>}
       </div>
     </CardBody>
   </Card>
 );
 
-const formatARS = (n: number) =>
-  new Intl.NumberFormat("es-AR", {
-    style: "currency",
-    currency: "ARS",
-    maximumFractionDigits: 0,
-  }).format(n);
-
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
+  const { showToast } = useToasts();
   const [stats, setStats] = React.useState<DashboardStats | null>(null);
   const [loading, setLoading] = React.useState(false);
 
-  const fetchStats = React.useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await window.api.dashboard.getStats();
-      if (res.status === "success") setStats(res.result);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const fetchStats = React.useCallback(
+    async (refresh?: boolean) => {
+      setLoading(true);
+      try {
+        const res = await window.api.dashboard.getStats();
+        if (res.status === "success") setStats(res.result);
+        if (refresh) {
+          showToast(
+            "Datos actualizados correctamente",
+            "success",
+            "Actualizar",
+          );
+        }
+      } finally {
+        setLoading(false);
+      }
+    },
+    [showToast],
+  );
 
   React.useEffect(() => {
     fetchStats();
@@ -64,13 +71,12 @@ const HomePage: React.FC = () => {
           MECÁNICA DEALBERA
         </h1>
         <Button
-          isIconOnly
-          variant="flat"
           color="primary"
           isLoading={loading}
-          onPress={fetchStats}
+          onPress={() => fetchStats(true)}
+          startContent={!loading ? <HiOutlineRefresh size={20} /> : undefined}
         >
-          {!loading && <HiOutlineRefresh size={20} />}
+          {loading ? "Actualizando..." : "Actualizar"}
         </Button>
       </div>
 
@@ -106,9 +112,9 @@ const HomePage: React.FC = () => {
             <StatCard
               label="Ingresos del mes"
               value={formatARS(stats.revenueThisMonth)}
-              sub={`                     `}
+              sub={`${stats.deliveredThisMonth} trabajos entregados este mes`}
               color="success"
-              icon={<span className="text-lg font-bold">$</span>}
+              icon={<FaSackDollar size={22} />}
             />
           </div>
 
@@ -116,21 +122,23 @@ const HomePage: React.FC = () => {
           {stats.carsWithAlerts > 0 && (
             <Card className="bg-warning-900/30 border border-warning-700 shadow shadow-warning-800">
               <CardBody className="flex flex-row items-center gap-3 p-4">
-                <MdWarning size={24} className="text-warning-400 flex-shrink-0" />
+                <MdWarning
+                  size={24}
+                  className="text-warning-400 flex-shrink-0"
+                />
                 <div className="flex-1">
                   <p className="text-warning-300 font-semibold">
                     {stats.carsWithAlerts} vehículo
                     {stats.carsWithAlerts > 1 ? "s" : ""} sin service en los
                     últimos 6 meses
                   </p>
-                  <p className="text-warning-500 text-sm">
+                  <p className="text-warning-400 text-sm">
                     Revisalos en la sección de Autos
                   </p>
                 </div>
                 <Button
                   size="sm"
                   color="warning"
-                  variant="flat"
                   onPress={() => navigate("/cars")}
                 >
                   Ver autos
@@ -149,7 +157,7 @@ const HomePage: React.FC = () => {
                 {stats.recentActiveJobs.map((job, i) => (
                   <div
                     key={i}
-                    className="flex items-center gap-3 p-3 bg-foreground-700 rounded-lg cursor-pointer hover:bg-primary-900 transition-colors"
+                    className="flex items-center gap-3 p-3 bg-foreground-700 rounded-lg cursor-pointer hover:bg-foreground-600 transition-colors border border-transparent hover:border-foreground-500"
                     onClick={() => navigate(`/cars/${job.licensePlate}`)}
                   >
                     <LicenceTable licence={job.licensePlate} dialog />
@@ -161,9 +169,7 @@ const HomePage: React.FC = () => {
                         {job.brand} {job.model}
                       </p>
                     </div>
-                    <Chip color="primary" variant="flat" size="sm">
-                      {formatARS(job.price)}
-                    </Chip>
+                    <Chip color="primary">{formatARS(job.price)}</Chip>
                   </div>
                 ))}
               </div>

@@ -123,11 +123,11 @@ const CarsTable: React.FC<CarsTableProps> = ({
     },
   ];
   return (
-    <div className="bg-white rounded-lg flex flex-col gap-4">
+    <div className="bg-foreground-700 rounded-lg flex flex-col gap-4">
       <Table
         aria-label="Tabla de vehículos"
         classNames={{
-          wrapper: "relative min-h-[250px]", // altura mínima definida
+          wrapper: "relative min-h-[250px] bg-foreground-700", // altura mínima definida
           emptyWrapper:
             "absolute inset-0 flex items-center justify-center z-10 h-full",
         }}
@@ -135,9 +135,9 @@ const CarsTable: React.FC<CarsTableProps> = ({
         <TableHeader>
           {columns.map((column, i) => (
             <TableColumn
-              className={`${column.center ? "text-center" : ""} bg-primary ${
+              className={`${column.center ? "text-center" : ""} bg-primary-800 ${
                 i !== columns.length - 1 && "border-r-2"
-              } border-white shadow shadow-primary text-white text-lg`}
+              } border-foreground-700 shadow shadow-primary-600 text-white text-lg`}
               key={column.key}
               style={{
                 width: column.width,
@@ -198,7 +198,7 @@ const CarsTable: React.FC<CarsTableProps> = ({
               <TableCell
                 className={`${
                   i !== carsToShow.length - 1 && "border-b-2"
-                } border-r-2 border-white`}
+                } border-r-2 border-foreground-700`}
                 style={{
                   borderTopLeftRadius: 8,
                   borderBottomLeftRadius: 8,
@@ -211,42 +211,42 @@ const CarsTable: React.FC<CarsTableProps> = ({
               <TableCell
                 className={`${
                   i !== carsToShow.length - 1 && "border-b-2"
-                } border-r-2 border-white text-center`}
+                } border-r-2 border-foreground-700 text-center`}
               >
                 {car.brand}
               </TableCell>
               <TableCell
                 className={`${
                   i !== carsToShow.length - 1 && "border-b-2"
-                } border-r-2 border-white`}
+                } border-r-2 border-foreground-700`}
               >
                 {car.model}
               </TableCell>
               <TableCell
                 className={`${
                   i !== carsToShow.length - 1 && "border-b-2"
-                } border-r-2 border-white text-center`}
+                } border-r-2 border-foreground-700 text-center`}
               >
                 {car.year}
               </TableCell>
               <TableCell
                 className={`${
                   i !== carsToShow.length - 1 && "border-b-2"
-                } border-r-2 border-white text-center`}
+                } border-r-2 border-foreground-700 text-center`}
               >
-                {car.kilometers.toLocaleString()} km
+                {car.kilometers.toLocaleString("es-AR")} km
               </TableCell>
               <TableCell
                 className={`${
                   i !== carsToShow.length - 1 && "border-b-2"
-                } border-r-2 border-white`}
+                } border-r-2 border-foreground-700`}
               >
                 {car.owner.fullname}
               </TableCell>
               <TableCell
                 className={`${
                   i !== carsToShow.length - 1 && "border-b-2"
-                } border-white text-center`}
+                } border-foreground-700 text-center`}
                 style={{
                   borderTopRightRadius: 8,
                   borderBottomRightRadius: 8,

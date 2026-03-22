@@ -89,7 +89,9 @@ const carSlice = createSlice({
       })
       .addCase(updatedCar.fulfilled, (state, action) => {
         state.loadingStates.updating = false;
-        state.car = action.payload.result
+        if(action.payload.result){
+          state.car = action.payload.result
+        }
       })
       .addCase(updateJobInCar.pending, (state) => {
         state.loadingStates.updating = true;

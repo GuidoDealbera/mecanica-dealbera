@@ -3,13 +3,7 @@ import { Jobs } from "../../Types/types";
 import { Controller, useForm } from "react-hook-form";
 import { CreateCarJob, JobStatus } from "../../Types/apiTypes";
 import FormWrapper from "./FormWrapper";
-import {
-  Button,
-  Input,
-  Select,
-  SelectItem,
-  Textarea,
-} from "@heroui/react";
+import { Button, Input, Select, SelectItem, Textarea } from "@heroui/react";
 import { formatThousands, parseNumber } from "../../Utils/utils";
 
 interface AddJobFormProps {
@@ -28,7 +22,7 @@ const AddJobForm: React.FC<AddJobFormProps> = ({
   const INITIAL_VALUES: Partial<Jobs> = {
     price: undefined,
     isThirdParty: false,
-    status: JobStatus.IN_PROGRESS,
+    status: JobStatus.PENDING,
     description: "",
   };
   const form = useForm<Jobs>({
@@ -45,7 +39,7 @@ const AddJobForm: React.FC<AddJobFormProps> = ({
 
   const jobStatus = watch("status");
 
-  const shouldEnableSubmit = isEditing ? isDirty && isValid : isValid
+  const shouldEnableSubmit = isEditing ? isDirty && isValid : isValid;
 
   return (
     <FormWrapper form={form}>
@@ -129,10 +123,19 @@ const AddJobForm: React.FC<AddJobFormProps> = ({
                     jobStatus === JobStatus.IN_PROGRESS
                       ? "primary"
                       : jobStatus === JobStatus.COMPLETED
-                      ? "success"
-                      : "secondary"
+                        ? "success"
+                        : jobStatus === JobStatus.DELIVERED
+                          ? "secondary"
+                          : "default"
                   }
                 >
+                  <SelectItem
+                    key={JobStatus.PENDING}
+                    color="default"
+                    className="text-foreground"
+                  >
+                    Sin comenzar
+                  </SelectItem>
                   <SelectItem
                     key={JobStatus.IN_PROGRESS}
                     color="primary"

@@ -4,7 +4,7 @@ export const setByPassNavigation = (value: boolean) =>
 export const getByPassNavigation = () => byPassNavigation;
 export const CarsBrands = {
   TOYOTA: "Toyota",
-  FORD: "Ford", 
+  FORD: "Ford",
   CHEVROLET: "Chevrolet",
   VOLKSWAGEN: "Volkswagen",
   RENAULT: "Renault",
@@ -106,13 +106,14 @@ export const CarsBrands = {
   MAYBACH: "Maybach",
   DS: "DS",
   GENESIS: "Genesis",
-  ALPINE: "Alpine"
+  ALPINE: "Alpine",
 } as const;
 
 export type CarBrand = (typeof CarsBrands)[keyof typeof CarsBrands];
 
-export const BRANDS = Object.values(CarsBrands)
-  .sort((a, b) => a.localeCompare(b));
+export const BRANDS = Object.values(CarsBrands).sort((a, b) =>
+  a.localeCompare(b),
+);
 
 export const BRANDS_OPTIONS = BRANDS.map((brand) => ({
   key: brand, // clave única
@@ -130,36 +131,57 @@ export const formatLicence = (licencePlate: string): string => {
 export const capitalizeWords = (text: string): string => {
   return text
     .toLowerCase()
-    .split(' ')
-    .map(word => {
+    .split(" ")
+    .map((word) => {
       if (word.length === 0) return word;
       return word.charAt(0).toUpperCase() + word.slice(1);
     })
-    .join(' ');
+    .join(" ");
 };
 
-export const handleCapitalizedChange = (fieldOnChange: (value: string) => void) => {
+export const handleCapitalizedChange = (
+  fieldOnChange: (value: string) => void,
+) => {
   return (e: React.ChangeEvent<HTMLInputElement>) => {
     const capitalizedValue = capitalizeWords(e.target.value);
     fieldOnChange(capitalizedValue);
   };
 };
 
-export function formatDate(date: Date): string {
-  const day = String(date.getDate()).padStart(2, "0");
-  const month = String(date.getMonth() + 1).padStart(2, "0"); // los meses arrancan en 0
-  const year = date.getFullYear();
-
+export function formatDate(date: Date | string | null | undefined): string {
+  if (!date) return "---";
+  const d = typeof date === "string" ? new Date(date) : date;
+  if (isNaN(d.getTime())) return "---";
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const year = d.getFullYear();
   return `${day}/${month}/${year}`;
 }
 
 export const formatThousands = (value?: number | null) => {
-  if (value === null || value === undefined) return ''
-  return value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
-}
+  if (value === null || value === undefined) return "";
+  return value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+};
 
 export const parseNumber = (value: string) => {
-  const clean = value.replace(/\./g, '')
-  const numeric = Number(clean)
-  return isNaN(numeric) ? 0 : numeric
+  const clean = value.replace(/\./g, "");
+  const numeric = Number(clean);
+  return isNaN(numeric) ? 0 : numeric;
+};
+
+export const formatARS = (n: number): string =>
+  new Intl.NumberFormat("es-AR", {
+    style: "currency",
+    currency: "ARS",
+    maximumFractionDigits: 0,
+  }).format(n);
+
+export const formatNumbers = (value: string | number) => {
+  let numValue: number
+  if(typeof value === 'string'){
+    numValue = Number(value)
+  } else {
+    numValue = value
+  }
+  return new Intl.NumberFormat("es-AR").format(numValue)
 }

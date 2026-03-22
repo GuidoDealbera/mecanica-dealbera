@@ -49,6 +49,15 @@ contextBridge.exposeInMainWorld("api", {
       await ipcRenderer.invoke("car:update-job", licence, jobId, updateJobDto),
     getServiceAlerts: async () =>
       await ipcRenderer.invoke("car:service-alerts"),
+    reassignOwner: async (
+      licensePlate: string,
+      payload:
+        | { mode: "existing"; existingOwnerFullname: string }
+        | {
+            mode: "new";
+            newOwner: CreateClientDto
+          },
+    ) => await ipcRenderer.invoke("car:reassign-owner", licensePlate, payload),
   },
   clients: {
     create: async (dto: CreateClientDto) =>

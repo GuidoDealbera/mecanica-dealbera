@@ -63,7 +63,7 @@ const ClientTable: React.FC<ClientTableProps> = ({
     { key: "fullname", label: "Nombre", width: 200, sortable: true },
     { key: "phone", label: "Teléfono", width: 150, center: true },
     { key: "email", label: "Correo", width: 200, center: true },
-    { key: "address", label: "Dirección", width: 200 },
+    { key: "address", label: "Dirección", width: 150 },
     { key: "city", label: "Ciudad", width: 150, center: true },
     { key: "cars", label: "Vehículos", width: 150, center: true },
     { key: "status", label: "Estado", width: 100, center: true },
@@ -73,10 +73,10 @@ const ClientTable: React.FC<ClientTableProps> = ({
   ];
 
   return (
-    <div className="bg-white rounded-lg flex flex-col gap-4">
+    <div className="bg-foreground-800 rounded-lg flex flex-col gap-4">
       <Table
         classNames={{
-          wrapper: "relative min-h-[250px]",
+          wrapper: "relative min-h-[250px] bg-foreground-700",
           emptyWrapper:
             "absolute inset-0 flex items-center justify-center z-10 h-full",
         }}
@@ -86,9 +86,9 @@ const ClientTable: React.FC<ClientTableProps> = ({
           {columns.map((column, i) => (
             <TableColumn
               key={column.key}
-              className={`${column.center ? "text-center" : ""} bg-primary ${
+              className={`${column.center ? "text-center" : ""} bg-primary-800 ${
                 i !== columns.length - 1 ? "border-r-2" : ""
-              } border-white shadow shadow-primary text-white text-lg`}
+              } border-foreground-700 shadow shadow-primary-600 text-white text-lg`}
               style={{
                 width: column.width,
                 minWidth: column.width,
@@ -139,35 +139,35 @@ const ClientTable: React.FC<ClientTableProps> = ({
               } ${!client.isActive ? "opacity-60" : ""}`}
             >
               <TableCell
-                className={`${i !== clientsToShow.length - 1 ? "border-b-2" : ""} border-r-2 border-white`}
+                className={`${i !== clientsToShow.length - 1 ? "border-b-2" : ""} border-r-2 border-foreground-700`}
                 style={{ borderTopLeftRadius: 8, borderBottomLeftRadius: 8 }}
               >
                 {client.fullname}
               </TableCell>
               <TableCell
-                className={`${i !== clientsToShow.length - 1 ? "border-b-2" : ""} border-r-2 border-white text-center`}
+                className={`${i !== clientsToShow.length - 1 ? "border-b-2" : ""} border-r-2 border-foreground-700 text-center`}
               >
                 {client.phone}
               </TableCell>
               <TableCell
-                className={`${i !== clientsToShow.length - 1 ? "border-b-2" : ""} text-center border-r-2 border-white`}
+                className={`${i !== clientsToShow.length - 1 ? "border-b-2" : ""} border-r-2 border-foreground-700`}
               >
                 {client.email ?? "---"}
               </TableCell>
               <TableCell
-                className={`${i !== clientsToShow.length - 1 ? "border-b-2" : ""} border-r-2 border-white`}
+                className={`${i !== clientsToShow.length - 1 ? "border-b-2" : ""} border-r-2 border-foreground-700`}
               >
                 {client.address}
               </TableCell>
               <TableCell
-                className={`${i !== clientsToShow.length - 1 ? "border-b-2" : ""} border-r-2 border-white text-center`}
+                className={`${i !== clientsToShow.length - 1 ? "border-b-2" : ""} border-r-2 border-foreground-700 text-center`}
               >
                 {client.city}
               </TableCell>
               <TableCell
-                className={`${i !== clientsToShow.length - 1 ? "border-b-2" : ""} border-r-2 border-white`}
+                className={`${i !== clientsToShow.length - 1 ? "border-b-2" : ""} border-r-2 border-foreground-700`}
               >
-                {client.cars ? (
+                {client.cars && client.cars.length > 0 ? (
                   client.cars.length > 1 ? (
                     <span className="text-center block">
                       {client.cars.length}
@@ -181,22 +181,23 @@ const ClientTable: React.FC<ClientTableProps> = ({
                     </div>
                   )
                 ) : (
-                  "---"
+                  <span className="text-center block text-foreground-500 text-xs">
+                    Sin vehículos
+                  </span>
                 )}
               </TableCell>
               <TableCell
-                className={`${i !== clientsToShow.length - 1 ? "border-b-2" : ""} border-r-2 border-white text-center`}
+                className={`${i !== clientsToShow.length - 1 ? "border-b-2" : ""} border-r-2 border-foreground-700 text-center`}
               >
                 <Chip
                   size="sm"
-                  color={client.isActive ? "success" : "default"}
-                  variant="flat"
+                  color={client.isActive ? "success" : "danger"}
                 >
                   {client.isActive ? "Activo" : "Inactivo"}
                 </Chip>
               </TableCell>
               <TableCell
-                className={`${i !== clientsToShow.length - 1 ? "border-b-2" : ""} border-white text-center`}
+                className={`${i !== clientsToShow.length - 1 ? "border-b-2" : ""} border-foreground-700 text-center`}
                 style={{ borderTopRightRadius: 8, borderBottomRightRadius: 8 }}
               >
                 {showActions && (

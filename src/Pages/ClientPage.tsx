@@ -90,7 +90,6 @@ const ClientPage: React.FC = () => {
         <div className="flex gap-2 items-center">
           <Button
             size="sm"
-            variant={showInactive ? "solid" : "flat"}
             color="default"
             onPress={() => setShowInactive((v) => !v)}
           >

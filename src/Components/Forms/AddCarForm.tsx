@@ -4,7 +4,11 @@ import { Autocomplete, AutocompleteItem, Button, Input } from "@heroui/react";
 import { Controller, useForm } from "react-hook-form";
 import { Cars, Clients } from "../../Types/types";
 import FormWrapper from "./FormWrapper";
-import { BRANDS_OPTIONS, handleCapitalizedChange } from "../../Utils/utils";
+import {
+  BRANDS_OPTIONS,
+  formatNumbers,
+  handleCapitalizedChange,
+} from "../../Utils/utils";
 import { useSelector } from "react-redux";
 import { RootState } from "../../Store/store";
 import { useClientQueries } from "../../Hooks/useClientQueries";
@@ -25,22 +29,27 @@ const AddCarForm: React.FC<AddCarFormProps> = ({
   readonly,
 }) => {
   const { getAllClients } = useClientQueries();
-  const INITIAL_STATE: Partial<CreateCarBody> = React.useMemo(() => ({
-    brand: undefined,
-    kilometers: undefined,
-    licensePlate: "",
-    model: "",
-    owner: {
-      address: "",
-      city: "",
-      email: "",
-      fullname: "",
-      phone: "",
-      isActive: true
-    },
-    year: undefined,
-  }), []);
-  const [selectedOwner, setSelectedOwner] = React.useState<Clients | undefined>();
+  const INITIAL_STATE: Partial<CreateCarBody> = React.useMemo(
+    () => ({
+      brand: undefined,
+      kilometers: undefined,
+      licensePlate: "",
+      model: "",
+      owner: {
+        address: "",
+        city: "",
+        email: "",
+        fullname: "",
+        phone: "",
+        isActive: true,
+      },
+      year: undefined,
+    }),
+    [],
+  );
+  const [selectedOwner, setSelectedOwner] = React.useState<
+    Clients | undefined
+  >();
 
   const form = useForm<CreateCarBody>({
     mode: "onChange",
@@ -60,11 +69,11 @@ const AddCarForm: React.FC<AddCarFormProps> = ({
   const filterClient = React.useCallback(
     (fullname: string | null) => {
       const filtered = allClients.find(
-        (client) => client.fullname === fullname
+        (client) => client.fullname === fullname,
       );
       setSelectedOwner(filtered);
     },
-    [allClients]
+    [allClients],
   );
 
   const clientsNames = React.useMemo(() => {
@@ -307,7 +316,10 @@ const AddCarForm: React.FC<AddCarFormProps> = ({
                 required: { value: true, message: "Campo obligatorio" },
               }}
               disabled={isLoading || readonly || isEditing}
-              render={({ field: {value, onChange, ref}, fieldState: { error } }) => (
+              render={({
+                field: { value, onChange, ref },
+                fieldState: { error },
+              }) => (
                 <Autocomplete
                   label="Marca"
                   ref={ref}
@@ -341,7 +353,7 @@ const AddCarForm: React.FC<AddCarFormProps> = ({
                   {...field}
                   label="Modelo"
                   isRequired
-                  onChange={handleCapitalizedChange(field.onChange)}
+                  onChange={(e) => field.onChange(e.target.value.toUpperCase())}
                   isInvalid={!!error}
                   isDisabled={isLoading || readonly || isEditing}
                   errorMessage={error?.message}
@@ -393,15 +405,16 @@ const AddCarForm: React.FC<AddCarFormProps> = ({
                 <Input
                   {...field}
                   label="Kilometraje"
-                  value={field.value ? field.value.toString() : ""}
+                  // display: formatea el número guardado en el form
+                  value={field.value ? formatNumbers(field.value) : ""}
                   onChange={(e) => {
-                    const value = e.target.value;
-                    if (/^[\d]*$/.test(value)) {
-                      if (value === "") {
-                        field.onChange("");
-                      } else {
-                        field.onChange(Number(value));
-                      }
+                    // 1. Quitar todo lo que no sea dígito (incluyendo los puntos del formato)
+                    const onlyDigits = e.target.value.replace(/\D/g, "");
+                    if (onlyDigits === "") {
+                      field.onChange("");
+                    } else {
+                      // 2. Guardar el número puro, NO el string formateado
+                      field.onChange(Number(onlyDigits));
                     }
                   }}
                   isRequired={isEditing}
@@ -428,8 +441,8 @@ const AddCarForm: React.FC<AddCarFormProps> = ({
                 ? "Actualizando..."
                 : "Guardando..."
               : isEditing
-              ? "Actualizar Vehículo"
-              : "Guardar Vehículo"}
+                ? "Actualizar Vehículo"
+                : "Guardar Vehículo"}
           </Button>
         )}
       </form>
