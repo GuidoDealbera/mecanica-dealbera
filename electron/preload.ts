@@ -2,6 +2,7 @@ import { ipcRenderer, contextBridge } from "electron";
 import { CreateCarDto, UpdateJobDto } from "./DataBase/Types/car.dto";
 import { CreateClientDto } from "./DataBase/Types/client.dto";
 import { Jobs } from "../src/Types/types";
+import { UpdateInfo, UpdateProgress } from "../global";
 
 // --------- Expose some API to the Renderer process ---------
 contextBridge.exposeInMainWorld("ipcRenderer", {
@@ -84,4 +85,20 @@ contextBridge.exposeInMainWorld("api", {
     search: async (query: string) =>
       await ipcRenderer.invoke("global:search", query),
   },
+});
+
+contextBridge.exposeInMainWorld("updater", {
+  onUpdateAvailable: (cb: (data: UpdateInfo) => void) =>
+    ipcRenderer.on("update-available", (_, data) => cb(data)),
+  onUpdateNotAvailable: (cb: () => void) =>
+    ipcRenderer.on("update-not-available", cb),
+  onProgress: (cb: (data: UpdateProgress) => void) =>
+    ipcRenderer.on("update-progress", (_, data) => cb(data)),
+  onDownloaded: (cb: () => void) =>
+    ipcRenderer.on("update-downloaded", cb),
+  onError: (cb: (data: { message: string }) => void) =>
+    ipcRenderer.on("update-error", (_, data) => cb(data)),
+  startDownload: () => ipcRenderer.send("start-update-download"),
+  installUpdate: () => ipcRenderer.send("install-update"),
+  checkForUpdates: () => ipcRenderer.invoke("check-for-updates"),
 });

@@ -6,6 +6,13 @@
   "productName": "Mecánica Dealbera",
   "asar": true,
 
+  "publish": {
+    "provider": "github",
+    "owner": "GuidoDealbera",
+    "repo": "mecanica-dealbera",
+    "releaseType": "release"
+  },
+
   "directories": {
     "output": "C:/Users/ASUS/Downloads/MecanicaDealbera-Release"
   },
@@ -19,6 +26,10 @@
     {
       "from": "electron/splash.html",
       "to": "splash.html"
+    },
+    {
+      "from": "electron/images",
+      "to": "images"
     }
   ],
 

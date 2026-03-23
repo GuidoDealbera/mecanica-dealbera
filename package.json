@@ -3,9 +3,15 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
+  "description": "Sistema de gestión para Mecánica Dealbera",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/GuidoDealbera/mecanica-dealbera"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build && electron-builder",
+    "release": "tsc && vite build && electron-builder --publish always",
     "lint": "eslint src electron --ext .ts,.tsx",
     "preview": "vite preview"
   },
@@ -17,6 +23,7 @@
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
     "dayjs": "^1.11.18",
+    "electron-updater": "^6.8.3",
     "framer-motion": "^12.23.12",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.7",

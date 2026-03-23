@@ -3,7 +3,8 @@ import "./DataBase/Endpoints/car.endpoints";
 import "./DataBase/Endpoints/client.endpoints";
 import "./DataBase/Endpoints/dashboard.endpoints";
 import "./DataBase/Endpoints/backup.endpoints";
-import { app, BrowserWindow, dialog, Notification } from "electron";
+import { app, BrowserWindow, dialog, Notification, ipcMain } from "electron";
+import { autoUpdater } from "electron-updater";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import fs from "node:fs";
@@ -37,6 +38,50 @@ process.on("uncaughtException", (error) => {
 
 let win: BrowserWindow | null;
 let splash: BrowserWindow | null;
+
+const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000
+
+function setupAutoUpdater() {
+  if (process.env.NODE_ENV === "development") return;
+
+  autoUpdater.autoDownload = false;
+
+  autoUpdater.autoInstallOnAppQuit = true;
+
+  autoUpdater.on("update-available", (info) => {
+    win?.webContents.send("update-available", {
+      version: info.version,
+      notes: info.releaseNotes,
+    });
+  });
+
+  autoUpdater.on("update-not-available", () => {
+    win?.webContents.send("update-not-available")
+  });
+
+  autoUpdater.on("download-progress", (progress) => {
+    win?.webContents.send("update-progress", {
+      percent: Math.round(progress.percent || 0),
+      bytesPerSecond: progress.bytesPerSecond
+    })
+  })
+
+  autoUpdater.on("update-downloaded", () => {
+    win?.webContents.send("update-downloaded")
+  })
+
+  autoUpdater.on("error", (error) => {
+    win?.webContents.send("update-error", {
+      error: error.message
+    })
+  })
+
+  autoUpdater.checkForUpdates().catch(err => console.error("Error checking for updates: ", err))
+
+  setInterval(() => {
+    autoUpdater.checkForUpdates().catch(err => console.error("Error checking for updates (interval): ", err))
+  }, UPDATE_CHECK_INTERVAL_MS)
+}
 
 async function createWindow() {
   splash = new BrowserWindow({
@@ -84,7 +129,7 @@ async function createWindow() {
 
   await initializeDB();
 
-    // Notificación de alertas de service al iniciar (solo en producción)
+  // Notificación de alertas de service al iniciar (solo en producción)
   if (process.env.NODE_ENV !== "development") {
     try {
       const { carRepository } = getRepositories();
@@ -93,7 +138,7 @@ async function createWindow() {
       sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
       const threeMonthsAgo = new Date();
       threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
- 
+
       const alertCount = cars.filter((car) => {
         if (!Array.isArray(car.jobs) || car.jobs.length === 0) {
           return new Date(car.createdAt) < threeMonthsAgo;
@@ -104,7 +149,7 @@ async function createWindow() {
         }, new Date(0));
         return lastDate < sixMonthsAgo;
       }).length;
- 
+
       if (alertCount > 0 && Notification.isSupported()) {
         new Notification({
           title: "Mecánica Dealbera — Recordatorios",
@@ -170,4 +215,29 @@ app.on("activate", () => {
   }
 });
 
-app.whenReady().then(createWindow);
+ipcMain.on("start-update-download", () => {
+  autoUpdater.downloadUpdate()
+})
+
+ipcMain.on("install-update", () => {
+  autoUpdater.quitAndInstall()
+})
+
+ipcMain.handle("check-for-updates", async () => {
+  if(process.env.NODE_ENV === 'development'){
+    win?.webContents.send("update-not-available")
+    return
+  }
+
+  try {
+    await autoUpdater.checkForUpdates()
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error)
+    win?.webContents.send("update-error", {message: msg})
+  }
+})
+
+app.whenReady().then(async () => {
+  await createWindow();
+  setupAutoUpdater();
+});

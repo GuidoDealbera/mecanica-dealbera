@@ -10,6 +10,31 @@ interface SearchResult {
   clients: { id: string; fullname: string; phone: string; city: string; isActive: boolean }[];
 }
 
+export interface UpdateInfo {
+  version: string;
+}
+ 
+export interface UpdateProgress {
+  percent: number;
+  bytesPerSecond?: number;
+}
+ 
+export interface UpdateError {
+  message: string;
+}
+ 
+export interface UpdaterAPI {
+  onUpdateAvailable: (callback: (data: UpdateInfo) => void) => void;
+  onUpdateNotAvailable: (callback: () => void) => void;
+  onProgress: (callback: (data: UpdateProgress) => void) => void;
+  onDownloaded: (callback: () => void) => void;
+  onError: (callback: (data: UpdateError) => void) => void;
+ 
+  startDownload: () => void;
+  installUpdate: () => void;
+  checkForUpdates: () => Promise<void>;
+}
+
 declare global {
   interface Window {
     api: {
@@ -53,7 +78,8 @@ declare global {
       global: {
         search: (query: string) => Promise<{ status: string } & SearchResult>;
       };
-    };
+    },
+    updater: UpdaterAPI
   }
 }
 
