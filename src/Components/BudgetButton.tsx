@@ -61,6 +61,7 @@ const BudgetButton: React.FC<BudgetButtonProps> = ({
         content="Imprimir presupuesto"
         placement="bottom"
         color="primary"
+        showArrow
       >
         <Button
           isIconOnly

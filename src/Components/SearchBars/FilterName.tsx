@@ -29,7 +29,7 @@ const FilterName: React.FC<FilterNameProps> = ({ onFilterChange }) => {
         placeholder="Nombre o apellido"
       />
       {value && (
-        <Tooltip content="Limpiar filtro" color="primary">
+        <Tooltip content="Limpiar filtro" color="primary" showArrow>
           <Button
             className="absolute top-8 -right-10"
             color="primary"

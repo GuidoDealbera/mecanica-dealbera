@@ -163,7 +163,7 @@ const JobsTable: React.FC<JobsProps> = ({
                 </TableCell>
                 <TableCell className="text-center">
                 {onEditJob && (
-                    <Tooltip content="Editar trabajo" color="primary">
+                    <Tooltip content="Editar trabajo" color="primary" showArrow>
                       <Button
                         isIconOnly
                         size="sm"

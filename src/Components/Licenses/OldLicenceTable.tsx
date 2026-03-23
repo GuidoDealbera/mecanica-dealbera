@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { formatLicence } from '../../Utils/utils';
+import oldLicense from '../../assets/images/oldLicence.png'
 
 interface OldLicenceTableProps {
   licence: string;
@@ -39,7 +40,7 @@ const OldLicenceTable: React.FC<OldLicenceTableProps> = ({
         width: 'fit-content',
         marginTop: dialog ? 0 : 2.5
     }}>
-        <img src="/oldLicence.png" alt="patente" width={width ?? 130} style={{minWidth: 110, maxWidth: 130}}/>
+        <img src={oldLicense} alt="patente" width={width ?? 130} style={{minWidth: 110, maxWidth: 130}}/>
         <div ref={containerRef} style={{
             position: 'absolute',
             backgroundColor: 'black',

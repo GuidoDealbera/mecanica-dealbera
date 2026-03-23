@@ -192,7 +192,6 @@ const HomePage: React.FC = () => {
               color="primary"
               variant="bordered"
               className="text-base"
-              isDisabled={stats.totalCars === 0}
             >
               Nuevo Trabajo
             </Button>

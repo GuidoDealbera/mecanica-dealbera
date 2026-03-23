@@ -102,7 +102,7 @@ const ClientTable: React.FC<ClientTableProps> = ({
               >
                 {column.label}
                 {column.sortable && (
-                  <Tooltip content="Ordenar" placement="bottom">
+                  <Tooltip content="Ordenar" placement="bottom" showArrow>
                     <Button
                       onPress={handleSort}
                       isIconOnly
@@ -202,7 +202,7 @@ const ClientTable: React.FC<ClientTableProps> = ({
               >
                 {showActions && (
                   <div className="flex justify-center gap-1">
-                    <Tooltip content="Ver detalle" color="primary">
+                    <Tooltip content="Ver detalle" color="primary" showArrow>
                       <Button
                         isIconOnly
                         size="sm"
@@ -220,6 +220,7 @@ const ClientTable: React.FC<ClientTableProps> = ({
                       <Tooltip
                         content={client.isActive ? "Desactivar" : "Activar"}
                         color={client.isActive ? "warning" : "success"}
+                        showArrow
                       >
                         <Button
                           isIconOnly
@@ -248,7 +249,7 @@ const ClientTable: React.FC<ClientTableProps> = ({
                       </Tooltip>
                     )}
                     {onDelete && (
-                      <Tooltip content="Eliminar" color="danger">
+                      <Tooltip content="Eliminar" color="danger" showArrow>
                         <Button
                           isIconOnly
                           size="sm"

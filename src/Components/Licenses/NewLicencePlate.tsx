@@ -1,4 +1,5 @@
 import { formatLicence } from "../../Utils/utils";
+import newLicense from '../../assets/images/newLicence.png'
 
 interface Props {
   licence: string;
@@ -8,7 +9,7 @@ interface Props {
 const NewLicencePlate: React.FC<Props> = ({ licence, width }) => {
   return (
     <div className="relative w-fit">
-      <img src="/newLicence.png" width={width ?? 250} />
+      <img src={newLicense} width={width ?? 250} />
       <div className="flex justify-center items-center absolute top-[25] left-[5] right-[5] bg-white h-[50]">
         <h1
           style={{

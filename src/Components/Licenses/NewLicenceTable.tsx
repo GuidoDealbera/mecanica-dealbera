@@ -1,4 +1,5 @@
 import { formatLicence } from "../../Utils/utils";
+import newLicense from '../../assets/images/newLicence.png'
 
 interface NewLicenceTableProps {
   licence: string;
@@ -19,7 +20,7 @@ const NewLicenceTable: React.FC<NewLicenceTableProps> = ({
         marginTop: dialog ? 0 : 2.5,
       }}
     >
-      <img src="/newLicence.png" width={width ?? 130} style={{minWidth: 110, maxWidth: 130, height: 50}} />
+      <img src={newLicense} width={width ?? 130} style={{minWidth: 110, maxWidth: 130, height: 50}} />
       <div style={{
         display: 'flex',
         justifyContent: 'center',

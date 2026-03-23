@@ -152,7 +152,7 @@ const CarsTable: React.FC<CarsTableProps> = ({
               >
                 {column.label}
                 {column.sortable && (
-                  <Tooltip content="Ordenar" placement="bottom">
+                  <Tooltip content="Ordenar" placement="bottom" showArrow>
                     <Button
                       onPress={() => handleSort(column.key)}
                       isIconOnly
@@ -253,7 +253,7 @@ const CarsTable: React.FC<CarsTableProps> = ({
                 }}
               >
                 <div className="flex justify-center gap-2">
-                  <Tooltip content="Detalle" color="primary">
+                  <Tooltip content="Detalle" color="primary" showArrow>
                     <Button
                       isIconOnly
                       size="sm"
@@ -263,7 +263,7 @@ const CarsTable: React.FC<CarsTableProps> = ({
                       <IoMdEye size={25} className="text-primary-600" />
                     </Button>
                   </Tooltip>
-                  <Tooltip content="Eliminar" color="danger">
+                  <Tooltip content="Eliminar" color="danger" showArrow>
                     <Button
                       onPress={() => deleteCar(car.licensePlate)}
                       isIconOnly

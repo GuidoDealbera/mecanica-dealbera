@@ -52,6 +52,7 @@ const FilterByLicence: React.FC<Props> = ({ onFilterChange }) => {
         <Tooltip
           content="Limpiar filtro"
           color={isValid ? "primary" : "danger"}
+          showArrow
         >
           <Button
             className="absolute top-8 -right-10"
