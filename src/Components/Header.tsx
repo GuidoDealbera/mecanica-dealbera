@@ -1,6 +1,10 @@
 import React from "react";
 import {
   Button,
+  Dropdown,
+  DropdownItem,
+  DropdownMenu,
+  DropdownTrigger,
   Navbar,
   NavbarContent,
   NavbarItem,
@@ -10,7 +14,7 @@ import {
 } from "@heroui/react";
 import { IoMdArrowBack } from "react-icons/io";
 import { IoSearch } from "react-icons/io5";
-import { MdWarning, MdBackup, MdSystemUpdate } from "react-icons/md";
+import { MdWarning, MdBackup, MdSystemUpdate, MdInstallDesktop } from "react-icons/md";
 import { useLocation, useNavigate } from "react-router-dom";
 import avatarImg from "../assets/images/avatar.png";
 import GlobalSearch from "./SearchBars/GlobalSearch";
@@ -121,6 +125,33 @@ const Header = () => {
     await window.updater.checkForUpdates();
   };
 
+  const updateMenuLabel = () => {
+    if(checking) return "Buscando actualizaciones..."
+    if(updateError) return "Error al buscar actualizaciones"
+    if(downloaded) return `Instalar v${updateVersion} y reiniciar`
+    if(updateAvailable) return `Actualizar a v${updateVersion}`
+    return "Buscar actualizaciones"
+  }
+
+  const updateMenuIcon = () => {
+    if(checking) return <Spinner size="sm"/>
+    if(downloaded) return <MdInstallDesktop size={16}/>
+    return <MdSystemUpdate size={16} className={updateError ? "text-danger" : ""}/>
+  }
+
+  const handleUpdateAction = () => {
+    if(checking) return
+    if(downloaded){
+      window.updater.installUpdate()
+      return
+    }
+    if(updateAvailable){
+      setModalOpen(true)
+      return
+    }
+    handleManualCheck()
+  }
+
   return (
     <>
       <Navbar
@@ -131,15 +162,16 @@ const Header = () => {
           {!isHome && (
             <Tooltip
               content="Atrás"
-              placement="bottom-end"
-              className="bg-primary-700 text-white"
+              color="primary"
               showArrow
             >
               <Button
                 isIconOnly
+                size="sm"
                 onPress={() => navigate(-1)}
                 radius="full"
-                className="bg-primary-700 text-white text-lg"
+                color="primary"
+                className="text-lg"
               >
                 <IoMdArrowBack />
               </Button>
@@ -165,56 +197,6 @@ const Header = () => {
               </NavbarItem>
             );
           })}
-        </NavbarContent>
-
-        <NavbarContent justify="center">
-          {updateAvailable ? (
-            <Tooltip
-              color="warning"
-              content="Hacé click para descargar e instalar la actualización disponible"
-              placement="bottom"
-              showArrow
-            >
-              <Button
-                color="warning"
-                onPress={() => setModalOpen(true)}
-                startContent={<MdSystemUpdate size={18} />}
-              >
-                Actualización disponible v{updateVersion}
-              </Button>
-            </Tooltip>
-          ) : (
-            <Tooltip
-              content={
-                updateError
-                  ? `Error al buscar actualizaciones`
-                  : checking
-                    ? "Buscando actualizaciones..."
-                    : "Buscar actualizaciones"
-              }
-              placement="bottom"
-              className="bg-primary-700 text-white max-w-xs"
-              showArrow
-            >
-              <Button
-                isIconOnly
-                radius="full"
-                isDisabled={checking}
-                onPress={handleManualCheck}
-                className={`${
-                  updateError
-                    ? "bg-danger-700 text-white"
-                    : "bg-foreground-700 text-foreground-300 hover:bg-primary-700 hover:text-white"
-                } transition-colors`}
-              >
-                {checking ? (
-                  <Spinner size="sm" color="white" />
-                ) : (
-                  <MdSystemUpdate size={18} />
-                )}
-              </Button>
-            </Tooltip>
-          )}
         </NavbarContent>
 
         <NavbarContent justify="end" className="gap-2">
@@ -250,25 +232,51 @@ const Header = () => {
           <Tooltip
             content="Buscar (Ctrl+K)"
             placement="bottom"
-            className="bg-primary-700 text-white"
+            color="primary"
             showArrow
           >
             <Button
               isIconOnly
               radius="full"
-              className="bg-primary-700 text-white"
+              color="primary"
               onPress={() => setSearchOpen(true)}
             >
               <IoSearch size={18} />
             </Button>
           </Tooltip>
 
-          <User
-            name="Horacio Dealbera"
-            avatarProps={{ src: avatarImg }}
-            description="Mecánico"
-            className="text-white"
-          />
+          <Dropdown placement="bottom-end">
+            <DropdownTrigger>
+              <div className="cursor-pointer relative flex items-center">
+                <span className={`absolute top-0 -right-2.5 w-2.5 h-2.5 ${updateAvailable ? "bg-warning" : downloaded ? "bg-success" : "bg-transparent"} rounded-full z-10`}/>
+                <User
+                  name="Horacio Dealbera"
+                  avatarProps={{ src: avatarImg }}
+                  description="Mecánico"
+                  className="text-white"
+                />
+              </div>
+            </DropdownTrigger>
+            <DropdownMenu aria-label="Opciones" closeOnSelect={false} className="w-fit">
+              <DropdownItem 
+                key="update"
+                startContent={updateMenuIcon()}
+                description={
+                  updateError
+                    ? "Hacé click para reintentar"
+                    : updateAvailable && !downloaded
+                    ? "Hay una nueva versión disponible"
+                    : downloaded
+                    ? "La actualización está lista. Hacé click para instalar"
+                    : "Verificar si hay una nueva versión del sistema"
+                }
+                color={downloaded ? "success" : updateAvailable ? "warning" : updateError ? "danger" : "default"}
+                onPress={handleUpdateAction}
+              >
+                {updateMenuLabel()}
+              </DropdownItem>
+            </DropdownMenu>
+          </Dropdown>
         </NavbarContent>
       </Navbar>
 
