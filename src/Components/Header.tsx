@@ -15,6 +15,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import avatarImg from "../assets/images/avatar.png";
 import GlobalSearch from "./SearchBars/GlobalSearch";
 import UpdateModal from "./UpdateModal";
+import { useToasts } from "../Hooks/useToasts";
 
 const BUTTONS = [
   { path: "/", text: "Inicio" },
@@ -46,6 +47,7 @@ const hoverColors = {
 const Header = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { showToast } = useToasts();
   const [updateAvailable, setUpdateAvailable] = React.useState(false);
   const [updateVersion, setUpdateVersion] = React.useState<string | null>(null);
   const [progress, setProgress] = React.useState<number | null>(null);
@@ -67,8 +69,11 @@ const Header = () => {
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
+  const isManualCheck = React.useRef<boolean>(false);
+
   React.useEffect(() => {
     window.updater.onUpdateAvailable((data) => {
+      isManualCheck.current = false;
       setChecking(false);
       setUpdateError(null);
       setUpdateAvailable(true);
@@ -76,26 +81,41 @@ const Header = () => {
       // Abrimos el modal automáticamente para que el usuario lo vea
       setModalOpen(true);
     });
- 
+
     window.updater.onUpdateNotAvailable(() => {
       setChecking(false);
+      if (isManualCheck.current) {
+        isManualCheck.current = false;
+        showToast(
+          "La aplicación ya está en su última versión",
+          "success",
+          "Actualización de sistema",
+        );
+      }
     });
- 
+
     window.updater.onProgress((data) => {
       setProgress(data.percent);
     });
- 
+
     window.updater.onDownloaded(() => {
       setDownloaded(true);
     });
- 
+
     window.updater.onError((data) => {
       setChecking(false);
+      isManualCheck.current = false;
       setUpdateError(data.message);
+      showToast(
+        "Hubo un error al actualizar el sistema",
+        "danger",
+        "Actualización de sistema",
+      );
     });
   }, []);
 
   const handleManualCheck = async () => {
+    isManualCheck.current = true;
     setChecking(true);
     setUpdateError(null);
     await window.updater.checkForUpdates();
@@ -167,10 +187,10 @@ const Header = () => {
             <Tooltip
               content={
                 updateError
-                  ? `Error al buscar actualizaciones: ${updateError}`
+                  ? `Error al buscar actualizaciones`
                   : checking
-                  ? "Buscando actualizaciones..."
-                  : "Buscar actualizaciones"
+                    ? "Buscando actualizaciones..."
+                    : "Buscar actualizaciones"
               }
               placement="bottom"
               className="bg-primary-700 text-white max-w-xs"
