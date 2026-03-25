@@ -6,6 +6,7 @@ import ClientTable from "../Components/Tables/ClientsTable";
 import FilterName from "../Components/SearchBars/FilterName";
 import CustomDialog from "../Components/CustomDialog";
 import { useToasts } from "../Hooks/useToasts";
+import { normalizeText } from "../Utils/utils";
 
 const ClientPage: React.FC = () => {
   const [fullnameFilter, setFullnameFilter] = React.useState<string>("");
@@ -30,7 +31,7 @@ const ClientPage: React.FC = () => {
     if (!showInactive) list = list.filter((c) => c.isActive);
     if (fullnameFilter)
       list = list.filter((c) =>
-        c.fullname.toLowerCase().includes(fullnameFilter.toLowerCase())
+        normalizeText(c.fullname).includes(fullnameFilter)
       );
     return list;
   }, [allClients, fullnameFilter, showInactive]);
