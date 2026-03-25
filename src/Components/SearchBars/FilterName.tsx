@@ -1,6 +1,7 @@
 import { Button, Input, Tooltip } from "@heroui/react";
 import React from "react";
 import { MdDelete } from "react-icons/md";
+import { normalizeText } from "../../Utils/utils";
 
 interface FilterNameProps {
   onFilterChange: (fullname: string) => void;
@@ -13,7 +14,8 @@ const FilterName: React.FC<FilterNameProps> = ({ onFilterChange }) => {
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const newValue = e.target.value;
       setValue(newValue);
-      onFilterChange(newValue);
+      const normalizedValue = normalizeText(newValue)
+      onFilterChange(normalizedValue);
     },
     [onFilterChange]
   );

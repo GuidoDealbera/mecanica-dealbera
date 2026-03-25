@@ -177,11 +177,18 @@ export const formatARS = (n: number): string =>
   }).format(n);
 
 export const formatNumbers = (value: string | number) => {
-  let numValue: number
-  if(typeof value === 'string'){
-    numValue = Number(value)
+  let numValue: number;
+  if (typeof value === "string") {
+    numValue = Number(value);
   } else {
-    numValue = value
+    numValue = value;
   }
-  return new Intl.NumberFormat("es-AR").format(numValue)
-}
+  return new Intl.NumberFormat("es-AR").format(numValue);
+};
+
+export const normalizeText = (text: string): string => {
+  return text
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+};

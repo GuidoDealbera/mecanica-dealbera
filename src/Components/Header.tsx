@@ -116,7 +116,7 @@ const Header = () => {
         "Actualización de sistema",
       );
     });
-  }, []);
+  }, [showToast]);
 
   const handleManualCheck = async () => {
     isManualCheck.current = true;
