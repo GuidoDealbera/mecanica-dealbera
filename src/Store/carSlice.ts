@@ -83,7 +83,6 @@ const carSlice = createSlice({
         state.error = null;
       })
       .addCase(updatedCar.rejected, (state, action) => {
-        console.log(action.payload)
         state.loadingStates.updating = false;
         state.error = action.payload as Error;
       })

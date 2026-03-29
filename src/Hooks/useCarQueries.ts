@@ -41,9 +41,15 @@ export const useCarQueries = () => {
           },
         };
         const response = await dispatch(createCar(data)).unwrap();
-        showToast(response.message, "success", CarActions.CREATE);
-        setByPassNavigation(true);
-        navigate("/cars");
+        showToast(
+          response.message,
+          response.status === "failed" ? "danger" : "success",
+          CarActions.CREATE,
+        );
+        if (response.status === "success") {
+          setByPassNavigation(true);
+          navigate("/cars");
+        }
         return response;
       } catch (error: any) {
         showToast(error.message, "danger", CarActions.CREATE);
@@ -111,7 +117,7 @@ export const useCarQueries = () => {
     async (licence: string) => {
       setLoading(true);
       try {
-        await dispatch(fetchCarByLicence(licence));
+        await dispatch(fetchCarByLicence(licence)).unwrap();
       } catch (error: any) {
         showToast(error.message, "danger", CarActions.FETCH);
         return error;
@@ -166,7 +172,11 @@ export const useCarQueries = () => {
       setLoading(true);
       try {
         const response = await dispatch(addJob({ licence, job })).unwrap();
-        showToast(response.message, "success", CarActions.JOB_CREATE);
+        showToast(response.message, response.status === "failed" ? "danger" : "success", CarActions.JOB_CREATE);
+        if(response.status === "success"){
+          setByPassNavigation(true)
+          navigate(`/cars/${licence}`)
+        }
         return response;
       } catch (error: any) {
         showToast(error.message, "danger", CarActions.JOB_CREATE);
@@ -175,7 +185,7 @@ export const useCarQueries = () => {
         setLoading(false);
       }
     },
-    [showToast, dispatch],
+    [showToast, dispatch, navigate],
   );
 
   const updateJob = useCallback(

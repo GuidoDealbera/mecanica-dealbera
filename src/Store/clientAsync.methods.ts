@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { createAsyncThunk } from "@reduxjs/toolkit";
 import { clientService } from "../Services/client.service";
 import { Cars, Client, Clients } from "../Types/types";

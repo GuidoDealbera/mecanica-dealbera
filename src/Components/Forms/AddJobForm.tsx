@@ -6,6 +6,13 @@ import FormWrapper from "./FormWrapper";
 import { Button, Input, Select, SelectItem, Textarea } from "@heroui/react";
 import { formatThousands, parseNumber } from "../../Utils/utils";
 
+const INITIAL_VALUES: Partial<Jobs> = {
+    price: undefined,
+    isThirdParty: false,
+    status: JobStatus.PENDING,
+    description: "",
+  };
+  
 interface AddJobFormProps {
   onSubmit: (data: CreateCarJob) => void;
   isLoading?: boolean;
@@ -19,12 +26,6 @@ const AddJobForm: React.FC<AddJobFormProps> = ({
   isEditing = false,
   isLoading,
 }) => {
-  const INITIAL_VALUES: Partial<Jobs> = {
-    price: undefined,
-    isThirdParty: false,
-    status: JobStatus.PENDING,
-    description: "",
-  };
   const form = useForm<Jobs>({
     mode: "onChange",
     defaultValues: INITIAL_VALUES,

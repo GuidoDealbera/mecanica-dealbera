@@ -50,7 +50,7 @@ const KmHistoryModal: React.FC<KmHistoryModalProps> = ({
                 const barWidth = ((record.km - minKm) / range) * 100;
 
                 return (
-                  <div key={i} className="flex items-center gap-3">
+                  <div key={`${record.date}-${record.km}`} className="flex items-center gap-3">
                     <div className="text-xs text-foreground-400 w-28 flex-shrink-0 text-right">
                       {formatDate(record.date)}
                     </div>

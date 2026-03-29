@@ -23,7 +23,7 @@ const clientSlice = createSlice({
   name: "client",
   initialState,
   reducers: {
-    cleanOnwerState: (state) => {
+    cleanOwnerState: (state) => {
       state.client = undefined;
     },
     cleanOwners: (state) => {
@@ -74,5 +74,5 @@ const clientSlice = createSlice({
   },
 });
 
-export const { cleanOnwerState, cleanOwners, cleanError } = clientSlice.actions;
+export const { cleanOwnerState, cleanOwners, cleanError } = clientSlice.actions;
 export default clientSlice.reducer;

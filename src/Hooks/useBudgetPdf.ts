@@ -60,8 +60,9 @@ export const useBudgetPDF = () => {
         const margin = 18;
 
         // ─── ENCABEZADO ────────────────────────────────────────────────
+        const HEADER_HEIGHT = 28;
         doc.setFillColor(...C.primaryDark);
-        doc.rect(0, 0, pageW, 26, "F");
+        doc.rect(0, 0, pageW, HEADER_HEIGHT, "F");
 
         doc.setTextColor(...C.white);
         doc.setFont("helvetica", "bold");
@@ -91,10 +92,10 @@ export const useBudgetPDF = () => {
         const docNum = `N° ${car.id.slice(0, 6).toUpperCase()}-${Date.now()
           .toString()
           .slice(-5)}`;
-        doc.text(docNum, pageW - margin, 20, { align: "right" });
+        doc.text(docNum, pageW - margin, 25, { align: "right" });
 
         // ─── PATENTE DESTACADA ─────────────────────────────────────────
-        let y = 38;
+        let y = HEADER_HEIGHT + 10;
         doc.setFillColor(...C.primaryLight);
         doc.roundedRect(margin, y - 7, pageW - margin * 2, 28, 4, 4, "F");
 

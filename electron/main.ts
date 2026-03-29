@@ -29,7 +29,7 @@ if (!gotTheLock) {
 }
 
 process.on("uncaughtException", (error) => {
-  console.error("Uncaugth Exception: ", error);
+  console.error("Uncaught Exception: ", error);
   dialog.showErrorBox(
     "Error Inesperado",
     `Ocurrió un error inesperado:\n\n${error.message}`,

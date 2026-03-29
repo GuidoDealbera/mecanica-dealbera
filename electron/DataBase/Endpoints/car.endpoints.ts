@@ -224,7 +224,7 @@ ipcMain.handle(
     }
     if (car.jobs) {
       const jobIndex = car.jobs.findIndex((job) => job.id === jobId);
-      if (jobIndex === undefined || jobIndex === -1) {
+      if (jobIndex === -1) {
         return {
           status: "failed",
           message: `El vehículo registrado con patente ${license} no tiene registrado el trabajo que intenta modificar`,
@@ -238,8 +238,7 @@ ipcMain.handle(
     }
 
     const savedCar = await repo.save(car);
-    const { owner, ...rest } = savedCar;
-    const { jobs } = rest;
+    const { jobs } = savedCar;
     const updatedJob = jobs.find((job) => job.id === jobId);
     return {
       status: "success",
@@ -254,13 +253,13 @@ ipcMain.handle("car:service-alerts", async () => {
   const cars = await repo.find({ relations: ["owner"] });
   const sixMonthsAgo = new Date();
   sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-  const threeMontsAgo = new Date();
-  threeMontsAgo.setMonth(threeMontsAgo.getMonth() - 3);
+  const threeMonthsAgo = new Date();
+  threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
 
   const alerts = cars
     .filter((car) => {
       if (!Array.isArray(car.jobs) || car.jobs.length === 0) {
-        return new Date(car.createdAt) < threeMontsAgo;
+        return new Date(car.createdAt) < threeMonthsAgo;
       }
       const lastJobDate = car.jobs.reduce((latest, job) => {
         const d = new Date((job.updatedAt || job.createdAt) as Date);
@@ -291,10 +290,11 @@ ipcMain.handle("car:service-alerts", async () => {
         : null;
 
       return {
-        licencePlate: car.licensePlate,
+        licensePlate: car.licensePlate,
         brand: car.brand,
         model: car.model,
         year: car.year,
+        kilometers: car.kilometers,
         ownerName: car.owner.fullname,
         ownerPhone: car.owner.phone,
         daysSinceLastJob: daysSince,
