@@ -3,14 +3,18 @@ import path from "path";
 import { app } from "electron";
 import { Car } from "./Entities/car.entity";
 import { Client } from "./Entities/client.entity";
+import { InitialSchema1700000000000 } from "./Migrations/1700000000000-InitialSchema";
 
 export const AppDataSource = new DataSource({
     type: 'sqlite',
     database: getDBPath(),
     entities: [Car, Client],
-    synchronize: true,
+    synchronize: false,
     logging: process.env.NODE_ENV === 'development',
-    migrations: [],
+    migrationsRun: true,
+    migrations: [
+        InitialSchema1700000000000
+    ],
     subscribers: []
 })
 
