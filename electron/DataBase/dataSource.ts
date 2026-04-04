@@ -4,6 +4,7 @@ import { app } from "electron";
 import { Car } from "./Entities/car.entity";
 import { Client } from "./Entities/client.entity";
 import { InitialSchema1700000000000 } from "./Migrations/1700000000000-InitialSchema";
+import { AddSparePartsToCar1775272596631 } from "./Migrations/1775272596631-AddSparePartsToCar";
 
 export const AppDataSource = new DataSource({
     type: 'sqlite',
@@ -13,7 +14,8 @@ export const AppDataSource = new DataSource({
     logging: process.env.NODE_ENV === 'development',
     migrationsRun: true,
     migrations: [
-        InitialSchema1700000000000
+        InitialSchema1700000000000,
+        AddSparePartsToCar1775272596631
     ],
     subscribers: []
 })

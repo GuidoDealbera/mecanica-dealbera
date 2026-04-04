@@ -61,6 +61,9 @@ export class Car {
   @Column("simple-json", { nullable: true })
   kmHistory!: { km: number; date: string }[];
 
+  @Column({ type: "simple-json", nullable: true })
+  spareParts!: { name: string; price: number }[];
+
   @CreateDateColumn({ type: "datetime" })
   createdAt!: Date;
 
