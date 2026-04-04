@@ -14,7 +14,7 @@ import {
 } from "@heroui/react";
 import { JobStatus } from "../../Types/apiTypes";
 import { MdEdit } from "react-icons/md";
-import { formatARS, formatDate } from "../../Utils/utils";
+import { formatARS } from "../../Utils/utils";
 interface JobsProps {
   jobs: Jobs[];
   isLoading: boolean;
@@ -27,12 +27,13 @@ const STATUS_MAP: Record<
   {
     label: string;
     color: "warning" | "success" | "primary" | "secondary" | "default";
+    textColor: 'text-warning' | 'text-success' | 'text-primary' | 'text-secondary' | 'text-default';
   }
 > = {
-  [JobStatus.IN_PROGRESS]: { label: "En progreso", color: "primary" },
-  [JobStatus.COMPLETED]: { label: "Completado", color: "success" },
-  [JobStatus.DELIVERED]: { label: "Entregado", color: "secondary" },
-  [JobStatus.PENDING]: {label: "Sin comenzar", color: "default"}
+  [JobStatus.IN_PROGRESS]: { label: "En progreso", color: "primary", textColor: "text-primary" },
+  [JobStatus.COMPLETED]: { label: "Completado", color: "success", textColor: "text-success" },
+  [JobStatus.DELIVERED]: { label: "Entregado", color: "secondary", textColor: "text-secondary" },
+  [JobStatus.PENDING]: {label: "Sin comenzar", color: "default", textColor: "text-default"}
 };
 
 const JobsTable: React.FC<JobsProps> = ({
@@ -55,7 +56,7 @@ const JobsTable: React.FC<JobsProps> = ({
       key: "description",
       label: "Descripción",
       center: false,
-      width: 350,
+      width: 300,
     },
     {
       key: "status",
@@ -70,22 +71,16 @@ const JobsTable: React.FC<JobsProps> = ({
       width: 100,
     },
     {
+      key: "parts",
+      label: "Respuestos",
+      center: true,
+      width: 150
+    },
+    {
       key: "price",
       label: "Precio",
       center: true,
       width: 120,
-    },
-    {
-      key: "createdAt",
-      label: "Fecha de creación",
-      center: true,
-      width: 180,
-    },
-    {
-      key: "updatedAt",
-      label: "Última actualización",
-      center: true,
-      width: 200,
     },
     ...(onEditJob
       ? [{ key: "actions", label: "Acciones", center: true, width: 100 }]
@@ -131,7 +126,9 @@ const JobsTable: React.FC<JobsProps> = ({
             const statusInfo = STATUS_MAP[job.status] ?? {
               label: job.status,
               color: "default" as const,
+              textColor: "text-default" as const
             };
+            
             return (
               <TableRow key={job.id} className="text-white">
                 <TableCell
@@ -141,25 +138,30 @@ const JobsTable: React.FC<JobsProps> = ({
                   {job.description}
                 </TableCell>
                 <TableCell className="text-center">
-                  <Chip color={statusInfo.color} variant="flat">
+                  <Chip color={statusInfo.color} variant="flat" className={statusInfo.textColor}>
                     {statusInfo.label}
                   </Chip>
                 </TableCell>
                 <TableCell className="text-center">
                   <Chip
                     color={job.isThirdParty ? "secondary" : "default"}
+                    variant="flat"
+                    className={job.isThirdParty ? "text-secondary" : "text-default"}
                   >
                     {job.isThirdParty ? "Sí" : "No"}
                   </Chip>
                 </TableCell>
+                <TableCell className="text-center">
+                  { job.parts.length > 0 ? (
+                    <Chip color="primary" variant="flat" className="text-primary">
+                      {job.parts.length} {job.parts.length === 1 ? "respuesto" : "respuestos"}
+                    </Chip>
+                  ) : (
+                    <span className="text-foreground-400">---</span>
+                  )}
+                </TableCell>
                 <TableCell className="text-center font-medium">
                   {formatARS(job.price)}
-                </TableCell>
-                <TableCell className="text-center text-sm">
-                  {formatDate(job.createdAt)}
-                </TableCell>
-                <TableCell className="text-center text-sm">
-                  {formatDate(job.updatedAt)}
                 </TableCell>
                 <TableCell className="text-center">
                 {onEditJob && (

@@ -91,8 +91,9 @@ const CarCard: React.FC<CarCardProps> = ({
           <Chip
             size="sm"
             color="primary"
+            variant="flat"
             startContent={<MdCheckCircle size={12} />}
-            className={`${!isSelected ? "opacity-0" : "opacity-100"} bg-primary-500/30 text-primary-100 border border-primary-400/50 ml-auto`}
+            className={`${!isSelected ? "opacity-0" : "opacity-100"} text-primary-100 border border-primary-400/50`}
           >
             Seleccionado
           </Chip>

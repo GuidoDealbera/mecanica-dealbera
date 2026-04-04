@@ -20,7 +20,7 @@ const StatCard: React.FC<{
   <Card className="bg-foreground-700 shadow shadow-primary">
     <CardBody className="flex flex-row items-center gap-4 p-4">
       <div
-        className={`p-3 rounded-full bg-${color}-900 text-${color}-400 flex-shrink-0`}
+        className={`p-3 rounded-full text-${color}-400 flex-shrink-0`}
       >
         {icon}
       </div>
@@ -169,7 +169,7 @@ const HomePage: React.FC = () => {
                         {job.brand} {job.model}
                       </p>
                     </div>
-                    <Chip color="primary">{formatARS(job.price)}</Chip>
+                    <Chip color="primary" variant="flat" className="text-white">{formatARS(job.price)}</Chip>
                   </div>
                 ))}
               </div>

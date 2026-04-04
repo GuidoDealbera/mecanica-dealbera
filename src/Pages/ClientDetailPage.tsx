@@ -157,7 +157,8 @@ const ClientDetailPage: React.FC = () => {
             </h5>
             <Chip
               color={client.isActive ? "success" : "danger"}
-              className="ml-auto"
+              variant="flat"
+              className="ml-auto text-success"
             >
               {client.isActive ? "Activo" : "Inactivo"}
             </Chip>
@@ -276,7 +277,7 @@ const ClientDetailPage: React.FC = () => {
             <h5 className="font-semibold text-base text-primary-400">
               Vehículos registrados
             </h5>
-            <Chip size="sm" color="primary" className="ml-1">
+            <Chip size="sm" color="primary" variant="flat" className="ml-1 text-primary">
               {clientCars.length}
             </Chip>
           </CardHeader>
@@ -311,7 +312,7 @@ const ClientDetailPage: React.FC = () => {
                       </p>
                     </div>
 
-                    <Chip size="sm" color="primary" className="flex-shrink-0">
+                    <Chip size="sm" color="primary" variant="flat" className="flex-shrink-0 text-white">
                       {car.jobs?.length ?? 0} trabajos
                     </Chip>
 

@@ -145,7 +145,7 @@ const CarDetailPage: React.FC = () => {
                   size="sm"
                   variant="flat"
                   color="primary"
-                  className="text-primary-500"
+                  className="text-primary"
                 >
                   {car.year}
                 </Chip>

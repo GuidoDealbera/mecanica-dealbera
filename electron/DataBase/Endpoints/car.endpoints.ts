@@ -179,6 +179,7 @@ ipcMain.handle(
       description: jobDto.description,
       isThirdParty: jobDto.isThirdParty,
       status: jobDto.status,
+      parts: jobDto.parts,
       createdAt: new Date(),
       updatedAt: new Date(),
     };

@@ -9,17 +9,20 @@ export enum JobStatus {
   DELIVERED = "delivered",
 }
 
-
 export const STATUS_LABELS: Record<JobStatus, string> = {
   [JobStatus.IN_PROGRESS]: "En progreso",
   [JobStatus.COMPLETED]: "Completado",
   [JobStatus.DELIVERED]: "Entregado",
-  [JobStatus.PENDING]: "Sin comenzar"
+  [JobStatus.PENDING]: "Sin comenzar",
 };
 
 export interface UpdateJobBody {
   status?: JobStatus;
   price?: number;
+  parts?: {
+    name: string;
+    price: number;
+  }[];
 }
 
 export interface CreateCarBody {
@@ -33,7 +36,7 @@ export interface CreateCarBody {
 }
 
 export interface APIResponse {
-  status: 'success' | 'failed';
+  status: "success" | "failed";
   message: string;
   result?: any;
 }
@@ -48,4 +51,8 @@ export interface CreateCarJob {
   description: string;
   isThirdParty: boolean;
   status: JobStatus;
+  parts: {
+    name: string;
+    price: number;
+  }[];
 }
