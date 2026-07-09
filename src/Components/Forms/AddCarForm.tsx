@@ -10,7 +10,7 @@ import {
   handleCapitalizedChange,
 } from "../../Utils/utils";
 import { useSelector } from "react-redux";
-import { RootState } from "../../Store/store";
+import { selectAllClients } from "../../Store/selectors";
 import { useClientQueries } from "../../Hooks/useClientQueries";
 
 interface AddCarFormProps {
@@ -64,7 +64,7 @@ const AddCarForm: React.FC<AddCarFormProps> = ({
     watch,
     reset,
   } = form;
-  const { allClients } = useSelector((state: RootState) => state.clients);
+  const allClients = useSelector(selectAllClients);
 
   const filterClient = React.useCallback(
     (fullname: string | null) => {

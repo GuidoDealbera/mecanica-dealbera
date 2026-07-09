@@ -1,4 +1,5 @@
 import { ipcMain } from "electron";
+import { MoreThanOrEqual } from "typeorm";
 import { getRepositories } from "../dataSource";
 import { JobStatus } from "../../../src/Types/apiTypes";
 
@@ -12,26 +13,34 @@ ipcMain.handle("dashboard:get-stats", async () => {
   const threeMonthsAgo = new Date();
   threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
  
-  const [allCars, allClients] = await Promise.all([
-    carRepository.find({ relations: ["owner"] }),
-    clientRepository.find(),
+  const [allCars, totalClients, activeClients, newClientsThisMonth] = await Promise.all([
+    carRepository.find(),
+    clientRepository.count(),
+    clientRepository.countBy({ isActive: true }),
+    clientRepository.count({ where: { createdAt: MoreThanOrEqual(startOfMonth) } }),
   ]);
- 
+
   const totalCars = allCars.length;
-  const totalClients = allClients.length;
-  const activeClients = allClients.filter((c) => c.isActive).length;
   const newCarsThisMonth = allCars.filter(
-    (c) => new Date(c.createdAt) >= startOfMonth
-  ).length;
-  const newClientsThisMonth = allClients.filter(
     (c) => new Date(c.createdAt) >= startOfMonth
   ).length;
  
   let pendingJobs = 0;
   let jobsInProgress = 0;
+  let completedJobs = 0;
+  let deliveredJobs = 0;
   let completedThisMonth = 0;
   let deliveredThisMonth = 0;
   let revenueThisMonth = 0;
+  const MONTH_NAMES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+  const monthlyRevenue: { month: string; revenue: number }[] = Array.from(
+    { length: 6 },
+    (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth() - 5 + i, 1);
+      return { month: MONTH_NAMES[d.getMonth()], revenue: 0 };
+    },
+  );
+  const sixMonthsAgoMs = new Date(now.getFullYear(), now.getMonth() - 5, 1).getTime();
   const recentActiveJobs: {
     licensePlate: string;
     brand: string;
@@ -54,11 +63,31 @@ ipcMain.handle("dashboard:get-stats", async () => {
     price: number;
   }[] = [];
  
+  let carsWithAlerts = 0;
+
   for (const car of allCars) {
-    if (!Array.isArray(car.jobs)) continue;
+    const hasJobs = Array.isArray(car.jobs) && car.jobs.length > 0;
+
+    if (!hasJobs) {
+      if (new Date(car.createdAt) < threeMonthsAgo) carsWithAlerts++;
+      continue;
+    }
+
+    const lastJobDate = car.jobs.reduce((latest, job) => {
+      const d = new Date((job.updatedAt || job.createdAt) as Date);
+      return d > latest ? d : latest;
+    }, new Date(0));
+    if (lastJobDate < sixMonthsAgo) carsWithAlerts++;
+
     for (const job of car.jobs) {
       if (job.status === JobStatus.PENDING) {
         pendingJobs++;
+      }
+      if (job.status === JobStatus.COMPLETED) {
+        completedJobs++;
+      }
+      if (job.status === JobStatus.DELIVERED) {
+        deliveredJobs++;
       }
       if (job.status === JobStatus.IN_PROGRESS) {
         jobsInProgress++;
@@ -70,6 +99,19 @@ ipcMain.handle("dashboard:get-stats", async () => {
             description: job.description,
             price: job.price,
           });
+        }
+      }
+      if (
+        (job.status === JobStatus.COMPLETED || job.status === JobStatus.DELIVERED) &&
+        job.updatedAt
+      ) {
+        const jobDate = new Date(job.updatedAt);
+        const jobMs = new Date(jobDate.getFullYear(), jobDate.getMonth(), 1).getTime();
+        const slotIndex = monthlyRevenue.findIndex(
+          (_, i) => new Date(now.getFullYear(), now.getMonth() - 5 + i, 1).getTime() === jobMs,
+        );
+        if (slotIndex !== -1 && jobMs >= sixMonthsAgoMs) {
+          monthlyRevenue[slotIndex].revenue += job.price ?? 0;
         }
       }
       if (
@@ -108,17 +150,6 @@ ipcMain.handle("dashboard:get-stats", async () => {
     }
   }
  
-  const carsWithAlerts = allCars.filter((car) => {
-    if (!Array.isArray(car.jobs) || car.jobs.length === 0) {
-      return new Date(car.createdAt) < threeMonthsAgo;
-    }
-    const lastJobDate = car.jobs.reduce((latest, job) => {
-      const d = new Date((job.updatedAt || job.createdAt) as Date);
-      return d > latest ? d : latest;
-    }, new Date(0));
-    return lastJobDate < sixMonthsAgo;
-  }).length;
- 
   return {
     status: "success",
     result: {
@@ -129,10 +160,13 @@ ipcMain.handle("dashboard:get-stats", async () => {
       newClientsThisMonth,
       pendingJobs,
       jobsInProgress,
+      completedJobs,
+      deliveredJobs,
       completedThisMonth,
       deliveredThisMonth,
       revenueThisMonth,
       carsWithAlerts,
+      monthlyRevenue,
       recentActiveJobs,
       recentCompletedJobs,
       recentDeliveredJobs,

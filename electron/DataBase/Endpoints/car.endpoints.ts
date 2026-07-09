@@ -1,61 +1,63 @@
 import { ipcMain } from "electron";
+import log from "electron-log/main";
 import { CreateCarDto, Jobs, UpdateJobDto } from "../Types/car.dto";
-import { getRepositories } from "../dataSource";
+import { AppDataSource, getRepositories } from "../dataSource";
 import { v4 } from "uuid";
 import { CreateCarJob } from "../../../src/Types/apiTypes";
 import { Like } from "typeorm";
 import { CreateClientDto } from "../Types/client.dto";
+import { Car } from "../Entities/car.entity";
+import { Client } from "../Entities/client.entity";
 
 ipcMain.handle("car:create", async (_event, createCarDto: CreateCarDto) => {
-  const { carRepository: carRepo, clientRepository: clientRepo } =
-    getRepositories();
-  const existingCar = await carRepo.findOne({
-    where: {
-      licensePlate: createCarDto.licensePlate,
-    },
-  });
-  if (existingCar) {
-    return {
-      status: "failed",
-      message: "Patente ya registrada",
-    };
-  }
+  const qr = AppDataSource.createQueryRunner();
+  await qr.connect();
+  await qr.startTransaction();
 
-  let owner = await clientRepo.findOne({
-    where: {
-      fullname: createCarDto.owner.fullname,
-    },
-  });
-
-  if (!owner) {
-    const existingPhone = await clientRepo.findOne({
-      where: {
-        phone: createCarDto.owner.phone,
-      },
+  try {
+    const existingCar = await qr.manager.findOne(Car, {
+      where: { licensePlate: createCarDto.licensePlate },
     });
-    if (existingPhone) {
-      return {
-        status: "failed",
-        message: `El teléfono ya está registrado a nombre de ${existingPhone.fullname}`,
-      };
+    if (existingCar) {
+      await qr.rollbackTransaction();
+      return { status: "failed", message: "Patente ya registrada" };
     }
-    owner = clientRepo.create(createCarDto.owner);
+
+    let owner = await qr.manager.findOne(Client, {
+      where: { fullname: createCarDto.owner.fullname },
+    });
+
+    if (!owner) {
+      const existingPhone = await qr.manager.findOne(Client, {
+        where: { phone: createCarDto.owner.phone },
+      });
+      if (existingPhone) {
+        await qr.rollbackTransaction();
+        return {
+          status: "failed",
+          message: `El teléfono ya está registrado a nombre de ${existingPhone.fullname}`,
+        };
+      }
+      owner = qr.manager.create(Client, createCarDto.owner);
+    }
+    const savedOwner = await qr.manager.save(Client, owner);
+
+    const newCar = qr.manager.create(Car, {
+      ...createCarDto,
+      owner: savedOwner,
+      kmHistory: [{ km: createCarDto.kilometers, date: new Date().toISOString() }],
+    });
+    await qr.manager.save(Car, newCar);
+
+    await qr.commitTransaction();
+    return { status: "success", message: "Vehículo registrado correctamente" };
+  } catch (error) {
+    await qr.rollbackTransaction();
+    log.error("car:create — error en transacción:", error);
+    return { status: "failed", message: "Error al registrar el vehículo" };
+  } finally {
+    await qr.release();
   }
-  const savedOwner = await clientRepo.save(owner);
-
-  const newCar = carRepo.create({
-    ...createCarDto,
-    owner: savedOwner,
-    kmHistory: [
-      { km: createCarDto.kilometers, date: new Date().toISOString() },
-    ],
-  });
-
-  await carRepo.save(newCar);
-  return {
-    status: "success",
-    message: "Vehículo registrado correctamente",
-  };
 });
 
 ipcMain.handle("car:get-all", async () => {
@@ -125,37 +127,36 @@ ipcMain.handle("car:update", async (_, id: string, kilometers: number) => {
 ipcMain.handle(
   "car:delete",
   async (_, license: CreateCarDto["licensePlate"]) => {
-    const carRepo = getRepositories().carRepository;
-    const clientRepo = getRepositories().clientRepository;
-    const carToDelete = await carRepo.findOne({
-      where: {
-        licensePlate: license,
-      },
-      relations: ["owner"],
-    });
-    if (!carToDelete) {
-      return {
-        status: "failed",
-        message: "Vehículo no registrado",
-      };
-    }
-    const owner = carToDelete.owner;
-    await carRepo.remove(carToDelete);
+    const qr = AppDataSource.createQueryRunner()
+    await qr.connect()
+    await qr.startTransaction()
+    try {
+      const car = await qr.manager.findOne(Car, {
+        where: {licensePlate: license},
+        relations: ['owner']
+      })
 
-    const remainingCars = await carRepo.find({
-      where: {
-        owner: {
-          id: owner.id,
-        },
-      },
-    });
-    if (remainingCars.length === 0) {
-      await clientRepo.remove(owner);
+      if(!car){
+        await qr.rollbackTransaction()
+        return {status: 'failed', message: 'Vehículo no encontrado'}
+      }
+      const owner = car.owner
+      await qr.manager.remove(car)
+      if(owner){
+        const remaining = await qr.manager.count(Car, {
+          where: {owner: {id: owner.id}},
+        })
+        if(remaining === 0) await qr.manager.remove(owner)
+      }
+    await qr.commitTransaction()
+    return {status: 'success', message: "Vehículo eliminado correctamente"}
+    } catch (error) {
+      await qr.rollbackTransaction()
+      log.error("car:delete — error en transacción:", error)
+      return {status: 'failed', message: "Error al eliminar el vehículo"}
+    } finally {
+      await qr.release()
     }
-    return {
-      status: "success",
-      message: "Vehículo eliminado exitosamente",
-    };
   },
 );
 
@@ -223,24 +224,29 @@ ipcMain.handle(
         message: "Vehículo no registrado",
       };
     }
-    if (car.jobs) {
-      const jobIndex = car.jobs.findIndex((job) => job.id === jobId);
-      if (jobIndex === -1) {
-        return {
-          status: "failed",
-          message: `El vehículo registrado con patente ${license} no tiene registrado el trabajo que intenta modificar`,
-        };
-      }
-      car.jobs[jobIndex] = {
-        ...car.jobs[jobIndex],
-        ...updateJobDto,
-        updatedAt: new Date(),
+    if (!car.jobs?.length) {
+      return {
+        status: "failed",
+        message: "El vehículo no tiene trabajos registrados",
       };
     }
 
+    const jobIndex = car.jobs.findIndex((job) => job.id === jobId);
+    if (jobIndex === -1) {
+      return {
+        status: "failed",
+        message: `El vehículo registrado con patente ${license} no tiene registrado el trabajo que intenta modificar`,
+      };
+    }
+
+    car.jobs[jobIndex] = {
+      ...car.jobs[jobIndex],
+      ...updateJobDto,
+      updatedAt: new Date(),
+    };
+
     const savedCar = await repo.save(car);
-    const { jobs } = savedCar;
-    const updatedJob = jobs.find((job) => job.id === jobId);
+    const updatedJob = savedCar.jobs.find((job) => job.id === jobId);
     return {
       status: "success",
       message: "Trabajo actualizado correctamente",
@@ -296,8 +302,8 @@ ipcMain.handle("car:service-alerts", async () => {
         model: car.model,
         year: car.year,
         kilometers: car.kilometers,
-        ownerName: car.owner.fullname,
-        ownerPhone: car.owner.phone,
+        ownerName: car.owner?.fullname ?? "Sin titular",
+        ownerPhone: car.owner?.phone ?? "---",
         daysSinceLastJob: daysSince,
         lastJobDate: lastJob
           ? new Date(
@@ -412,7 +418,7 @@ ipcMain.handle("global:search", async (_, query: string) => {
       brand: car.brand,
       model: car.model,
       year: car.year,
-      ownerName: car.owner.fullname,
+      ownerName: car.owner?.fullname ?? "Sin titular",
     })),
     clients: clients.map((client) => ({
       id: client.id,

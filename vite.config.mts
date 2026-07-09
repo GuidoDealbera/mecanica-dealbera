@@ -15,11 +15,12 @@ export default defineConfig({
           build: {
             rollupOptions: {
               external: (id) => {
-                // Excluir TypeORM y todos sus drivers
-                return id === 'typeorm' || 
+                return id === 'typeorm' ||
                        id.startsWith('typeorm/') ||
                        id === '@google-cloud/spanner' ||
                        id.startsWith('@google-cloud/') ||
+                       id === 'electron-log' ||
+                       id.startsWith('electron-log/') ||
                        ['sqlite3', 'better-sqlite3', 'mysql2', 'pg', 'mongodb'].includes(id)
               }
             }

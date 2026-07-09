@@ -3,12 +3,17 @@ import "./DataBase/Endpoints/car.endpoints";
 import "./DataBase/Endpoints/client.endpoints";
 import "./DataBase/Endpoints/dashboard.endpoints";
 import "./DataBase/Endpoints/backup.endpoints";
-import { app, BrowserWindow, dialog, Notification, ipcMain } from "electron";
+import { app, BrowserWindow, dialog, Notification, ipcMain, shell } from "electron";
 import { autoUpdater } from "electron-updater";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import fs from "node:fs";
+import log from "electron-log/main";
 import { getRepositories, initializeDB } from "./DataBase/dataSource";
+
+log.initialize();
+log.transports.file.level = "info";
+log.transports.console.level = "debug";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -28,8 +33,36 @@ if (!gotTheLock) {
   app.quit();
 }
 
+function getBackupDir(): string {
+  return path.join(app.getPath("documents"), "backups");
+}
+
+function performAutoBackup(): void {
+  const dbPath = path.join(app.getPath("documents"), "taller.db");
+  if (!fs.existsSync(dbPath)) return;
+
+  const today = new Date().toISOString().slice(0, 10);
+  const backupDir = getBackupDir();
+  if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
+
+  const backupPath = path.join(backupDir, `taller_${today}.db`);
+  if (!fs.existsSync(backupPath)) {
+    fs.copyFileSync(dbPath, backupPath);
+  }
+
+  const backups = fs
+    .readdirSync(backupDir)
+    .filter((f) => f.startsWith("taller_") && f.endsWith(".db"))
+    .sort();
+  if (backups.length > 7) {
+    backups
+      .slice(0, backups.length - 7)
+      .forEach((f) => fs.unlinkSync(path.join(backupDir, f)));
+  }
+}
+
 process.on("uncaughtException", (error) => {
-  console.error("Uncaught Exception: ", error);
+  log.error("Uncaught Exception:", error);
   dialog.showErrorBox(
     "Error Inesperado",
     `Ocurrió un error inesperado:\n\n${error.message}`,
@@ -76,10 +109,10 @@ function setupAutoUpdater() {
     })
   })
 
-  autoUpdater.checkForUpdates().catch(err => console.error("Error checking for updates: ", err))
+  autoUpdater.checkForUpdates().catch(err => log.error("Error checking for updates:", err))
 
   setInterval(() => {
-    autoUpdater.checkForUpdates().catch(err => console.error("Error checking for updates (interval): ", err))
+    autoUpdater.checkForUpdates().catch(err => log.error("Error checking for updates (interval):", err))
   }, UPDATE_CHECK_INTERVAL_MS)
 }
 
@@ -100,30 +133,10 @@ async function createWindow() {
 
   if (process.env.NODE_ENV !== "development") {
     try {
-      const documentsPath = app.getPath("documents");
-      const dbPath = path.join(documentsPath, "taller.db");
-      if (fs.existsSync(dbPath)) {
-        const today = new Date().toISOString().slice(0, 10);
-        const backupDir = path.join(documentsPath, "backups");
-        if (!fs.existsSync(backupDir))
-          fs.mkdirSync(backupDir, { recursive: true });
-        const backupPath = path.join(backupDir, `taller_${today}.db`);
-        if (!fs.existsSync(backupPath)) {
-          fs.copyFileSync(dbPath, backupPath);
-          // Mantener solo los últimos 7 backups
-          const backups = fs
-            .readdirSync(backupDir)
-            .filter((f) => f.startsWith("taller_") && f.endsWith(".db"))
-            .sort();
-          if (backups.length > 7) {
-            backups
-              .slice(0, backups.length - 7)
-              .forEach((f) => fs.unlinkSync(path.join(backupDir, f)));
-          }
-        }
-      }
+      performAutoBackup();
+      log.info("Auto-backup completado");
     } catch (err) {
-      console.error("Error al realizar backup:", err);
+      log.error("Error al realizar backup:", err);
     }
   }
 
@@ -158,7 +171,7 @@ async function createWindow() {
         }).show();
       }
     } catch (err) {
-      console.error("Error al verificar alertas de service:", err);
+      log.error("Error al verificar alertas de service:", err);
     }
   }
 
@@ -215,6 +228,11 @@ app.on("activate", () => {
   }
 });
 
+ipcMain.handle("app:open-logs-folder", () => {
+  const logPath = log.transports.file.getFile().path;
+  shell.showItemInFolder(logPath);
+});
+
 ipcMain.on("start-update-download", () => {
   autoUpdater.downloadUpdate()
 })
@@ -238,6 +256,7 @@ ipcMain.handle("check-for-updates", async () => {
 })
 
 app.whenReady().then(async () => {
+  log.info("App iniciando — versión", app.getVersion());
   await createWindow();
   setupAutoUpdater();
 });

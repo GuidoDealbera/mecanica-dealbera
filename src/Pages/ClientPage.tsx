@@ -7,9 +7,11 @@ import FilterName from "../Components/SearchBars/FilterName";
 import CustomDialog from "../Components/CustomDialog";
 import { useToasts } from "../Hooks/useToasts";
 import { normalizeText } from "../Utils/utils";
+import { useSearchParams } from "react-router-dom";
 
 const ClientPage: React.FC = () => {
-  const [fullnameFilter, setFullnameFilter] = React.useState<string>("");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const fullnameFilter = normalizeText(searchParams.get("q") ?? "");
   const { allClients, loading, refreshing, getAllClients, refresh } = useClientQueries();
   const { showToast } = useToasts();
   const [showInactive, setShowInactive] = React.useState(false);
@@ -108,7 +110,12 @@ const ClientPage: React.FC = () => {
         </div>
       </div>
 
-      <FilterName onFilterChange={setFullnameFilter} />
+      <FilterName
+        initialValue={searchParams.get("q") ?? ""}
+        onFilterChange={(v) =>
+          v ? setSearchParams({ q: v }) : setSearchParams({})
+        }
+      />
 
       <ClientTable
         clients={filteredClients}

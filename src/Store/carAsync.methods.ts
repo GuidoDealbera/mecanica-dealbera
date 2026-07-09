@@ -1,119 +1,119 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
 import { carService } from "../Services/car.service";
-import { APIResponse, CreateCarBody, CreateCarJob, UpdateJobBody } from "../Types/apiTypes";
+import { APIResponse, AppError, CreateCarBody, CreateCarJob, UpdateJobBody } from "../Types/apiTypes";
 import { Cars } from "../Types/types";
 import { formatDate } from "../Utils/utils";
 
-export const fetchCars = createAsyncThunk(
+const toAppError = (error: unknown): AppError => ({
+  message: error instanceof Error ? error.message : "Error desconocido",
+});
+
+export const fetchCars = createAsyncThunk<Cars[], void, { rejectValue: AppError }>(
   "cars/fetchCars",
   async (_, { rejectWithValue }) => {
     try {
       const response = await carService.getAll();
-      const result: Cars[] = response.map((car) => ({
+      return response.map((car) => ({
         ...car,
         createdAt: formatDate(car.createdAt),
         updatedAt: formatDate(car.updatedAt),
       }));
-
-      return result;
     } catch (error) {
-      return rejectWithValue(error);
+      return rejectWithValue(toAppError(error));
     }
-  }
+  },
 );
 
-export const fetchCarByLicence = createAsyncThunk(
+export const fetchCarByLicence = createAsyncThunk<Cars, string, { rejectValue: AppError }>(
   "cars/fetchCarByLicence",
-  async (licence: string, { rejectWithValue }) => {
+  async (licence, { rejectWithValue }) => {
     try {
       const response = await carService.getByLicence(licence);
-      const result: Cars = {
+      if (!response.result) {
+        return rejectWithValue({ message: response.message ?? "Vehículo no encontrado" });
+      }
+      return {
         ...response.result,
         createdAt: formatDate(response.result.createdAt),
         updatedAt: formatDate(response.result.updatedAt),
       };
-      return result;
     } catch (error) {
-      return rejectWithValue(error);
+      return rejectWithValue(toAppError(error));
     }
-  }
+  },
 );
 
-export const createCar = createAsyncThunk(
+export const createCar = createAsyncThunk<APIResponse, CreateCarBody, { rejectValue: AppError }>(
   "cars/createCar",
-  async (body: CreateCarBody, { rejectWithValue }) => {
+  async (body, { rejectWithValue }) => {
     try {
       return await carService.create(body);
     } catch (error) {
-      return rejectWithValue(error);
+      return rejectWithValue(toAppError(error));
     }
-  }
+  },
 );
 
-export const addJob = createAsyncThunk(
-  'cars/addJob',
-  async ({licence, job}: {licence: string, job: CreateCarJob}, {rejectWithValue}) => {
+export const addJob = createAsyncThunk<
+  APIResponse,
+  { licence: string; job: CreateCarJob },
+  { rejectValue: AppError }
+>(
+  "cars/addJob",
+  async ({ licence, job }, { rejectWithValue }) => {
     try {
-      return await carService.addJob(licence, job)
+      return await carService.addJob(licence, job);
     } catch (error) {
-      return rejectWithValue(error)
+      return rejectWithValue(toAppError(error));
     }
-  }
-)
+  },
+);
 
-export const updatedCar = createAsyncThunk(
+export const updatedCar = createAsyncThunk<APIResponse, { carId: string; kilometers: number }, { rejectValue: AppError }>(
   "cars/updateCar",
-  async (
-    { carId, kilometers }: { carId: string; kilometers: number },
-    { rejectWithValue }
-  ) => {
+  async ({ carId, kilometers }, { rejectWithValue }) => {
     try {
       const response = await carService.updateCar(carId, kilometers);
-      if(response.result){
-        const result: Cars = {
-          ...response.result,
-          createdAt: formatDate(response.result.createdAt),
-          updatedAt: formatDate(response.result.updatedAt),
-        };
+      if (response.result) {
         return {
           message: response.message,
           status: response.status,
-          result
-        } as APIResponse
-      } else {
-        return response
+          result: {
+            ...response.result,
+            createdAt: formatDate(response.result.createdAt),
+            updatedAt: formatDate(response.result.updatedAt),
+          },
+        } as APIResponse;
       }
+      return response;
     } catch (error) {
-      return rejectWithValue(error);
+      return rejectWithValue(toAppError(error));
     }
-  }
+  },
 );
 
-export const deleteCar = createAsyncThunk(
+export const deleteCar = createAsyncThunk<APIResponse, string, { rejectValue: AppError }>(
   "cars/deleteCar",
-  async (licence: string, { rejectWithValue }) => {
+  async (licence, { rejectWithValue }) => {
     try {
       return await carService.delete(licence);
     } catch (error) {
-      return rejectWithValue(error);
+      return rejectWithValue(toAppError(error));
     }
-  }
+  },
 );
 
-export const updateJobInCar = createAsyncThunk(
+export const updateJobInCar = createAsyncThunk<
+  APIResponse,
+  { licence: string; jobId: string; body: UpdateJobBody },
+  { rejectValue: AppError }
+>(
   "cars/updateJobInCar",
-  async (
-    {
-      licence,
-      jobId,
-      body,
-    }: { licence: string; jobId: string; body: UpdateJobBody },
-    { rejectWithValue }
-  ) => {
+  async ({ licence, jobId, body }, { rejectWithValue }) => {
     try {
       return await carService.updateJob(licence, jobId, body);
     } catch (error) {
-      return rejectWithValue(error);
+      return rejectWithValue(toAppError(error));
     }
-  }
+  },
 );

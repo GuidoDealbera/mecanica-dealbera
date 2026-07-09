@@ -197,13 +197,20 @@ export const useBudgetPDF = () => {
           autotable(doc, {
             startY: y,
             margin: { left: margin, right: margin },
-            head: [["Descripción", "Estado", "Terceros", "Precio"]],
-            body: filteredJobs.map((job) => [
-              job.description ?? "",
-              STATUS_LABELS[job.status] ?? job.status,
-              job.isThirdParty ? "Sí" : "No",
-              formatARS(job.price ?? 0),
-            ]),
+            head: [["Descripción", "Estado", "Terceros", "Repuestos", "Mano de obra"]],
+            body: filteredJobs.map((job) => {
+              const partsTotal = (job.parts ?? []).reduce(
+                (acc, p) => acc + p.price,
+                0,
+              );
+              return [
+                job.description ?? "",
+                STATUS_LABELS[job.status] ?? job.status,
+                job.isThirdParty ? "Sí" : "No",
+                partsTotal > 0 ? formatARS(partsTotal) : "---",
+                formatARS(job.price ?? 0),
+              ];
+            }),
             headStyles: {
               fillColor: C.primaryDark,
               textColor: C.white,
@@ -221,9 +228,10 @@ export const useBudgetPDF = () => {
             },
             columnStyles: {
               0: { cellWidth: "auto" },
-              1: { cellWidth: 30, halign: "center" },
-              2: { cellWidth: 22, halign: "center" },
-              3: { cellWidth: 32, halign: "right" },
+              1: { cellWidth: 28, halign: "center" },
+              2: { cellWidth: 20, halign: "center" },
+              3: { cellWidth: 30, halign: "right" },
+              4: { cellWidth: 30, halign: "right" },
             },
             didDrawPage: (data) => {
               if (data.cursor) y = data.cursor.y;
@@ -236,42 +244,54 @@ export const useBudgetPDF = () => {
 
         // ─── TOTALES ───────────────────────────────────────────────────
         y += 8;
-        const total = filteredJobs.reduce(
+        const laborTotal = filteredJobs.reduce(
           (acc, j) => acc + (j.price ?? 0),
-          0
+          0,
         );
+        const partsGrandTotal = filteredJobs.reduce(
+          (acc, j) =>
+            acc + (j.parts ?? []).reduce((s, p) => s + p.price, 0),
+          0,
+        );
+        const total = laborTotal + partsGrandTotal;
         const thirdPartyTotal = filteredJobs
           .filter((j) => j.isThirdParty)
           .reduce((acc, j) => acc + (j.price ?? 0), 0);
-        const ownTotal = total - thirdPartyTotal;
+        const ownTotal = laborTotal - thirdPartyTotal;
 
-        const boxW = 82;
+        const boxW = 90;
         const boxX = pageW - margin - boxW;
         const hasThirdParty = thirdPartyTotal > 0;
+        const hasParts = partsGrandTotal > 0;
 
+        const subtotalRows: [string, number][] = [];
         if (hasThirdParty) {
+          subtotalRows.push(["Mano de obra propia:", ownTotal]);
+          subtotalRows.push(["Mano de obra terceros:", thirdPartyTotal]);
+        }
+        if (hasParts) {
+          subtotalRows.push(["Repuestos:", partsGrandTotal]);
+        }
+
+        if (subtotalRows.length > 0) {
+          const subtotalH = subtotalRows.length * 9 + 8;
           doc.setFillColor(...C.grayLight);
           doc.setDrawColor(...C.grayBorder);
           doc.setLineWidth(0.3);
-          doc.roundedRect(boxX, y, boxW, 22, 3, 3, "FD");
+          doc.roundedRect(boxX, y, boxW, subtotalH, 3, 3, "FD");
 
           doc.setFont("helvetica", "normal");
           doc.setFontSize(9);
-          doc.setTextColor(...C.gray);
-          doc.text("Trabajos propios:", boxX + 4, y + 8);
-          doc.setTextColor(...C.black);
-          doc.text(formatARS(ownTotal), pageW - margin - 4, y + 8, {
-            align: "right",
+          subtotalRows.forEach(([label, value], i) => {
+            doc.setTextColor(...C.gray);
+            doc.text(label, boxX + 4, y + 8 + i * 9);
+            doc.setTextColor(...C.black);
+            doc.text(formatARS(value), pageW - margin - 4, y + 8 + i * 9, {
+              align: "right",
+            });
           });
 
-          doc.setTextColor(...C.gray);
-          doc.text("Trabajos de terceros:", boxX + 4, y + 17);
-          doc.setTextColor(...C.black);
-          doc.text(formatARS(thirdPartyTotal), pageW - margin - 4, y + 17, {
-            align: "right",
-          });
-
-          y += 24;
+          y += subtotalH + 2;
         }
 
         // Bloque total principal

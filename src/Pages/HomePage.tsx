@@ -5,6 +5,10 @@ import { MdPostAdd, MdWarning, MdPeople, MdBuild } from "react-icons/md";
 import { FaSackDollar } from "react-icons/fa6";
 import { HiOutlineRefresh } from "react-icons/hi";
 import { useNavigate } from "react-router-dom";
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
+  ResponsiveContainer, PieChart, Pie, Cell, Legend,
+} from "recharts";
 import { DashboardStats } from "../Types/types";
 import LicenceTable from "../Components/Licenses/LicenceTable";
 import { formatARS } from "../Utils/utils";
@@ -117,6 +121,77 @@ const HomePage: React.FC = () => {
               icon={<FaSackDollar size={22} />}
             />
           </div>
+
+          {/* Charts */}
+          {stats.monthlyRevenue && stats.monthlyRevenue.length > 0 && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              {/* Bar chart: ingresos últimos 6 meses */}
+              <Card className="lg:col-span-2 bg-foreground-700 shadow shadow-primary">
+                <CardBody className="p-4">
+                  <p className="text-foreground-400 text-sm mb-3">
+                    Ingresos últimos 6 meses
+                  </p>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <BarChart data={stats.monthlyRevenue} margin={{ top: 4, right: 8, bottom: 0, left: 8 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                      <XAxis dataKey="month" tick={{ fill: "#9ca3af", fontSize: 12 }} />
+                      <YAxis
+                        tick={{ fill: "#9ca3af", fontSize: 11 }}
+                        tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
+                      />
+                      <RechartsTooltip
+                        formatter={(v) => [formatARS(Number(v ?? 0)), "Ingresos"]}
+                        contentStyle={{ background: "#1f2937", border: "1px solid #374151", borderRadius: 8 }}
+                        labelStyle={{ color: "#e5e7eb" }}
+                        itemStyle={{ color: "#60a5fa" }}
+                      />
+                      <Bar dataKey="revenue" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardBody>
+              </Card>
+
+              {/* Pie chart: distribución de estados de trabajos */}
+              <Card className="bg-foreground-700 shadow shadow-primary">
+                <CardBody className="p-4">
+                  <p className="text-foreground-400 text-sm mb-3">
+                    Trabajos por estado
+                  </p>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <PieChart>
+                      <Pie
+                        data={[
+                          { name: "Sin comenzar", value: stats.pendingJobs },
+                          { name: "En progreso", value: stats.jobsInProgress },
+                          { name: "Completados", value: stats.completedJobs },
+                          { name: "Entregados", value: stats.deliveredJobs },
+                        ].filter((d) => d.value > 0)}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={50}
+                        outerRadius={75}
+                        paddingAngle={3}
+                        dataKey="value"
+                      >
+                        {["#6b7280", "#3b82f6", "#22c55e", "#a855f7"].map((color, i) => (
+                          <Cell key={i} fill={color} />
+                        ))}
+                      </Pie>
+                      <Legend
+                        iconType="circle"
+                        iconSize={8}
+                        wrapperStyle={{ fontSize: 11, color: "#9ca3af" }}
+                      />
+                      <RechartsTooltip
+                        contentStyle={{ background: "#1f2937", border: "1px solid #374151", borderRadius: 8 }}
+                        labelStyle={{ color: "#e5e7eb" }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </CardBody>
+              </Card>
+            </div>
+          )}
 
           {/* Alerts */}
           {stats.carsWithAlerts > 0 && (

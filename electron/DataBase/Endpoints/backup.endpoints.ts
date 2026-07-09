@@ -1,6 +1,114 @@
-import { ipcMain, dialog, shell } from "electron";
+import { ipcMain, dialog, shell, app } from "electron";
 import fs from "node:fs";
-import { AppDataSource, getDBPath } from "../dataSource";
+import path from "node:path";
+import log from "electron-log/main";
+import { AppDataSource, getDBPath, getRepositories } from "../dataSource";
+
+function getBackupDir(): string {
+  return path.join(app.getPath("documents"), "backups");
+}
+
+function toCsv<T extends object>(
+  headers: Partial<Record<keyof T, string>>,
+  rows: T[],
+): string {
+  const BOM = "﻿";
+  const keys = Object.keys(headers) as (keyof T)[];
+  const headerRow = keys.map((k) => headers[k]).join(";");
+  const dataRows = rows.map((row) =>
+    keys
+      .map((k) => {
+        const v = row[k];
+        const str = v == null ? "" : String(v);
+        return str.includes(";") || str.includes('"') || str.includes("\n")
+          ? `"${str.replace(/"/g, '""')}"`
+          : str;
+      })
+      .join(";"),
+  );
+  return BOM + [headerRow, ...dataRows].join("\n");
+}
+
+ipcMain.handle("data:export-csv", async () => {
+  const { carRepository } = getRepositories();
+  const cars = await carRepository.find({ relations: ["owner"] });
+
+  type CarRow = {
+    patente: string; marca: string; modelo: string; anio: string;
+    kilometraje: string; titular: string; telefono: string;
+    direccion: string; localidad: string; email: string;
+    trabajos: string; ultimoService: string;
+  };
+
+  const rows: CarRow[] = cars.map((car) => {
+    const jobCount = Array.isArray(car.jobs) ? car.jobs.length : 0;
+    const lastJob = Array.isArray(car.jobs) && car.jobs.length > 0
+      ? car.jobs.reduce((a, b) =>
+          new Date((b.updatedAt ?? b.createdAt) as Date) > new Date((a.updatedAt ?? a.createdAt) as Date) ? b : a,
+        )
+      : null;
+    const lastDate = lastJob
+      ? new Date((lastJob.updatedAt ?? lastJob.createdAt) as Date).toLocaleDateString("es-AR")
+      : "---";
+
+    return {
+      patente: car.licensePlate,
+      marca: car.brand,
+      modelo: car.model,
+      anio: String(car.year),
+      kilometraje: String(car.kilometers),
+      titular: car.owner?.fullname ?? "---",
+      telefono: car.owner?.phone ?? "---",
+      direccion: car.owner?.address ?? "---",
+      localidad: car.owner?.city ?? "---",
+      email: car.owner?.email ?? "---",
+      trabajos: String(jobCount),
+      ultimoService: lastDate,
+    };
+  });
+
+  const csv = toCsv<CarRow>(
+    {
+      patente: "Patente", marca: "Marca", modelo: "Modelo", anio: "Año",
+      kilometraje: "Kilometraje", titular: "Titular", telefono: "Teléfono",
+      direccion: "Dirección", localidad: "Localidad", email: "Email",
+      trabajos: "Trabajos", ultimoService: "Último service",
+    },
+    rows,
+  );
+
+  const today = new Date().toISOString().slice(0, 10);
+  const { filePath } = await dialog.showSaveDialog({
+    title: "Exportar vehículos a CSV",
+    defaultPath: `vehiculos_${today}.csv`,
+    filters: [{ name: "Archivo CSV", extensions: ["csv"] }],
+  });
+
+  if (!filePath) return { status: "cancelled", message: "Operación cancelada" };
+
+  fs.writeFileSync(filePath, csv, "utf8");
+  shell.showItemInFolder(filePath);
+
+  return { status: "success", message: `${cars.length} vehículos exportados correctamente` };
+});
+
+ipcMain.handle("backup:open-folder", () => {
+  const backupDir = getBackupDir();
+  if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
+  shell.openPath(backupDir);
+  return { status: "success" };
+});
+
+ipcMain.handle("backup:list", () => {
+  const backupDir = getBackupDir();
+  if (!fs.existsSync(backupDir)) return { status: "success", result: [] };
+  const files = fs
+    .readdirSync(backupDir)
+    .filter((f) => f.startsWith("taller_") && f.endsWith(".db"))
+    .sort()
+    .reverse();
+  return { status: "success", result: files };
+});
 
 ipcMain.handle("backup:export", async () => {
   const sourcePath = getDBPath();
@@ -52,19 +160,16 @@ ipcMain.handle("backup:import", async () => {
 
   const sourcePath = result.filePaths[0];
   const destPath = getDBPath();
+  let preImportBackupPath: string | null = null;
 
   try {
     if (AppDataSource.isInitialized) {
       await AppDataSource.destroy();
     }
 
-    // Backup automático antes de importar
     if (fs.existsSync(destPath)) {
-      const backupPath = destPath.replace(
-        ".db",
-        `_pre_import_${Date.now()}.db`
-      );
-      fs.copyFileSync(destPath, backupPath);
+      preImportBackupPath = destPath.replace(".db", `_pre_import_${Date.now()}.db`);
+      fs.copyFileSync(destPath, preImportBackupPath);
     }
 
     fs.copyFileSync(sourcePath, destPath);
@@ -75,11 +180,24 @@ ipcMain.handle("backup:import", async () => {
       message: "Base de datos importada. Los datos se actualizarán.",
     };
   } catch (error) {
+    log.error("backup:import — error:", error);
+
     if (!AppDataSource.isInitialized) {
+      if (preImportBackupPath && fs.existsSync(preImportBackupPath)) {
+        try {
+          fs.copyFileSync(preImportBackupPath, destPath);
+          log.info("backup:import — DB restaurada desde backup previo al import");
+        } catch (restoreError) {
+          log.error("backup:import — error al restaurar backup:", restoreError);
+        }
+      }
       try {
         await AppDataSource.initialize();
-      } catch { /* ignore */ }
+      } catch (initError) {
+        log.error("backup:import — error al reinicializar DB:", initError);
+      }
     }
+
     return {
       status: "failed",
       message: `Error al importar: ${error instanceof Error ? error.message : String(error)}`,

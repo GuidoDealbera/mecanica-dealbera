@@ -5,15 +5,13 @@ import { CreateCarJob, JobStatus } from "../../Types/apiTypes";
 import FormWrapper from "./FormWrapper";
 import {
   Button,
-  Chip,
   Input,
   Select,
   SelectItem,
   Textarea,
-  Tooltip,
 } from "@heroui/react";
-import { formatThousands, parseNumber, formatARS } from "../../Utils/utils";
-import { MdAdd, MdDelete } from "react-icons/md";
+import { formatThousands, parseNumber } from "../../Utils/utils";
+import PartsEditor from "../Parts/PartsEditor";
 
 const INITIAL_VALUES: Partial<Jobs> = {
   price: undefined,
@@ -46,63 +44,10 @@ const AddJobForm: React.FC<AddJobFormProps> = ({
     handleSubmit,
     formState: { isValid, isDirty },
     watch,
-    setValue,
-    getValues,
   } = form;
 
   const jobStatus = watch("status");
-  const parts = watch("parts") ?? [];
-
-  const [partName, setPartName] = React.useState("");
-  const [partPrice, setPartPrice] = React.useState<number | undefined>(
-    undefined,
-  );
-  const [partNameError, setPartNameError] = React.useState("");
-  const [partPriceError, setPartPriceError] = React.useState("");
-
   const shouldEnableSubmit = isEditing ? isDirty && isValid : isValid;
-
-  const handleAddPart = () => {
-    let hasError = false;
-
-    if (!partName.trim()) {
-      setPartNameError("Ingresá un nombre");
-      hasError = true;
-    } else {
-      setPartNameError("");
-    }
-
-    if (!partPrice || partPrice <= 0) {
-      setPartPriceError("Ingresá un precio");
-      hasError = true;
-    } else {
-      setPartPriceError("");
-    }
-
-    if (hasError) return;
-
-    const currentParts = getValues("parts") ?? [];
-    setValue(
-      "parts",
-      [...currentParts, { name: partName.trim(), price: partPrice! }],
-      {
-        shouldDirty: true,
-      },
-    );
-    setPartName("");
-    setPartPrice(undefined);
-  };
-
-  const handleRemovePart = (index: number) => {
-    const currentParts = getValues("parts") ?? [];
-    setValue(
-      "parts",
-      currentParts.filter((_, i) => i !== index),
-      { shouldDirty: true },
-    );
-  };
-
-  const totalParts = parts.reduce((acc, p) => acc + p.price, 0);
 
   return (
     <FormWrapper form={form}>
@@ -257,128 +202,17 @@ const AddJobForm: React.FC<AddJobFormProps> = ({
               Repuestos
             </h5>
 
-            {/* Inputs para agregar un repuesto */}
-            <div className="flex gap-2 items-start">
-              <Input
-                label="Nombre del repuesto"
-                value={partName}
-                onChange={(e) => {
-                  setPartName(e.target.value);
-                  if (e.target.value.trim()) setPartNameError("");
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    handleAddPart();
-                  }
-                }}
-                isDisabled={isLoading || !license}
-                isInvalid={!!partNameError}
-                errorMessage={partNameError}
-                className="flex-1"
-              />
-              <Input
-                label="Precio"
-                type="text"
-                startContent={
-                  <span className="text-foreground-900 font-bold">$</span>
-                }
-                inputMode="numeric"
-                value={formatThousands(partPrice)}
-                onChange={(e) => {
-                  const val = parseNumber(e.target.value);
-                  setPartPrice(val || undefined);
-                  if (val > 0) setPartPriceError("");
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    handleAddPart();
-                  }
-                }}
-                isDisabled={isLoading || !license}
-                isInvalid={!!partPriceError}
-                errorMessage={partPriceError}
-                className="w-36"
-              />
-              <Button
-                isIconOnly
-                color="primary"
-                className="mt-1 shrink-0"
-                onPress={handleAddPart}
-                isDisabled={isLoading || !license}
-              >
-                <MdAdd size={20} />
-              </Button>
-            </div>
-
-            {/* Lista de repuestos agregados */}
-            <div
-              className={`flex flex-col gap-2 ${totalParts > 0 ? "h-45" : "h-59"} overflow-auto`}
-            >
-              {parts.length === 0 ? (
-                <div className="flex-1 flex items-center justify-center text-foreground-400 text-sm border border-dashed border-foreground-500 rounded-lg py-8">
-                  No hay repuestos agregados
-                </div>
-              ) : (
-                <>
-                  {parts.map((part, i) => (
-                    <div
-                      key={i}
-                      className="flex items-center justify-between px-3 py-2 rounded-md bg-foreground-600 border border-foreground-500"
-                    >
-                      <div className="flex items-center gap-2 flex-1 min-w-0">
-                        <Chip
-                          size="sm"
-                          color="primary"
-                          variant="flat"
-                          className="text-primary-100"
-                        >
-                          {i + 1}
-                        </Chip>
-                        <span className="text-sm truncate">{part.name}</span>
-                      </div>
-                      <div className="flex items-center gap-3 shrink-0 ml-2">
-                        <span className="text-sm font-medium text-primary-100">
-                          {formatARS(part.price)}
-                        </span>
-                        <Tooltip color="danger" content="Eliminar repuesto" showArrow placement="left">
-                          <Button
-                            isIconOnly
-                            size="sm"
-                            variant="flat"
-                            color="danger"
-                            className="text-danger"
-                            onPress={() => handleRemovePart(i)}
-                            isDisabled={isLoading}
-                          >
-                            <MdDelete size={16} />
-                          </Button>
-                        </Tooltip>
-                      </div>
-                    </div>
-                  ))}
-                </>
+            <Controller
+              control={control}
+              name="parts"
+              render={({ field }) => (
+                <PartsEditor
+                  parts={field.value ?? []}
+                  onChange={field.onChange}
+                  isDisabled={isLoading || !license}
+                />
               )}
-            </div>
-            {totalParts > 0 && (
-              <div className="flex justify-between items-center px-3 py-2 rounded-md bg-primary-900 border border-primary-700 mt-1">
-                <span className="text-sm text-foreground-300">
-                  Total repuestos{" "}
-                  <Chip
-                    color="primary"
-                    size="sm"
-                    variant="flat"
-                    className="text-primary"
-                  >
-                    {parts.length}
-                  </Chip>
-                </span>
-                <span className="font-semibold text-primary-300">
-                  {formatARS(totalParts)}
-                </span>
-              </div>
-            )}
+            />
           </div>
         </div>
 

@@ -1,7 +1,7 @@
 import { ipcRenderer, contextBridge } from "electron";
 import { CreateCarDto, UpdateJobDto } from "./DataBase/Types/car.dto";
 import { CreateClientDto } from "./DataBase/Types/client.dto";
-import { Jobs } from "../src/Types/types";
+import { CreateCarJob } from "../src/Types/apiTypes";
 import { UpdateInfo, UpdateProgress } from "../global";
 
 // --------- Expose some API to the Renderer process ---------
@@ -39,7 +39,7 @@ contextBridge.exposeInMainWorld("api", {
       await ipcRenderer.invoke("car:update", id, kilometers),
     delete: async (licence: string) =>
       await ipcRenderer.invoke("car:delete", licence),
-    addJob: async (licence: string, job: Jobs) =>
+    addJob: async (licence: string, job: CreateCarJob) =>
       await ipcRenderer.invoke("car:add-job", licence, job),
     findJobs: async () => await ipcRenderer.invoke("car:find-jobs"),
     updateJob: async (
@@ -80,10 +80,15 @@ contextBridge.exposeInMainWorld("api", {
   backup: {
     export: async () => await ipcRenderer.invoke("backup:export"),
     import: async () => await ipcRenderer.invoke("backup:import"),
+    exportCsv: async () => await ipcRenderer.invoke("data:export-csv"),
+    openFolder: async () => await ipcRenderer.invoke("backup:open-folder"),
+    list: async () => await ipcRenderer.invoke("backup:list"),
   },
   global: {
     search: async (query: string) =>
       await ipcRenderer.invoke("global:search", query),
+    openLogsFolder: async () =>
+      await ipcRenderer.invoke("app:open-logs-folder"),
   },
 });
 

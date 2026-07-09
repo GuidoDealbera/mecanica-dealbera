@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useBlocker } from "react-router-dom";
-import { getByPassNavigation, setByPassNavigation } from "../Utils/utils";
 import { useDisclosure } from "@heroui/react";
 
 type FormGuardProps = {
@@ -10,11 +9,10 @@ type FormGuardProps = {
 
 export const useFormGuard = ({ isDirty, onConfirm }: FormGuardProps) => {
   const [nextLocation, setNextLocation] = useState<string | null>(null);
-  const {isOpen, onClose, onOpen} = useDisclosure()
+  const { isOpen, onClose, onOpen } = useDisclosure();
 
   const blocker = useBlocker((tx) => {
-    if (!isDirty || getByPassNavigation()) {
-      setByPassNavigation(false);
+    if (!isDirty || (tx.nextLocation.state as { bypassGuard?: boolean } | null)?.bypassGuard) {
       return false;
     }
     setNextLocation(tx.nextLocation.pathname);

@@ -44,7 +44,7 @@ const AddJobPage: React.FC = () => {
         isLoading={loading}
       />
 
-      <AddJobForm license={selectedLicense} onSubmit={handleSubmit} />
+      <AddJobForm license={selectedLicense} onSubmit={handleSubmit} isLoading={loading} />
     </div>
   );
 };

@@ -41,6 +41,11 @@ export interface APIResponse {
   result?: any;
 }
 
+export interface AppError {
+  message: string;
+  code?: string;
+}
+
 export interface UpdateCar {
   owner?: Omit<Client, "id" | "cars">;
   kilometers?: number;

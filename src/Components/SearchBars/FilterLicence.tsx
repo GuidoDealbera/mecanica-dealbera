@@ -4,10 +4,11 @@ import { MdDelete } from "react-icons/md";
 
 interface Props {
   onFilterChange: (licence: string) => void;
+  initialValue?: string;
 }
 
-const FilterByLicence: React.FC<Props> = ({ onFilterChange }) => {
-  const [value, setValue] = React.useState<string>("");
+const FilterByLicence: React.FC<Props> = ({ onFilterChange, initialValue = "" }) => {
+  const [value, setValue] = React.useState<string>(initialValue);
   const [error, setError] = React.useState<string | null>(null);
   const [isValid, setIsValid] = React.useState<boolean>(false);
 
@@ -21,22 +22,28 @@ const FilterByLicence: React.FC<Props> = ({ onFilterChange }) => {
         onFilterChange("");
         return;
       }
-      const isValidLicence = /^([A-Z]{2}\d{3}[A-Z]{2}|[A-Z]{3}\d{3})$/.test(
-        newValue,
-      );
+      const isValidLicence = /^([A-Z]{2}\d{3}[A-Z]{2}|[A-Z]{3}\d{3})$/.test(newValue);
       const isPartial = newValue.length < 6;
       if (isValidLicence || isPartial) {
-        setIsValid(isValidLicence)
-        setError(null)
-        onFilterChange(newValue)
+        setIsValid(isValidLicence);
+        setError(null);
+        onFilterChange(newValue);
       } else {
-        setIsValid(false)
-        setError('Formato de patente incorrecto')
-        onFilterChange(newValue)
+        setIsValid(false);
+        setError("Formato de patente incorrecto");
+        onFilterChange(newValue);
       }
     },
     [onFilterChange],
   );
+
+  const handleClear = React.useCallback(() => {
+    setValue("");
+    setError(null);
+    setIsValid(false);
+    onFilterChange("");
+  }, [onFilterChange]);
+
   return (
     <div className="relative p-1 mt-4 w-fit mb-4">
       <h4 className="text-white text-lg">Buscar automóvil por patente</h4>
@@ -59,11 +66,7 @@ const FilterByLicence: React.FC<Props> = ({ onFilterChange }) => {
             color={isValid ? "primary" : "danger"}
             isIconOnly
             type="button"
-            onPress={() => {
-              setValue("");
-              setError(null);
-              onFilterChange("");
-            }}
+            onPress={handleClear}
           >
             <MdDelete size={20} />
           </Button>

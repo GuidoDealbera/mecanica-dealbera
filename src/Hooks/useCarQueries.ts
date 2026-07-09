@@ -1,6 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useDispatch, useSelector } from "react-redux";
-import { AppDispatch, RootState } from "../Store/store";
+import { AppDispatch } from "../Store/store";
+import {
+  selectAllCars,
+  selectCar,
+  selectCarLoadingStates,
+  selectCarError,
+} from "../Store/selectors";
 import { CreateCarBody, CreateCarJob, UpdateJobBody } from "../Types/apiTypes";
 import {
   createCar,
@@ -14,7 +20,7 @@ import {
 import { useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { cleanCarsState, cleanCarState, cleanError } from "../Store/carSlice";
-import { setByPassNavigation } from "../Utils/utils";
+
 import { useToasts } from "./useToasts";
 import { CarActions } from "../Constants/car.constants";
 
@@ -23,9 +29,10 @@ export const useCarQueries = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch<AppDispatch>();
 
-  const { allCars, car, loadingStates, error } = useSelector(
-    (state: RootState) => state.cars,
-  );
+  const allCars = useSelector(selectAllCars);
+  const car = useSelector(selectCar);
+  const loadingStates = useSelector(selectCarLoadingStates);
+  const error = useSelector(selectCarError);
   const [loading, setLoading] = useState<boolean>(false);
   const [refreshing, setRefreshing] = useState<boolean>(false);
 
@@ -47,8 +54,7 @@ export const useCarQueries = () => {
           CarActions.CREATE,
         );
         if (response.status === "success") {
-          setByPassNavigation(true);
-          navigate("/cars");
+          navigate("/cars", { state: { bypassGuard: true } });
         }
         return response;
       } catch (error: any) {
@@ -159,7 +165,8 @@ export const useCarQueries = () => {
           );
         }
       } catch (error: any) {
-        showToast(error.message, "danger", CarActions.UPDATE);
+        if (isOnly) showToast(error.message, "danger", CarActions.UPDATE);
+        throw error;
       } finally {
         setLoading(false);
       }
@@ -173,9 +180,8 @@ export const useCarQueries = () => {
       try {
         const response = await dispatch(addJob({ licence, job })).unwrap();
         showToast(response.message, response.status === "failed" ? "danger" : "success", CarActions.JOB_CREATE);
-        if(response.status === "success"){
-          setByPassNavigation(true)
-          navigate(`/cars/${licence}`)
+        if (response.status === "success") {
+          navigate(`/cars/${licence}`, { state: { bypassGuard: true } });
         }
         return response;
       } catch (error: any) {
@@ -199,7 +205,7 @@ export const useCarQueries = () => {
         return response;
       } catch (error: any) {
         showToast(error.message, "danger", CarActions.JOB_UPDATE);
-        return error;
+        return { status: "failed" as const, message: error.message as string };
       } finally {
         setLoading(false);
       }

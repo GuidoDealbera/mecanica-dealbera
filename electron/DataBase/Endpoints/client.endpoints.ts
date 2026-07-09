@@ -1,7 +1,9 @@
 import { ipcMain } from "electron";
+import log from "electron-log/main";
 import { CreateClientDto } from "../Types/client.dto";
-import { getRepositories } from "../dataSource";
-import { Like } from "typeorm";
+import { AppDataSource, getRepositories } from "../dataSource";
+import { Car } from "../Entities/car.entity";
+import { Client } from "../Entities/client.entity";
 
 ipcMain.handle('client:create', async (_, createClientDto: CreateClientDto) => {
     const repo = getRepositories().clientRepository
@@ -54,13 +56,12 @@ ipcMain.handle('client:find-by-name', async (_, fullname: CreateClientDto['fulln
 
 ipcMain.handle('client:search', async (_, query: string) => {
     const repo = getRepositories().clientRepository
-    const result = await repo.find({
-        where: [
-            {fullname: Like(`%${query}%`)}
-        ],
-        relations: ['cars'],
-        take: 10
-    })
+    const sanitized = query.replace(/[\\%_]/g, '\\$&')
+    const result = await repo.createQueryBuilder('client')
+        .where('client.fullname LIKE :q ESCAPE :esc', { q: `%${sanitized}%`, esc: '\\' })
+        .leftJoinAndSelect('client.cars', 'cars')
+        .take(10)
+        .getMany()
 
     return {
         status: 'success',
@@ -88,24 +89,29 @@ ipcMain.handle('client:toggle-active', async(_, id: string) => {
 })
 
 ipcMain.handle('client:delete', async(_, id: string) => {
-    const {carRepository: carRepo, clientRepository: clientRepo} = getRepositories()
-    const client = await clientRepo.findOne({where: {id}, relations: ['cars']})
-    if(!client){
-        return {
-            status: 'failed',
-            message: 'Cliente no encontrado'
+    const qr = AppDataSource.createQueryRunner()
+    await qr.connect()
+    await qr.startTransaction()
+    try {
+        const client = await qr.manager.findOne(Client, { where: { id }, relations: ['cars'] })
+        if (!client) {
+            await qr.rollbackTransaction()
+            return { status: 'failed', message: 'Cliente no encontrado' }
         }
-    }
-    if(client.cars && client.cars.length > 0){
-        for (const car of client.cars){
-            await carRepo.remove(car)
+        if (client.cars && client.cars.length > 0) {
+            for (const car of client.cars) {
+                await qr.manager.remove(Car, car)
+            }
         }
-    }
-
-    await clientRepo.remove(client)
-    return {
-        status: 'success',
-        message: 'Cliente eliminado correctamente'
+        await qr.manager.remove(Client, client)
+        await qr.commitTransaction()
+        return { status: 'success', message: 'Cliente eliminado correctamente' }
+    } catch (error) {
+        await qr.rollbackTransaction()
+        log.error('client:delete — error en transacción:', error)
+        return { status: 'failed', message: 'Error al eliminar el cliente' }
+    } finally {
+        await qr.release()
     }
 })
 
@@ -130,10 +136,10 @@ ipcMain.handle('client:update', async (_, updateClientDto: Partial<CreateClientD
             message: 'El cliente que intenta modificar no se encuentra registrado'
         }
     }
-    if(address) updateClient.address = address
-    if(city) updateClient.city = city
-    if(email) updateClient.email = email
-    if(phone) updateClient.phone = phone
+    if(address !== undefined) updateClient.address = address
+    if(city !== undefined) updateClient.city = city
+    if(email !== undefined) updateClient.email = email
+    if(phone !== undefined) updateClient.phone = phone
 
     const saved = await repo.save(updateClient)
     const withCars = await repo.findOne({

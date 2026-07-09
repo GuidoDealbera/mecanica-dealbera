@@ -67,16 +67,16 @@ declare global {
       dashboard: {
         getStats: () => Promise<{ status: string; result: DashboardStats }>;
       };
-      budget: {
-        print: (data: unknown) => Promise<APIResponse>;
-        printDirect: (data: unknown) => Promise<APIResponse>;
-      };
       backup: {
         export: () => Promise<APIResponse>;
         import: () => Promise<APIResponse>;
+        exportCsv: () => Promise<{ status: string; message: string }>;
+        openFolder: () => Promise<{ status: string }>;
+        list: () => Promise<{ status: string; result: string[] }>;
       };
       global: {
         search: (query: string) => Promise<{ status: string } & SearchResult>;
+        openLogsFolder: () => Promise<void>;
       };
     },
     updater: UpdaterAPI

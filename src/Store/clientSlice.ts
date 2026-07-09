@@ -41,7 +41,7 @@ const clientSlice = createSlice({
       })
       .addCase(fetchClients.rejected, (state, action) => {
         state.loadingStates.fetching_all = false;
-        state.error = action.payload as Error;
+        state.error = action.payload ?? null;
       })
       .addCase(fetchClients.fulfilled, (state, action) => {
         state.loadingStates.fetching_all = false;
@@ -53,7 +53,7 @@ const clientSlice = createSlice({
       })
       .addCase(fetchClientByName.rejected, (state, action) => {
         state.loadingStates.fetching = false;
-        state.error = action.payload as Error;
+        state.error = action.payload ?? null;
       })
       .addCase(fetchClientByName.fulfilled, (state, action) => {
         state.loadingStates.fetching = false;
@@ -65,7 +65,7 @@ const clientSlice = createSlice({
       })
       .addCase(updateClient.rejected, (state, action) => {
         state.loadingStates.updating = false;
-        state.error = action.payload as Error;
+        state.error = action.payload ?? null;
       })
       .addCase(updateClient.fulfilled, (state, action) => {
         state.loadingStates.updating = false;

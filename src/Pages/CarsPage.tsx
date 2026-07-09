@@ -4,17 +4,16 @@ import CarsTable from "../Components/Tables/CarsTable";
 import { Button, useDisclosure } from "@heroui/react";
 import { HiOutlineRefresh } from "react-icons/hi";
 import { IoIosAddCircleOutline } from "react-icons/io";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import DeleteCarDialog from "../Components/DeleteCarDialog";
 import FilterByLicence from "../Components/SearchBars/FilterLicence";
 
 const CarsPage: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const licenceFilter = searchParams.get("q") ?? "";
   const { isOpen: isDeleteDialogOpen, onClose, onOpen } = useDisclosure();
-  const [selectedLicenceToDelete, setSelectedLicenceToDelete] = useState<
-    string | null
-  >(null);
-  const [licenceFilter, setLicenceFilter] = useState<string>("");
+  const [selectedLicenceToDelete, setSelectedLicenceToDelete] = useState<string | null>(null);
 
   const {
     allCars,
@@ -100,7 +99,12 @@ const CarsPage: React.FC = () => {
           </Button>
         </div>
       </div>
-      <FilterByLicence onFilterChange={setLicenceFilter} />
+      <FilterByLicence
+        initialValue={licenceFilter}
+        onFilterChange={(v) =>
+          v ? setSearchParams({ q: v }) : setSearchParams({})
+        }
+      />
       <CarsTable
         cars={filteredCars}
         isLoading={isLoading}

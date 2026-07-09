@@ -85,7 +85,7 @@ const ClientDetailPage: React.FC = () => {
 
   const clientCars = React.useMemo(() => {
     if (!client) return [];
-    return allCars.filter((car) => car.owner?.fullname === client.fullname);
+    return allCars.filter((car) => car.owner?.id === client.id);
   }, [allCars, client]);
 
   const handleSave = async (data: Partial<Client>) => {

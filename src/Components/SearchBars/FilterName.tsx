@@ -5,25 +5,29 @@ import { normalizeText } from "../../Utils/utils";
 
 interface FilterNameProps {
   onFilterChange: (fullname: string) => void;
+  initialValue?: string;
 }
 
-const FilterName: React.FC<FilterNameProps> = ({ onFilterChange }) => {
-  const [value, setValue] = React.useState<string>("");
+const FilterName: React.FC<FilterNameProps> = ({ onFilterChange, initialValue = "" }) => {
+  const [value, setValue] = React.useState<string>(initialValue);
 
   const handleFilter = React.useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const newValue = e.target.value;
       setValue(newValue);
-      const normalizedValue = normalizeText(newValue)
-      onFilterChange(normalizedValue);
+      onFilterChange(normalizeText(newValue));
     },
-    [onFilterChange]
+    [onFilterChange],
   );
+
+  const handleClear = React.useCallback(() => {
+    setValue("");
+    onFilterChange("");
+  }, [onFilterChange]);
+
   return (
     <div className="relative p-1 mt-4 w-fit mb-4">
-      <h4 className="text-white text-lg">
-        Buscar cliente por nombre o apellido
-      </h4>
+      <h4 className="text-white text-lg">Buscar cliente por nombre o apellido</h4>
       <Input
         fullWidth
         value={value}
@@ -37,10 +41,7 @@ const FilterName: React.FC<FilterNameProps> = ({ onFilterChange }) => {
             color="primary"
             isIconOnly
             type="button"
-            onPress={() => {
-              setValue("");
-              onFilterChange("");
-            }}
+            onPress={handleClear}
           >
             <MdDelete size={20} />
           </Button>

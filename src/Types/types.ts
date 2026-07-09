@@ -1,5 +1,5 @@
 import type { CarBrand } from "../Utils/utils";
-import { JobStatus } from "./apiTypes";
+import { AppError, JobStatus } from "./apiTypes";
 
 export interface KmRecord {
   km: number;
@@ -64,7 +64,7 @@ export interface ClientState {
     updating: boolean;
     deleting: boolean;
   };
-  error: Error | null;
+  error: AppError | null;
 }
 
 export interface CarState {
@@ -77,7 +77,7 @@ export interface CarState {
     updating: boolean;
     deleting: boolean;
   };
-  error: Error | null;
+  error: AppError | null;
 }
 
 export interface DashboardStats {
@@ -88,10 +88,13 @@ export interface DashboardStats {
   newClientsThisMonth: number;
   pendingJobs: number;
   jobsInProgress: number;
+  completedJobs: number;
+  deliveredJobs: number;
   completedThisMonth: number;
   revenueThisMonth: number;
   carsWithAlerts: number;
   deliveredThisMonth: number;
+  monthlyRevenue: { month: string; revenue: number }[];
   recentActiveJobs: {
     licensePlate: string;
     brand: string;

@@ -1,7 +1,3 @@
-let byPassNavigation = false;
-export const setByPassNavigation = (value: boolean) =>
-  (byPassNavigation = value);
-export const getByPassNavigation = () => byPassNavigation;
 export const CarsBrands = {
   TOYOTA: "Toyota",
   FORD: "Ford",
@@ -192,3 +188,28 @@ export const normalizeText = (text: string): string => {
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();
 };
+
+/**
+ * Serializa un array de objetos a CSV con BOM UTF-8 (compatible con Excel en espa\u00f1ol).
+ * Usa `;` como separador \u2014 convenci\u00f3n Argentina.
+ */
+export function toCsv<T extends object>(
+  headers: Partial<Record<keyof T, string>>,
+  rows: T[],
+): string {
+  const BOM = "\ufeff";
+  const keys = Object.keys(headers) as (keyof T)[];
+  const headerRow = keys.map((k) => headers[k]).join(";");
+  const dataRows = rows.map((row) =>
+    keys
+      .map((k) => {
+        const v = row[k];
+        const str = v == null ? "" : String(v);
+        return str.includes(";") || str.includes('"') || str.includes("\n")
+          ? `"${str.replace(/"/g, '""')}"`
+          : str;
+      })
+      .join(";"),
+  );
+  return BOM + [headerRow, ...dataRows].join("\n");
+}

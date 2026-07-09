@@ -1,5 +1,6 @@
 import React from "react";
 import { Jobs } from "../../Types/types";
+import { TableColumnDef } from "../../Types/tableTypes";
 import {
   Button,
   Chip,
@@ -51,39 +52,14 @@ const JobsTable: React.FC<JobsProps> = ({
     const start = (page - 1) * rowsPerPage;
     return jobs.slice(start, start + rowsPerPage);
   }, [jobs, page, rowsPerPage]);
-  const columns = [
-    {
-      key: "description",
-      label: "Descripción",
-      center: false,
-      width: 300,
-    },
-    {
-      key: "status",
-      label: "Estado",
-      center: true,
-      width: 120,
-    },
-    {
-      key: "isThirdParty",
-      label: "Terceros",
-      center: true,
-      width: 100,
-    },
-    {
-      key: "parts",
-      label: "Respuestos",
-      center: true,
-      width: 150
-    },
-    {
-      key: "price",
-      label: "Precio",
-      center: true,
-      width: 120,
-    },
+  const columns: TableColumnDef<Jobs>[] = [
+    { key: "description",  label: "Descripción", width: 300 },
+    { key: "status",       label: "Estado",      width: 120, center: true },
+    { key: "isThirdParty", label: "Terceros",    width: 100, center: true },
+    { key: "parts",        label: "Repuestos",   width: 150, center: true },
+    { key: "price",        label: "Precio",      width: 120, center: true },
     ...(onEditJob
-      ? [{ key: "actions", label: "Acciones", center: true, width: 100 }]
+      ? [{ key: "actions" as const, label: "Acciones", center: true, width: 100 }]
       : []),
   ];
   return (
@@ -152,9 +128,10 @@ const JobsTable: React.FC<JobsProps> = ({
                   </Chip>
                 </TableCell>
                 <TableCell className="text-center">
-                  { job.parts.length > 0 ? (
+                  {(job.parts?.length ?? 0) > 0 ? (
                     <Chip color="primary" variant="flat" className="text-primary">
-                      {job.parts.length} {job.parts.length === 1 ? "respuesto" : "respuestos"}
+                      {job.parts!.length}{" "}
+                      {job.parts!.length === 1 ? "repuesto" : "repuestos"}
                     </Chip>
                   ) : (
                     <span className="text-foreground-400">---</span>

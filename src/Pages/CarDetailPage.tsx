@@ -11,6 +11,8 @@ import {
   ModalContent,
   ModalHeader,
   Spinner,
+  Tab,
+  Tabs,
 } from "@heroui/react";
 import { useCarQueries } from "../Hooks/useCarQueries";
 import { useParams } from "react-router-dom";
@@ -36,6 +38,7 @@ import { CreateCarBody, JobStatus } from "../Types/apiTypes";
 import BudgetButton from "../Components/BudgetButton";
 import AddCarForm from "../Components/Forms/AddCarForm";
 import ReassignOwnerModal from "./Components/ReassingOwnerModal";
+import CarTimeline from "./Components/CarTimeline";
 
 // ── Campo de solo lectura reutilizable ─────────────────────────────────────
 const InfoField: React.FC<{
@@ -219,16 +222,20 @@ const CarDetailPage: React.FC = () => {
         </CardBody>
       </Card>
 
-      {/* ── CONTENIDO: dos columnas ───────────────────────────────────── */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 items-start">
-        {/* Columna principal: trabajos */}
-        <div className="xl:col-span-2">
-          <Jobs jobs={jobs} isLoading={isLoading} license={licence} />
-        </div>
-
-        {/* Sidebar: info del vehículo + titular */}
-        <div className="flex flex-col gap-4">
-          {/* Card vehículo */}
+      {/* ── TABS: Trabajos / Historial ────────────────────────────────── */}
+      <Tabs
+        aria-label="Secciones del vehículo"
+        color="primary"
+        variant="underlined"
+        classNames={{ tabList: "border-b border-foreground-600" }}
+      >
+        <Tab key="jobs" title="Trabajos">
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 items-start pt-2">
+            <div className="xl:col-span-2">
+              <Jobs jobs={jobs} isLoading={isLoading} license={licence} />
+            </div>
+            <div className="flex flex-col gap-4">
+        {/* Card vehículo */}
           <Card className="bg-foreground-800 shadow shadow-primary">
             <CardHeader className="flex items-center justify-between pb-2">
               <div className="flex items-center gap-2">
@@ -335,8 +342,16 @@ const CarDetailPage: React.FC = () => {
               />
             </CardBody>
           </Card>
-        </div>
-      </div>
+            </div>
+          </div>
+        </Tab>
+
+        <Tab key="timeline" title="Historial">
+          <div className="pt-2 max-w-2xl">
+            <CarTimeline car={car} />
+          </div>
+        </Tab>
+      </Tabs>
 
       {/* ── MODAL DE EDICIÓN ──────────────────────────────────────────── */}
       <Modal

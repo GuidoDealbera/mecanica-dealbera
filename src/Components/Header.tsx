@@ -1,5 +1,6 @@
 import React from "react";
 import {
+  Badge,
   Button,
   Dropdown,
   DropdownItem,
@@ -16,10 +17,12 @@ import { IoMdArrowBack } from "react-icons/io";
 import { IoSearch } from "react-icons/io5";
 import { MdWarning, MdBackup, MdSystemUpdate, MdInstallDesktop } from "react-icons/md";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useSelector } from "react-redux";
 import avatarImg from "../assets/images/avatar.png";
 import GlobalSearch from "./SearchBars/GlobalSearch";
 import UpdateModal from "./UpdateModal";
 import { useToasts } from "../Hooks/useToasts";
+import { selectPendingJobsCount } from "../Store/selectors";
 
 const BUTTONS = [
   { path: "/", text: "Inicio" },
@@ -60,7 +63,17 @@ const Header = () => {
   const [checking, setChecking] = React.useState(false);
   const [updateError, setUpdateError] = React.useState<string | null>(null);
   const [searchOpen, setSearchOpen] = React.useState(false);
+  const [serviceAlertCount, setServiceAlertCount] = React.useState(0);
+  const pendingJobsCount = useSelector(selectPendingJobsCount);
   const isHome = location.pathname === "/";
+
+  React.useEffect(() => {
+    window.api.cars.getServiceAlerts().then((res) => {
+      if (res.status === "success") {
+        setServiceAlertCount(res.result?.length ?? 0);
+      }
+    });
+  }, []);
 
   React.useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -203,6 +216,27 @@ const Header = () => {
           {ICON_BUTTONS.map(({ path, icon, tooltip, color }) => {
             const isActive = location.pathname === path;
             const Icon = icon;
+            const isAlerts = path === "/alerts";
+            const alertBadgeCount = isAlerts
+              ? serviceAlertCount + pendingJobsCount
+              : 0;
+
+            const button = (
+              <Button
+                isIconOnly
+                radius="full"
+                color={isActive ? color : "default"}
+                className={
+                  isActive
+                    ? ""
+                    : `bg-foreground-700 text-foreground-300 ${hoverColors[color]}`
+                }
+                onPress={() => navigate(path)}
+              >
+                <Icon size={18} />
+              </Button>
+            );
+
             return (
               <Tooltip
                 key={path}
@@ -212,19 +246,18 @@ const Header = () => {
                 showArrow
                 isDisabled={isActive}
               >
-                <Button
-                  isIconOnly
-                  radius="full"
-                  color={isActive ? color : "default"}
-                  className={
-                    isActive
-                      ? ""
-                      : `bg-foreground-700 text-foreground-300 ${hoverColors[color]}`
-                  }
-                  onPress={() => navigate(path)}
-                >
-                  <Icon size={18} />
-                </Button>
+                {isAlerts && alertBadgeCount > 0 ? (
+                  <Badge
+                    content={alertBadgeCount > 99 ? "99+" : alertBadgeCount}
+                    color="danger"
+                    size="sm"
+                    placement="top-right"
+                  >
+                    {button}
+                  </Badge>
+                ) : (
+                  button
+                )}
               </Tooltip>
             );
           })}

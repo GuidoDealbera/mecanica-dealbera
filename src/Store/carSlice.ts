@@ -44,7 +44,7 @@ const carSlice = createSlice({
       })
       .addCase(fetchCars.rejected, (state, action) => {
         state.loadingStates.fetching_all = false;
-        state.error = action.payload as Error;
+        state.error = action.payload ?? null;
       })
       .addCase(fetchCars.fulfilled, (state, action) => {
         state.loadingStates.fetching_all = false;
@@ -56,7 +56,7 @@ const carSlice = createSlice({
       })
       .addCase(fetchCarByLicence.rejected, (state, action) => {
         state.loadingStates.fetching = false;
-        state.error = action.payload as Error;
+        state.error = action.payload ?? null;
       })
       .addCase(fetchCarByLicence.fulfilled, (state, action) => {
         state.loadingStates.fetching = false;
@@ -69,7 +69,7 @@ const carSlice = createSlice({
       })
       .addCase(addJob.rejected, (state, action) => {
         state.loadingStates.creating = false
-        state.error = action.payload as Error
+        state.error = action.payload ?? null
       })
       .addCase(addJob.fulfilled, (state, action) => {
         state.loadingStates.creating = false
@@ -84,7 +84,7 @@ const carSlice = createSlice({
       })
       .addCase(updatedCar.rejected, (state, action) => {
         state.loadingStates.updating = false;
-        state.error = action.payload as Error;
+        state.error = action.payload ?? null;
       })
       .addCase(updatedCar.fulfilled, (state, action) => {
         state.loadingStates.updating = false;
@@ -98,16 +98,16 @@ const carSlice = createSlice({
       })
       .addCase(updateJobInCar.rejected, (state, action) => {
         state.loadingStates.updating = false;
-        state.error = action.payload as Error;
+        state.error = action.payload ?? null;
       })
       .addCase(updateJobInCar.fulfilled, (state, action) => {
         state.loadingStates.updating = false;
-        if (state.car) {
-          const jobIndex = state.car.jobs.findIndex(
-            (job) => job.id === action.payload.result.id
-          );
-          state.car.jobs[jobIndex] = action.payload.result;
-        }
+        if (!state.car?.jobs || !action.payload.result) return;
+        const jobIndex = state.car.jobs.findIndex(
+          (job) => job.id === action.payload.result.id,
+        );
+        if (jobIndex === -1) return;
+        state.car.jobs[jobIndex] = action.payload.result;
       });
   },
 });

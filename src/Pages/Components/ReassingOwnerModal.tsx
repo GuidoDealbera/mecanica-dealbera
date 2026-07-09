@@ -7,7 +7,7 @@ import { MdPerson, MdPersonAdd, MdWarning } from "react-icons/md";
 import { useSelector } from "react-redux";
 import { useForm, Controller } from "react-hook-form";
 import { useToasts } from "../../Hooks/useToasts";
-import { RootState } from "../../Store/store";
+import { selectAllClients } from "../../Store/selectors";
 import { handleCapitalizedChange } from "../../Utils/utils";
 
 interface NewOwnerForm {
@@ -41,7 +41,7 @@ const ReassignOwnerModal: React.FC<ReassignOwnerModalProps> = ({
   onSuccess,
 }) => {
   const { showToast } = useToasts();
-  const allClients = useSelector((state: RootState) => state.clients.allClients);
+  const allClients = useSelector(selectAllClients);
 
   const [mode, setMode] = React.useState<"existing" | "new">("existing");
   const [selectedFullname, setSelectedFullname] = React.useState<string>("");

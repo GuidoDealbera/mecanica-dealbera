@@ -1,6 +1,7 @@
 import { DataSource } from "typeorm";
 import path from "path";
 import { app } from "electron";
+import log from "electron-log/main";
 import { Car } from "./Entities/car.entity";
 import { Client } from "./Entities/client.entity";
 import { InitialSchema1700000000000 } from "./Migrations/1700000000000-InitialSchema";
@@ -31,15 +32,15 @@ export function getDBPath () {
 
 export const initializeDB = async () => {
     try {
-        console.log('Inicializando base de datos...')
+        log.info('Inicializando base de datos...')
         if(!AppDataSource.isInitialized){
             await AppDataSource.initialize()
-            console.log('Base de datos inicializada correctamente')
-            console.log('DB Route: ', getDBPath())
+            log.info('Base de datos inicializada correctamente')
+            log.info('DB Route:', getDBPath())
         }
         return AppDataSource
     } catch (error) {
-        console.error('Error al inicializar la base de datos: ', error)
+        log.error('Error al inicializar la base de datos:', error)
         const {dialog} = await import('electron')
         dialog.showErrorBox(
             'Error de Base de Datos',

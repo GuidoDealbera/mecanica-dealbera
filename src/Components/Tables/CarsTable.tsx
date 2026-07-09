@@ -1,6 +1,6 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import React from "react";
 import { Cars } from "../../Types/types";
+import { TableColumnDef } from "../../Types/tableTypes";
 import {
   Button,
   Pagination,
@@ -58,11 +58,14 @@ const CarsTable: React.FC<CarsTableProps> = ({
     if (!sortColumn) return [...cars];
 
     return [...cars].sort((a, b) => {
-      const valueA = (a as any)[sortColumn];
-      const valueB = (b as any)[sortColumn];
+      const getValue = (car: Cars) => {
+        if (sortColumn === "owner") return car.owner?.fullname ?? "";
+        const v = car[sortColumn as keyof Cars];
+        return v ?? "";
+      };
 
-      if (valueA == null) return 1;
-      if (valueB == null) return -1;
+      const valueA = getValue(a);
+      const valueB = getValue(b);
 
       if (typeof valueA === "number" && typeof valueB === "number") {
         return sortDirection === "asc" ? valueA - valueB : valueB - valueA;
@@ -83,44 +86,14 @@ const CarsTable: React.FC<CarsTableProps> = ({
     return sortedCars.slice(start, end);
   }, [page, sortedCars]);
 
-  const columns = [
-    {
-      key: "licensePlate",
-      label: "Patente",
-      width: 180,
-      center: false,
-      sortable: true,
-    },
-    { key: "brand", label: "Marca", width: 150, center: true, sortable: false },
-    {
-      key: "model",
-      label: "Modelo",
-      width: 200,
-      center: false,
-      sortable: false,
-    },
-    { key: "year", label: "Año", width: 100, center: false, sortable: true },
-    {
-      key: "kilometers",
-      label: "Kilometraje",
-      width: 170,
-      center: false,
-      sortable: true,
-    },
-    {
-      key: "owner",
-      label: "Dueño",
-      width: 200,
-      center: false,
-      sortable: true,
-    },
-    {
-      key: "actions",
-      label: "Acciones",
-      width: 100,
-      center: true,
-      sortable: false,
-    },
+  const columns: TableColumnDef<Cars>[] = [
+    { key: "licensePlate", label: "Patente",     width: 180, sortable: true },
+    { key: "brand",        label: "Marca",       width: 150, center: true },
+    { key: "model",        label: "Modelo",      width: 200 },
+    { key: "year",         label: "Año",         width: 100, sortable: true },
+    { key: "kilometers",   label: "Kilometraje", width: 170, sortable: true },
+    { key: "owner",        label: "Dueño",       width: 200, sortable: true },
+    { key: "actions",      label: "Acciones",    width: 100, center: true },
   ];
   return (
     <div className="bg-foreground-700 rounded-lg flex flex-col gap-4">

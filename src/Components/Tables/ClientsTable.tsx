@@ -1,5 +1,6 @@
 import React from "react";
 import { Clients } from "../../Types/types";
+import { TableColumnDef } from "../../Types/tableTypes";
 import {
   Button,
   Chip,
@@ -59,16 +60,16 @@ const ClientTable: React.FC<ClientTableProps> = ({
 
   const showActions = !!onToggleActive || !!onDelete;
 
-  const columns = [
-    { key: "fullname", label: "Nombre", width: 200, sortable: true },
-    { key: "phone", label: "Teléfono", width: 150, center: true },
-    { key: "email", label: "Correo", width: 200, center: true },
-    { key: "address", label: "Dirección", width: 150 },
-    { key: "city", label: "Ciudad", width: 150, center: true },
-    { key: "cars", label: "Vehículos", width: 150, center: true },
-    { key: "status", label: "Estado", width: 100, center: true },
+  const columns: TableColumnDef<Clients>[] = [
+    { key: "fullname", label: "Nombre",    width: 200, sortable: true },
+    { key: "phone",    label: "Teléfono",  width: 150, center: true },
+    { key: "email",    label: "Correo",    width: 200, center: true },
+    { key: "address",  label: "Dirección", width: 150 },
+    { key: "city",     label: "Ciudad",    width: 150, center: true },
+    { key: "cars",     label: "Vehículos", width: 150, center: true },
+    { key: "isActive", label: "Estado",    width: 100, center: true },
     ...(showActions
-      ? [{ key: "actions", label: "Acciones", width: 120, center: true }]
+      ? [{ key: "actions" as const, label: "Acciones", width: 120, center: true }]
       : []),
   ];
 
