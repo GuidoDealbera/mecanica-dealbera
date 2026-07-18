@@ -18,6 +18,7 @@ import { IoCarSportSharp } from "react-icons/io5";
 import { useNavigate } from "react-router-dom";
 import { ServiceAlert } from "../Types/types";
 import LicenceTable from "../Components/Licenses/LicenceTable";
+import { getServiceUrgency, formatServiceUrgencyLabel } from "../Utils/serviceAlerts";
 
 const ServiceAlertsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -37,19 +38,6 @@ const ServiceAlertsPage: React.FC = () => {
   React.useEffect(() => {
     fetchAlerts();
   }, [fetchAlerts]);
-
-  const urgency = (days: number | null): "danger" | "warning" | "default" => {
-    if (days === null) return "warning";
-    if (days > 365) return "danger";
-    if (days > 180) return "warning";
-    return "default";
-  };
-
-  const urgencyLabel = (days: number | null) => {
-    if (days === null) return "Sin trabajos";
-    if (days > 365) return `${Math.floor(days / 30)} meses`;
-    return `${days} días`;
-  };
 
   const columns = [
     { key: "licensePlate", label: "Patente", width: 160 },
@@ -156,9 +144,9 @@ const ServiceAlertsPage: React.FC = () => {
                     <TableCell className="border-r-2 border-white text-center">
                       <Chip
                         size="sm"
-                        color={urgency(alert.daysSinceLastJob)}
+                        color={getServiceUrgency(alert.daysSinceLastJob)}
                       >
-                        {urgencyLabel(alert.daysSinceLastJob)}
+                        {formatServiceUrgencyLabel(alert.daysSinceLastJob)}
                       </Chip>
                     </TableCell>
                     <TableCell className="text-center">

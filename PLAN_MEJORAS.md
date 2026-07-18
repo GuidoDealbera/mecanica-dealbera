@@ -24,7 +24,9 @@ Estados posibles: `pendiente` · `en progreso` · `a testear` · `hecho`
 
 ## Sprint 1 — Fundaciones de calidad
 
-5. **[pendiente]** Setup Vitest + tests de utilidades (formatDate, formatARS, alertas de service)
+5. **[a testear]** Setup Vitest + tests de utilidades (formatDate, formatARS, alertas de service)
+   - Archivos: `vitest.config.ts` (nuevo), `src/Utils/serviceAlerts.ts` (nuevo), `src/Utils/utils.test.ts` (nuevo), `src/Utils/serviceAlerts.test.ts` (nuevo), `src/Pages/ServiceAlertsPage.tsx` (refactor), `package.json` (scripts `test`/`test:watch`).
+   - Cambios: instalado `vitest` (dev). Config aislada en `vitest.config.ts` (entorno `node`, sin plugin de Electron). Lógica de urgencia de alertas extraída de `ServiceAlertsPage` a `serviceAlerts.ts` (`getServiceUrgency`, `formatServiceUrgencyLabel`) para poder testearla pura. 36 tests: utilidades (`formatLicence`, `capitalizeWords`, `formatDate`, `formatThousands`, `parseNumber`, `formatARS`, `formatNumbers`, `normalizeText`, `toCsv`) + alertas de service. Correr con `npm test`.
 6. **[pendiente]** Índices DB (`@Index()` en licensePlate, fullname, phone)
 7. **[pendiente]** Logs estructurados (electron-log con objetos)
 8. **[pendiente]** Wrapper global de errores para `ipcMain.handle`
