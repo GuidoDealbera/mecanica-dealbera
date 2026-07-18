@@ -1,6 +1,7 @@
 import { ipcMain } from "electron";
 import log from "electron-log/main";
-import { CreateClientDto } from "../Types/client.dto";
+import { Not } from "typeorm";
+import { CreateClientDto, UpdateClientDto } from "../Types/client.dto";
 import { AppDataSource, getRepositories } from "../dataSource";
 import { Car } from "../Entities/car.entity";
 import { Client } from "../Entities/client.entity";
@@ -115,9 +116,10 @@ ipcMain.handle('client:delete', async(_, id: string) => {
     }
 })
 
-ipcMain.handle('client:update', async (_, updateClientDto: Partial<CreateClientDto>) => {
+ipcMain.handle('client:update', async (_, updateClientDto: UpdateClientDto) => {
     const repo = getRepositories().clientRepository
     const {
+        id,
         address,
         city,
         email,
@@ -125,9 +127,16 @@ ipcMain.handle('client:update', async (_, updateClientDto: Partial<CreateClientD
         phone
     } = updateClientDto
 
+    if(!id){
+        return {
+            status: 'failed',
+            message: 'No se especificó el cliente a modificar'
+        }
+    }
+
     const updateClient = await repo.findOne({
         where: {
-            fullname
+            id
         }
     })
     if(!updateClient){
@@ -135,6 +144,19 @@ ipcMain.handle('client:update', async (_, updateClientDto: Partial<CreateClientD
             status: 'failed',
             message: 'El cliente que intenta modificar no se encuentra registrado'
         }
+    }
+    // Si se cambia el nombre, verificar que no lo tenga otro cliente
+    if(fullname !== undefined && fullname !== updateClient.fullname){
+        const nameTaken = await repo.findOne({
+            where: { fullname, id: Not(id) }
+        })
+        if(nameTaken){
+            return {
+                status: 'failed',
+                message: `Ya existe otro cliente llamado "${fullname}"`
+            }
+        }
+        updateClient.fullname = fullname
     }
     if(address !== undefined) updateClient.address = address
     if(city !== undefined) updateClient.city = city

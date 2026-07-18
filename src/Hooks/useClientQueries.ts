@@ -14,7 +14,7 @@ import {
   updateClient,
 } from "../Store/clientAsync.methods";
 import { useToasts } from "./useToasts";
-import { Client } from "../Types/types";
+import { UpdateClientBody } from "../Types/apiTypes";
 
 export const useClientQueries = () => {
   const { showToast } = useToasts();
@@ -65,7 +65,7 @@ export const useClientQueries = () => {
   }, [dispatch, showToast]);
 
   const updateOwner = useCallback(
-    async (body: Partial<Client>, isOnly?: boolean) => {
+    async (body: UpdateClientBody, isOnly?: boolean) => {
       setLoading(true);
       try {
         await dispatch(updateClient(body)).unwrap();

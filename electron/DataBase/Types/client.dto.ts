@@ -29,3 +29,33 @@ export class CreateClientDto {
   @IsEmail({}, { message: 'Email inválido' })
   email?: string;
 }
+
+export class UpdateClientDto {
+  @IsString()
+  @IsNotEmpty({ message: 'El id del cliente es requerido' })
+  id!: string;
+
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty({ message: 'El nombre completo no puede estar vacío' })
+  fullname?: string;
+
+  @IsOptional()
+  @IsString()
+  @IsPhoneNumber('AR', { message: 'Inserte un número de teléfono válido' })
+  phone?: string;
+
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty({ message: 'La dirección no puede estar vacía' })
+  address?: string;
+
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty({ message: 'La localidad no puede estar vacía' })
+  city?: string;
+
+  @IsOptional()
+  @IsEmail({}, { message: 'Email inválido' })
+  email?: string;
+}

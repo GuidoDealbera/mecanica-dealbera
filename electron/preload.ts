@@ -1,6 +1,6 @@
 import { ipcRenderer, contextBridge } from "electron";
 import { CreateCarDto, UpdateJobDto } from "./DataBase/Types/car.dto";
-import { CreateClientDto } from "./DataBase/Types/client.dto";
+import { CreateClientDto, UpdateClientDto } from "./DataBase/Types/client.dto";
 import { CreateCarJob } from "../src/Types/apiTypes";
 import { UpdateInfo, UpdateProgress } from "../global";
 
@@ -68,7 +68,7 @@ contextBridge.exposeInMainWorld("api", {
       await ipcRenderer.invoke("client:find-by-name", fullname),
     search: async (query: string) =>
       await ipcRenderer.invoke("client:search", query),
-    update: async (dto: Partial<CreateClientDto>) =>
+    update: async (dto: UpdateClientDto) =>
       await ipcRenderer.invoke("client:update", dto),
     toggleActive: async (id: string) =>
       await ipcRenderer.invoke("client:toggle-active", id),

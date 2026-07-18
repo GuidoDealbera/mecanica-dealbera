@@ -15,8 +15,9 @@ Estados posibles: `pendiente` · `en progreso` · `a testear` · `hecho`
 2. **[hecho]** `car:reassign-owner` sin transacción QueryRunner
    - Archivo: `electron/DataBase/Endpoints/car.endpoints.ts:322`
    - Cambios: handler reescrito con QueryRunner (connect/startTransaction/commit/rollback/release) siguiendo el patrón de `car:delete` y `car:create`. Toda validación de fallo hace rollback antes de retornar; catch general loguea y hace rollback.
-3. **[pendiente]** `client:update` busca por `fullname` en lugar de `id`
+3. **[hecho]** `client:update` busca por `fullname` en lugar de `id`
    - Archivo: `electron/DataBase/Endpoints/client.endpoints.ts:118`
+   - Cambios: nuevo `UpdateClientDto` (id requerido) en `client.dto.ts`; endpoint busca por `id` y permite renombrar con chequeo de duplicado. Nuevo tipo frontend `UpdateClientBody` (`apiTypes.ts`) propagado por `client.service.ts`, `clientAsync.methods.ts`, `useClientQueries.ts`, `global.d.ts` y `preload.ts`. Call sites: `ClientDetailPage` (guard + `id`) y `CarDetailPage` (`id` del owner cargado). Desbloquea renombrar clientes a nivel API.
 4. **[pendiente]** Sin debounce en barras de búsqueda
    - Archivos: `src/Components/SearchBars/FilterLicence.tsx`, `FilterName.tsx`, `GlobalSearch.tsx`
 

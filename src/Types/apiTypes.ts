@@ -41,6 +41,12 @@ export interface APIResponse {
   result?: any;
 }
 
+// Body para actualizar un cliente: el id es obligatorio (identifica el registro),
+// el resto de los campos son opcionales (se actualiza solo lo que venga definido).
+export type UpdateClientBody = Partial<Omit<Client, "id" | "cars">> & {
+  id: string;
+};
+
 export interface AppError {
   message: string;
   code?: string;

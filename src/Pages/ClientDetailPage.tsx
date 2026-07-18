@@ -89,8 +89,9 @@ const ClientDetailPage: React.FC = () => {
   }, [allCars, client]);
 
   const handleSave = async (data: Partial<Client>) => {
+    if (!client) return;
     try {
-      await updateOwner({ ...data, fullname: client?.fullname }, true);
+      await updateOwner({ ...data, id: client.id }, true);
       await getClientByName(decodedName);
       setIsEditing(false);
     } catch {

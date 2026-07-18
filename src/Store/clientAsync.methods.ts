@@ -1,7 +1,7 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
 import { clientService } from "../Services/client.service";
-import { AppError } from "../Types/apiTypes";
-import { Cars, Client, Clients } from "../Types/types";
+import { AppError, UpdateClientBody } from "../Types/apiTypes";
+import { Cars, Clients } from "../Types/types";
 import { formatDate } from "../Utils/utils";
 
 const toAppError = (error: unknown): AppError => ({
@@ -46,7 +46,7 @@ export const fetchClientByName = createAsyncThunk<
 
 export const updateClient = createAsyncThunk<
   Awaited<ReturnType<typeof clientService.update>>,
-  Partial<Client>,
+  UpdateClientBody,
   { rejectValue: AppError }
 >(
   "clients/updateClient",

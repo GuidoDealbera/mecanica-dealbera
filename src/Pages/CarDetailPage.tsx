@@ -80,7 +80,7 @@ const CarDetailPage: React.FC = () => {
   const handleSubmit = async (data: CreateCarBody): Promise<void> => {
     try {
       await updateCar(car!.id, data.kilometers);
-      await updateOwner(data.owner);
+      await updateOwner({ ...data.owner, id: car!.owner.id });
       await getCarDetail(car!.licensePlate);
       setIsEditing(false);
       showToast(
@@ -227,7 +227,7 @@ const CarDetailPage: React.FC = () => {
         aria-label="Secciones del vehículo"
         color="primary"
         variant="underlined"
-        classNames={{ tabList: "border-b border-foreground-600" }}
+        classNames={{ tabList: "border-b border-foreground-600 w-full" }}
       >
         <Tab key="jobs" title="Trabajos">
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 items-start pt-2">
