@@ -18,8 +18,9 @@ Estados posibles: `pendiente` · `en progreso` · `a testear` · `hecho`
 3. **[hecho]** `client:update` busca por `fullname` en lugar de `id`
    - Archivo: `electron/DataBase/Endpoints/client.endpoints.ts:118`
    - Cambios: nuevo `UpdateClientDto` (id requerido) en `client.dto.ts`; endpoint busca por `id` y permite renombrar con chequeo de duplicado. Nuevo tipo frontend `UpdateClientBody` (`apiTypes.ts`) propagado por `client.service.ts`, `clientAsync.methods.ts`, `useClientQueries.ts`, `global.d.ts` y `preload.ts`. Call sites: `ClientDetailPage` (guard + `id`) y `CarDetailPage` (`id` del owner cargado). Desbloquea renombrar clientes a nivel API.
-4. **[pendiente]** Sin debounce en barras de búsqueda
+4. **[hecho]** Sin debounce en barras de búsqueda
    - Archivos: `src/Components/SearchBars/FilterLicence.tsx`, `FilterName.tsx`, `GlobalSearch.tsx`
+   - Cambios: nuevo hook `useDebounce<T>(value, delay)` en `src/Hooks/`. FilterLicence/FilterName mantienen input+validación inmediatos y debouncean `onFilterChange` (250ms, skip primer render). Callbacks de CarsPage/ClientPage envueltos en `useCallback`. GlobalSearch migrado del debounce inline (`debounceRef`) al hook compartido (280ms).
 
 ## Sprint 1 — Fundaciones de calidad
 
@@ -76,3 +77,4 @@ Estados posibles: `pendiente` · `en progreso` · `a testear` · `hecho`
 ## Notas de sesión
 
 - 2026-07-18: arranque del plan, definido orden de sprints, confirmado trabajar sobre `feat/news`, un commit por tarea.
+- 2026-07-18: **Sprint 0 completo** (tareas 1-4). Todo testeado y pusheado a `feat/news`. Próxima sesión: Sprint 1 (fundaciones de calidad).

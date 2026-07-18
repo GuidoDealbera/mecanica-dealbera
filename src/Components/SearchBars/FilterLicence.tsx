@@ -1,6 +1,7 @@
 import { Button, Input, Tooltip } from "@heroui/react";
 import React from "react";
 import { MdDelete } from "react-icons/md";
+import { useDebounce } from "../../Hooks/useDebounce";
 
 interface Props {
   onFilterChange: (licence: string) => void;
@@ -11,15 +12,17 @@ const FilterByLicence: React.FC<Props> = ({ onFilterChange, initialValue = "" })
   const [value, setValue] = React.useState<string>(initialValue);
   const [error, setError] = React.useState<string | null>(null);
   const [isValid, setIsValid] = React.useState<boolean>(false);
+  const debouncedValue = useDebounce(value, 250);
+  const isFirstRender = React.useRef(true);
 
   const handleFilter = React.useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const newValue = e.target.value.toUpperCase();
       setValue(newValue);
+      // Feedback de validación inmediato (no depende del debounce)
       if (newValue === "") {
         setError(null);
         setIsValid(false);
-        onFilterChange("");
         return;
       }
       const isValidLicence = /^([A-Z]{2}\d{3}[A-Z]{2}|[A-Z]{3}\d{3})$/.test(newValue);
@@ -27,22 +30,28 @@ const FilterByLicence: React.FC<Props> = ({ onFilterChange, initialValue = "" })
       if (isValidLicence || isPartial) {
         setIsValid(isValidLicence);
         setError(null);
-        onFilterChange(newValue);
       } else {
         setIsValid(false);
         setError("Formato de patente incorrecto");
-        onFilterChange(newValue);
       }
     },
-    [onFilterChange],
+    [],
   );
 
   const handleClear = React.useCallback(() => {
     setValue("");
     setError(null);
     setIsValid(false);
-    onFilterChange("");
-  }, [onFilterChange]);
+  }, []);
+
+  // El filtro efectivo se dispara con el valor debounceado, no en cada tecla.
+  React.useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    onFilterChange(debouncedValue);
+  }, [debouncedValue, onFilterChange]);
 
   return (
     <div className="relative p-1 mt-4 w-fit mb-4">

@@ -5,6 +5,7 @@ import { IoCarSportSharp } from "react-icons/io5";
 import { MdPeople } from "react-icons/md";
 import { useNavigate } from "react-router-dom";
 import LicenceTable from "../Licenses/LicenceTable";
+import { useDebounce } from "../../Hooks/useDebounce";
 
 interface SearchResult {
   cars: {
@@ -35,7 +36,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose }) => {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult>({ cars: [], clients: [] });
   const [loading, setLoading] = useState(false);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debouncedQuery = useDebounce(query, 280);
 
   useEffect(() => {
     if (isOpen) {
@@ -73,10 +74,12 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose }) => {
     }
   }, []);
 
+  useEffect(() => {
+    search(debouncedQuery);
+  }, [debouncedQuery, search]);
+
   const handleChange = (val: string) => {
     setQuery(val);
-    clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => search(val), 280);
   };
 
   const handleCarClick = (licensePlate: string) => {

@@ -40,6 +40,14 @@ const ClientPage: React.FC = () => {
 
   React.useEffect(() => { getAllClients(); }, [getAllClients]);
 
+  const handleNameFilterChange = React.useCallback(
+    (v: string) => {
+      if (v) setSearchParams({ q: v });
+      else setSearchParams({});
+    },
+    [setSearchParams],
+  );
+
   const handleToggleActive = React.useCallback(
     (id: string, name: string, isActive: boolean) => {
       setToggleDialog({ open: true, id, name, isActive });
@@ -112,9 +120,7 @@ const ClientPage: React.FC = () => {
 
       <FilterName
         initialValue={searchParams.get("q") ?? ""}
-        onFilterChange={(v) =>
-          v ? setSearchParams({ q: v }) : setSearchParams({})
-        }
+        onFilterChange={handleNameFilterChange}
       />
 
       <ClientTable

@@ -2,6 +2,7 @@ import { Button, Input, Tooltip } from "@heroui/react";
 import React from "react";
 import { MdDelete } from "react-icons/md";
 import { normalizeText } from "../../Utils/utils";
+import { useDebounce } from "../../Hooks/useDebounce";
 
 interface FilterNameProps {
   onFilterChange: (fullname: string) => void;
@@ -10,20 +11,28 @@ interface FilterNameProps {
 
 const FilterName: React.FC<FilterNameProps> = ({ onFilterChange, initialValue = "" }) => {
   const [value, setValue] = React.useState<string>(initialValue);
+  const debouncedValue = useDebounce(value, 250);
+  const isFirstRender = React.useRef(true);
 
   const handleFilter = React.useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      const newValue = e.target.value;
-      setValue(newValue);
-      onFilterChange(normalizeText(newValue));
+      setValue(e.target.value);
     },
-    [onFilterChange],
+    [],
   );
 
   const handleClear = React.useCallback(() => {
     setValue("");
-    onFilterChange("");
-  }, [onFilterChange]);
+  }, []);
+
+  // El filtro efectivo se dispara con el valor debounceado, no en cada tecla.
+  React.useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    onFilterChange(normalizeText(debouncedValue));
+  }, [debouncedValue, onFilterChange]);
 
   return (
     <div className="relative p-1 mt-4 w-fit mb-4">

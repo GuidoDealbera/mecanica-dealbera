@@ -46,6 +46,14 @@ const CarsPage: React.FC = () => {
     onClose();
   }, [onClose]);
 
+  const handleLicenceFilterChange = useCallback(
+    (v: string) => {
+      if (v) setSearchParams({ q: v });
+      else setSearchParams({});
+    },
+    [setSearchParams],
+  );
+
   const filteredCars = useMemo(() => {
     if (!licenceFilter) return allCars;
     return allCars.filter((car) =>
@@ -101,9 +109,7 @@ const CarsPage: React.FC = () => {
       </div>
       <FilterByLicence
         initialValue={licenceFilter}
-        onFilterChange={(v) =>
-          v ? setSearchParams({ q: v }) : setSearchParams({})
-        }
+        onFilterChange={handleLicenceFilterChange}
       />
       <CarsTable
         cars={filteredCars}
