@@ -1,5 +1,5 @@
 import { ipcMain } from "electron";
-import log from "electron-log/main";
+import { logError } from "../../logger";
 import { CreateCarDto, Jobs, UpdateJobDto } from "../Types/car.dto";
 import { AppDataSource, getRepositories } from "../dataSource";
 import { v4 } from "uuid";
@@ -53,7 +53,7 @@ ipcMain.handle("car:create", async (_event, createCarDto: CreateCarDto) => {
     return { status: "success", message: "Vehículo registrado correctamente" };
   } catch (error) {
     await qr.rollbackTransaction();
-    log.error("car:create — error en transacción:", error);
+    logError("car:create", error);
     return { status: "failed", message: "Error al registrar el vehículo" };
   } finally {
     await qr.release();
@@ -152,7 +152,7 @@ ipcMain.handle(
     return {status: 'success', message: "Vehículo eliminado correctamente"}
     } catch (error) {
       await qr.rollbackTransaction()
-      log.error("car:delete — error en transacción:", error)
+      logError("car:delete", error)
       return {status: 'failed', message: "Error al eliminar el vehículo"}
     } finally {
       await qr.release()
@@ -391,7 +391,7 @@ ipcMain.handle(
       };
     } catch (error) {
       await qr.rollbackTransaction();
-      log.error("car:reassign-owner — error en transacción:", error);
+      logError("car:reassign-owner", error);
       return { status: "failed", message: "Error al reasignar el titular del vehículo" };
     } finally {
       await qr.release();

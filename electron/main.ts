@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import fs from "node:fs";
 import log from "electron-log/main";
+import { logError, logInfo } from "./logger";
 import { getRepositories, initializeDB } from "./DataBase/dataSource";
 
 log.initialize();
@@ -62,7 +63,7 @@ function performAutoBackup(): void {
 }
 
 process.on("uncaughtException", (error) => {
-  log.error("Uncaught Exception:", error);
+  logError("uncaught-exception", error);
   dialog.showErrorBox(
     "Error Inesperado",
     `Ocurrió un error inesperado:\n\n${error.message}`,
@@ -109,10 +110,10 @@ function setupAutoUpdater() {
     })
   })
 
-  autoUpdater.checkForUpdates().catch(err => log.error("Error checking for updates:", err))
+  autoUpdater.checkForUpdates().catch(err => logError("auto-updater:check", err))
 
   setInterval(() => {
-    autoUpdater.checkForUpdates().catch(err => log.error("Error checking for updates (interval):", err))
+    autoUpdater.checkForUpdates().catch(err => logError("auto-updater:check-interval", err))
   }, UPDATE_CHECK_INTERVAL_MS)
 }
 
@@ -134,9 +135,9 @@ async function createWindow() {
   if (process.env.NODE_ENV !== "development") {
     try {
       performAutoBackup();
-      log.info("Auto-backup completado");
+      logInfo("backup:auto", "Auto-backup completado");
     } catch (err) {
-      log.error("Error al realizar backup:", err);
+      logError("backup:auto", err);
     }
   }
 
@@ -171,7 +172,7 @@ async function createWindow() {
         }).show();
       }
     } catch (err) {
-      log.error("Error al verificar alertas de service:", err);
+      logError("service-alerts:check", err);
     }
   }
 
@@ -256,7 +257,7 @@ ipcMain.handle("check-for-updates", async () => {
 })
 
 app.whenReady().then(async () => {
-  log.info("App iniciando — versión", app.getVersion());
+  logInfo("app:start", "App iniciando", { version: app.getVersion() });
   await createWindow();
   setupAutoUpdater();
 });

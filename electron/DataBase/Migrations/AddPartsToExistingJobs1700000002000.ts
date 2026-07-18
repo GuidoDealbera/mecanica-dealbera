@@ -1,5 +1,5 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
-import log from "electron-log/main";
+import { logError } from "../../logger";
 
 type CarRow = {
   id: string;
@@ -30,9 +30,9 @@ export class AddPartsToExistingJobs1700000002000 implements MigrationInterface {
       try {
         jobs = JSON.parse(car.jobs);
       } catch (error) {
-        log.error("AddPartsToExistingJobs1700000002000.up — jobs corruptos, se omite auto:", {
+        logError("migration:AddPartsToExistingJobs:up", error, {
+          reason: "jobs corruptos, se omite auto",
           carId: car.id,
-          error,
         });
         continue;
       }
@@ -60,9 +60,9 @@ export class AddPartsToExistingJobs1700000002000 implements MigrationInterface {
         try {
           jobs = JSON.parse(car.jobs);
         } catch (error) {
-          log.error("AddPartsToExistingJobs1700000002000.down — jobs corruptos, se omite auto:", {
+          logError("migration:AddPartsToExistingJobs:down", error, {
+            reason: "jobs corruptos, se omite auto",
             carId: car.id,
-            error,
           });
           continue;
         }

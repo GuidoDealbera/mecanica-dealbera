@@ -1,5 +1,5 @@
 import { ipcMain } from "electron";
-import log from "electron-log/main";
+import { logError } from "../../logger";
 import { Not } from "typeorm";
 import { CreateClientDto, UpdateClientDto } from "../Types/client.dto";
 import { AppDataSource, getRepositories } from "../dataSource";
@@ -109,7 +109,7 @@ ipcMain.handle('client:delete', async(_, id: string) => {
         return { status: 'success', message: 'Cliente eliminado correctamente' }
     } catch (error) {
         await qr.rollbackTransaction()
-        log.error('client:delete — error en transacción:', error)
+        logError("client:delete", error)
         return { status: 'failed', message: 'Error al eliminar el cliente' }
     } finally {
         await qr.release()

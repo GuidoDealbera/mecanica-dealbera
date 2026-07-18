@@ -1,7 +1,7 @@
 import { ipcMain, dialog, shell, app } from "electron";
 import fs from "node:fs";
 import path from "node:path";
-import log from "electron-log/main";
+import { logError, logInfo } from "../../logger";
 import { AppDataSource, getDBPath, getRepositories } from "../dataSource";
 
 function getBackupDir(): string {
@@ -180,21 +180,21 @@ ipcMain.handle("backup:import", async () => {
       message: "Base de datos importada. Los datos se actualizarán.",
     };
   } catch (error) {
-    log.error("backup:import — error:", error);
+    logError("backup:import", error);
 
     if (!AppDataSource.isInitialized) {
       if (preImportBackupPath && fs.existsSync(preImportBackupPath)) {
         try {
           fs.copyFileSync(preImportBackupPath, destPath);
-          log.info("backup:import — DB restaurada desde backup previo al import");
+          logInfo("backup:import", "DB restaurada desde backup previo al import");
         } catch (restoreError) {
-          log.error("backup:import — error al restaurar backup:", restoreError);
+          logError("backup:import:restore", restoreError);
         }
       }
       try {
         await AppDataSource.initialize();
       } catch (initError) {
-        log.error("backup:import — error al reinicializar DB:", initError);
+        logError("backup:import:reinit", initError);
       }
     }
 
