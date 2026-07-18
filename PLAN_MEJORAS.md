@@ -24,16 +24,16 @@ Estados posibles: `pendiente` · `en progreso` · `a testear` · `hecho`
 
 ## Sprint 1 — Fundaciones de calidad
 
-5. **[a testear]** Setup Vitest + tests de utilidades (formatDate, formatARS, alertas de service)
+5. **[hecho]** Setup Vitest + tests de utilidades (formatDate, formatARS, alertas de service)
    - Archivos: `vitest.config.ts` (nuevo), `src/Utils/serviceAlerts.ts` (nuevo), `src/Utils/utils.test.ts` (nuevo), `src/Utils/serviceAlerts.test.ts` (nuevo), `src/Pages/ServiceAlertsPage.tsx` (refactor), `package.json` (scripts `test`/`test:watch`).
    - Cambios: instalado `vitest` (dev). Config aislada en `vitest.config.ts` (entorno `node`, sin plugin de Electron). Lógica de urgencia de alertas extraída de `ServiceAlertsPage` a `serviceAlerts.ts` (`getServiceUrgency`, `formatServiceUrgencyLabel`) para poder testearla pura. 36 tests: utilidades (`formatLicence`, `capitalizeWords`, `formatDate`, `formatThousands`, `parseNumber`, `formatARS`, `formatNumbers`, `normalizeText`, `toCsv`) + alertas de service. Correr con `npm test`.
-6. **[a testear]** Índices DB
+6. **[hecho]** Índices DB
    - Archivos: `electron/DataBase/Migrations/AddOwnerIndex1700000003000.ts` (nuevo), `electron/DataBase/Entities/car.entity.ts`, `electron/DataBase/dataSource.ts`.
    - Cambios: **ajuste de alcance respecto al plan original.** `licensePlate`, `fullname` y `phone` ya tienen índice automático por su restricción `UNIQUE` (verificado: `sqlite_autoindex_car_*`), y las búsquedas con `LIKE '%x%'` no pueden usar índice por el comodín inicial → agregarles `@Index()` sería redundante. El índice que sí faltaba es sobre la FK `ownerId` de `car` (TypeORM no indexa ManyToOne por defecto), usada en listados de autos por dueño, joins con `owner` y reasignación/borrado de clientes. Se crea `IDX_car_owner` vía migración (`migrationsRun: true`), se declara `@Index("IDX_car_owner")` en la entidad para mantener esquema/entidad en sincronía, y se registra la migración en `dataSource.ts`. Migración ejecutada y verificada en la DB de desarrollo.
-7. **[a testear]** Logs estructurados (electron-log con objetos)
+7. **[hecho]** Logs estructurados (electron-log con objetos)
    - Archivos: `electron/logger.ts` (nuevo), `electron/main.ts`, `electron/DataBase/dataSource.ts`, `electron/DataBase/Endpoints/{car,client,backup}.endpoints.ts`, `electron/DataBase/Migrations/AddPartsToExistingJobs1700000002000.ts`.
    - Cambios: nuevo helper central `logger.ts` con `logError(scope, error, context?)`, `logInfo(scope, message?, context?)` y `logWarn(...)`. `logError` serializa el error a `{ name, message, stack }` (antes se perdía el stack al concatenarlo en string) y emite un único objeto `{ scope, ...context, error }` por entrada. Migrados todos los call sites (14) de `log.error/info("texto:", x)` a llamadas estructuradas con `scope` por operación (ej. `car:create`, `db:init`, `backup:import`). `main.ts` conserva `import log` solo para `initialize()`/`transports`. `electron-log/main` es singleton, así que la config de `main.ts` aplica también al helper.
-8. **[a testear]** Wrapper global de errores para `ipcMain.handle`
+8. **[hecho]** Wrapper global de errores para `ipcMain.handle`
    - Archivos: `electron/ipc.ts` (nuevo), `electron/main.ts`, `electron/DataBase/Endpoints/{car,client,backup,dashboard}.endpoints.ts`.
    - Cambios: nuevo helper `handleIpc(channel, handler)` que envuelve `ipcMain.handle` con try/catch: ante error no controlado loguea estructurado (`logError` con el canal como `scope`) y **re-lanza** para que el renderer lo reciba como promesa rechazada (contrato ya manejado por los thunks con `rejectWithValue`). Es genérico (`<Args, R>`) para preservar los tipos de argumentos de cada handler sin casts en los call sites. Migrados los 26 handlers `ipcMain.handle` → `handleIpc`. Los handlers con try/catch propio (transacciones) siguen devolviendo su `{status:'failed'}` específico y no llegan al catch del wrapper (sin doble log). `main.ts` conserva `ipcMain` solo para los `.on(...)` de auto-update.
 
@@ -86,4 +86,4 @@ Estados posibles: `pendiente` · `en progreso` · `a testear` · `hecho`
 
 - 2026-07-18: arranque del plan, definido orden de sprints, confirmado trabajar sobre `feat/news`, un commit por tarea.
 - 2026-07-18: **Sprint 0 completo** (tareas 1-4). Todo testeado y pusheado a `feat/news`. Próxima sesión: Sprint 1 (fundaciones de calidad).
-- 2026-07-18: **Sprint 1 implementado** (tareas 5-8), a la espera de testeo del usuario. Notas de alcance: (6) los índices de `licensePlate/fullname/phone` ya existían por `UNIQUE` → se agregó solo `IDX_car_owner`; (8) el wrapper loguea y re-lanza (no traga el error) porque el frontend ya maneja la promesa rechazada. Vitest incorporado como framework de tests (`npm test`, 36 tests). Próxima sesión: Sprint 2 (arquitectura de API).
+- 2026-07-18: **Sprint 1 completo** (tareas 5-8). Todo testeado. Notas de alcance: (6) los índices de `licensePlate/fullname/phone` ya existían por `UNIQUE` → se agregó solo `IDX_car_owner`; (8) el wrapper loguea y re-lanza (no traga el error) porque el frontend ya maneja la promesa rechazada. Vitest incorporado como framework de tests (`npm test`, 36 tests). Próxima sesión: Sprint 2 (arquitectura de API).
