@@ -6,6 +6,7 @@ import { Car } from "./Entities/car.entity";
 import { Client } from "./Entities/client.entity";
 import { InitialSchema1700000000000 } from "./Migrations/1700000000000-InitialSchema";
 import { AddPartsToExistingJobs1700000002000 } from "./Migrations/AddPartsToExistingJobs1700000002000";
+import { AddOwnerIndex1700000003000 } from "./Migrations/AddOwnerIndex1700000003000";
 
 export const AppDataSource = new DataSource({
     type: 'sqlite',
@@ -16,7 +17,8 @@ export const AppDataSource = new DataSource({
     migrationsRun: true,
     migrations: [
         InitialSchema1700000000000,
-        AddPartsToExistingJobs1700000002000
+        AddPartsToExistingJobs1700000002000,
+        AddOwnerIndex1700000003000
     ],
     subscribers: []
 })

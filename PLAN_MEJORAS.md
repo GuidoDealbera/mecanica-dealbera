@@ -27,7 +27,9 @@ Estados posibles: `pendiente` · `en progreso` · `a testear` · `hecho`
 5. **[a testear]** Setup Vitest + tests de utilidades (formatDate, formatARS, alertas de service)
    - Archivos: `vitest.config.ts` (nuevo), `src/Utils/serviceAlerts.ts` (nuevo), `src/Utils/utils.test.ts` (nuevo), `src/Utils/serviceAlerts.test.ts` (nuevo), `src/Pages/ServiceAlertsPage.tsx` (refactor), `package.json` (scripts `test`/`test:watch`).
    - Cambios: instalado `vitest` (dev). Config aislada en `vitest.config.ts` (entorno `node`, sin plugin de Electron). Lógica de urgencia de alertas extraída de `ServiceAlertsPage` a `serviceAlerts.ts` (`getServiceUrgency`, `formatServiceUrgencyLabel`) para poder testearla pura. 36 tests: utilidades (`formatLicence`, `capitalizeWords`, `formatDate`, `formatThousands`, `parseNumber`, `formatARS`, `formatNumbers`, `normalizeText`, `toCsv`) + alertas de service. Correr con `npm test`.
-6. **[pendiente]** Índices DB (`@Index()` en licensePlate, fullname, phone)
+6. **[a testear]** Índices DB
+   - Archivos: `electron/DataBase/Migrations/AddOwnerIndex1700000003000.ts` (nuevo), `electron/DataBase/Entities/car.entity.ts`, `electron/DataBase/dataSource.ts`.
+   - Cambios: **ajuste de alcance respecto al plan original.** `licensePlate`, `fullname` y `phone` ya tienen índice automático por su restricción `UNIQUE` (verificado: `sqlite_autoindex_car_*`), y las búsquedas con `LIKE '%x%'` no pueden usar índice por el comodín inicial → agregarles `@Index()` sería redundante. El índice que sí faltaba es sobre la FK `ownerId` de `car` (TypeORM no indexa ManyToOne por defecto), usada en listados de autos por dueño, joins con `owner` y reasignación/borrado de clientes. Se crea `IDX_car_owner` vía migración (`migrationsRun: true`), se declara `@Index("IDX_car_owner")` en la entidad para mantener esquema/entidad en sincronía, y se registra la migración en `dataSource.ts`. Migración ejecutada y verificada en la DB de desarrollo.
 7. **[pendiente]** Logs estructurados (electron-log con objetos)
 8. **[pendiente]** Wrapper global de errores para `ipcMain.handle`
 

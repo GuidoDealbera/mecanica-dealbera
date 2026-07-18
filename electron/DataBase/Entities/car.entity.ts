@@ -5,6 +5,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
@@ -67,6 +68,10 @@ export class Car {
   @UpdateDateColumn({ type: "datetime" })
   updatedAt!: Date;
 
+  // La FK ManyToOne no se indexa automáticamente; el índice se crea en la
+  // migración AddOwnerIndex1700000003000. Se declara aquí para mantener la
+  // entidad y el esquema en sincronía (nombre alineado con la migración).
+  @Index("IDX_car_owner")
   @ManyToOne(() => Client, (client) => client.cars, { nullable: true })
   owner!: Client;
 
