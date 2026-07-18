@@ -12,8 +12,9 @@ Estados posibles: `pendiente` · `en progreso` · `a testear` · `hecho`
 1. **[hecho]** Try-catch en `JSON.parse` de migración `AddPartsToExistingJobs`
    - Archivo: `electron/DataBase/Migrations/AddPartsToExistingJobs1700000002000.ts`
    - Cambios: try-catch en `up` y `down` alrededor del `JSON.parse(car.jobs)`; si falla, loguea `carId` + error con `electron-log` y hace `continue` (no aborta la migración completa).
-2. **[pendiente]** `car:reassign-owner` sin transacción QueryRunner
+2. **[hecho]** `car:reassign-owner` sin transacción QueryRunner
    - Archivo: `electron/DataBase/Endpoints/car.endpoints.ts:322`
+   - Cambios: handler reescrito con QueryRunner (connect/startTransaction/commit/rollback/release) siguiendo el patrón de `car:delete` y `car:create`. Toda validación de fallo hace rollback antes de retornar; catch general loguea y hace rollback.
 3. **[pendiente]** `client:update` busca por `fullname` en lugar de `id`
    - Archivo: `electron/DataBase/Endpoints/client.endpoints.ts:118`
 4. **[pendiente]** Sin debounce en barras de búsqueda

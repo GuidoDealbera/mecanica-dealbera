@@ -328,58 +328,74 @@ ipcMain.handle(
       | { mode: "existing"; existingOwnerFullname: string }
       | { mode: "new"; newOwner: CreateClientDto }
   ) => {
-    const { carRepository: carRepo, clientRepository: clientRepo } = getRepositories();
- 
-    const car = await carRepo.findOne({
-      where: { licensePlate },
-      relations: ["owner"],
-    });
-    if (!car) {
-      return { status: "failed", message: "Vehículo no registrado" };
+    const qr = AppDataSource.createQueryRunner();
+    await qr.connect();
+    await qr.startTransaction();
+
+    try {
+      const car = await qr.manager.findOne(Car, {
+        where: { licensePlate },
+        relations: ["owner"],
+      });
+      if (!car) {
+        await qr.rollbackTransaction();
+        return { status: "failed", message: "Vehículo no registrado" };
+      }
+
+      let newOwner;
+
+      if (payload.mode === "existing") {
+        newOwner = await qr.manager.findOne(Client, {
+          where: { fullname: payload.existingOwnerFullname },
+        });
+        if (!newOwner) {
+          await qr.rollbackTransaction();
+          return { status: "failed", message: "El cliente seleccionado no existe" };
+        }
+        if (newOwner.id === car.owner?.id) {
+          await qr.rollbackTransaction();
+          return { status: "failed", message: "El cliente ya es el titular de este vehículo" };
+        }
+      } else {
+        // Verificar duplicado de nombre
+        const existingByName = await qr.manager.findOne(Client, {
+          where: { fullname: payload.newOwner.fullname },
+        });
+        if (existingByName) {
+          await qr.rollbackTransaction();
+          return { status: "failed", message: `Ya existe un cliente llamado "${payload.newOwner.fullname}"` };
+        }
+        // Verificar duplicado de teléfono
+        const existingByPhone = await qr.manager.findOne(Client, {
+          where: { phone: payload.newOwner.phone },
+        });
+        if (existingByPhone) {
+          await qr.rollbackTransaction();
+          return {
+            status: "failed",
+            message: `El teléfono ya está registrado a nombre de ${existingByPhone.fullname}`,
+          };
+        }
+        newOwner = qr.manager.create(Client, { ...payload.newOwner, isActive: true });
+        await qr.manager.save(Client, newOwner);
+      }
+
+      car.owner = newOwner;
+      const savedCar = await qr.manager.save(Car, car);
+
+      await qr.commitTransaction();
+      return {
+        status: "success",
+        message: `Titular actualizado a "${newOwner.fullname}"`,
+        result: savedCar,
+      };
+    } catch (error) {
+      await qr.rollbackTransaction();
+      log.error("car:reassign-owner — error en transacción:", error);
+      return { status: "failed", message: "Error al reasignar el titular del vehículo" };
+    } finally {
+      await qr.release();
     }
- 
-    let newOwner;
- 
-    if (payload.mode === "existing") {
-      newOwner = await clientRepo.findOne({
-        where: { fullname: payload.existingOwnerFullname },
-      });
-      if (!newOwner) {
-        return { status: "failed", message: "El cliente seleccionado no existe" };
-      }
-      if (newOwner.id === car.owner?.id) {
-        return { status: "failed", message: "El cliente ya es el titular de este vehículo" };
-      }
-    } else {
-      // Verificar duplicado de nombre
-      const existingByName = await clientRepo.findOne({
-        where: { fullname: payload.newOwner.fullname },
-      });
-      if (existingByName) {
-        return { status: "failed", message: `Ya existe un cliente llamado "${payload.newOwner.fullname}"` };
-      }
-      // Verificar duplicado de teléfono
-      const existingByPhone = await clientRepo.findOne({
-        where: { phone: payload.newOwner.phone },
-      });
-      if (existingByPhone) {
-        return {
-          status: "failed",
-          message: `El teléfono ya está registrado a nombre de ${existingByPhone.fullname}`,
-        };
-      }
-      newOwner = clientRepo.create({ ...payload.newOwner, isActive: true });
-      await clientRepo.save(newOwner);
-    }
- 
-    car.owner = newOwner;
-    const savedCar = await carRepo.save(car);
- 
-    return {
-      status: "success",
-      message: `Titular actualizado a "${newOwner.fullname}"`,
-      result: savedCar,
-    };
   }
 );
 
