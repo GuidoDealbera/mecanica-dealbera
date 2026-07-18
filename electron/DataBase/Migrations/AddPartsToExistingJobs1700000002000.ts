@@ -1,4 +1,5 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
+import log from "electron-log/main";
 
 type CarRow = {
   id: string;
@@ -25,7 +26,16 @@ export class AddPartsToExistingJobs1700000002000 implements MigrationInterface {
     );
 
     for (const car of cars) {
-      const jobs: JobRow[] = JSON.parse(car.jobs);
+      let jobs: JobRow[];
+      try {
+        jobs = JSON.parse(car.jobs);
+      } catch (error) {
+        log.error("AddPartsToExistingJobs1700000002000.up — jobs corruptos, se omite auto:", {
+          carId: car.id,
+          error,
+        });
+        continue;
+      }
 
       // Agregamos parts: [] a los jobs que no lo tengan
       const updatedJobs = jobs.map((job) => ({
@@ -46,7 +56,16 @@ export class AddPartsToExistingJobs1700000002000 implements MigrationInterface {
     ) as CarRow[];
 
     for (const car of cars) {
-        const jobs: JobRow[] = JSON.parse(car.jobs);
+        let jobs: JobRow[];
+        try {
+          jobs = JSON.parse(car.jobs);
+        } catch (error) {
+          log.error("AddPartsToExistingJobs1700000002000.down — jobs corruptos, se omite auto:", {
+            carId: car.id,
+            error,
+          });
+          continue;
+        }
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const updatedJobs: JobWithoutParts[] = jobs.map(({ parts: _, ...rest }) => rest);
 
