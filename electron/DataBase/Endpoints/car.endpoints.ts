@@ -1,4 +1,4 @@
-import { ipcMain } from "electron";
+import { handleIpc } from "../../ipc";
 import { logError } from "../../logger";
 import { CreateCarDto, Jobs, UpdateJobDto } from "../Types/car.dto";
 import { AppDataSource, getRepositories } from "../dataSource";
@@ -9,7 +9,7 @@ import { CreateClientDto } from "../Types/client.dto";
 import { Car } from "../Entities/car.entity";
 import { Client } from "../Entities/client.entity";
 
-ipcMain.handle("car:create", async (_event, createCarDto: CreateCarDto) => {
+handleIpc("car:create", async (_event, createCarDto: CreateCarDto) => {
   const qr = AppDataSource.createQueryRunner();
   await qr.connect();
   await qr.startTransaction();
@@ -60,14 +60,14 @@ ipcMain.handle("car:create", async (_event, createCarDto: CreateCarDto) => {
   }
 });
 
-ipcMain.handle("car:get-all", async () => {
+handleIpc("car:get-all", async () => {
   const repo = getRepositories().carRepository;
   return await repo.find({
     relations: ["owner"],
   });
 });
 
-ipcMain.handle(
+handleIpc(
   "car:get-by-license",
   async (_, licence: CreateCarDto["licensePlate"]) => {
     const repo = getRepositories().carRepository;
@@ -91,7 +91,7 @@ ipcMain.handle(
   },
 );
 
-ipcMain.handle("car:update", async (_, id: string, kilometers: number) => {
+handleIpc("car:update", async (_, id: string, kilometers: number) => {
   const carRepo = getRepositories().carRepository;
   const car = await carRepo.findOne({
     where: {
@@ -124,7 +124,7 @@ ipcMain.handle("car:update", async (_, id: string, kilometers: number) => {
   };
 });
 
-ipcMain.handle(
+handleIpc(
   "car:delete",
   async (_, license: CreateCarDto["licensePlate"]) => {
     const qr = AppDataSource.createQueryRunner()
@@ -160,7 +160,7 @@ ipcMain.handle(
   },
 );
 
-ipcMain.handle(
+handleIpc(
   "car:add-job",
   async (_, license: string, jobDto: CreateCarJob) => {
     const repo = getRepositories().carRepository;
@@ -196,7 +196,7 @@ ipcMain.handle(
   },
 );
 
-ipcMain.handle("car:find-jobs", async () => {
+handleIpc("car:find-jobs", async () => {
   const repo = getRepositories().carRepository;
   const cars = await repo.find();
   const response = cars
@@ -209,7 +209,7 @@ ipcMain.handle("car:find-jobs", async () => {
   return response;
 });
 
-ipcMain.handle(
+handleIpc(
   "car:update-job",
   async (_, license: string, jobId: string, updateJobDto: UpdateJobDto) => {
     const repo = getRepositories().carRepository;
@@ -255,7 +255,7 @@ ipcMain.handle(
   },
 );
 
-ipcMain.handle("car:service-alerts", async () => {
+handleIpc("car:service-alerts", async () => {
   const repo = getRepositories().carRepository;
   const cars = await repo.find({ relations: ["owner"] });
   const sixMonthsAgo = new Date();
@@ -319,7 +319,7 @@ ipcMain.handle("car:service-alerts", async () => {
   };
 });
 
-ipcMain.handle(
+handleIpc(
   "car:reassign-owner",
   async (
     _,
@@ -399,7 +399,7 @@ ipcMain.handle(
   }
 );
 
-ipcMain.handle("global:search", async (_, query: string) => {
+handleIpc("global:search", async (_, query: string) => {
   if (!query || query.trim().length < 2) {
     return {
       status: "success",

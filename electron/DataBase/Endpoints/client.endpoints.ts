@@ -1,4 +1,4 @@
-import { ipcMain } from "electron";
+import { handleIpc } from "../../ipc";
 import { logError } from "../../logger";
 import { Not } from "typeorm";
 import { CreateClientDto, UpdateClientDto } from "../Types/client.dto";
@@ -6,7 +6,7 @@ import { AppDataSource, getRepositories } from "../dataSource";
 import { Car } from "../Entities/car.entity";
 import { Client } from "../Entities/client.entity";
 
-ipcMain.handle('client:create', async (_, createClientDto: CreateClientDto) => {
+handleIpc('client:create', async (_, createClientDto: CreateClientDto) => {
     const repo = getRepositories().clientRepository
     const owner = await repo.findOne({
         where: {
@@ -27,14 +27,14 @@ ipcMain.handle('client:create', async (_, createClientDto: CreateClientDto) => {
     }
 })
 
-ipcMain.handle('client:get-all', async () => {
+handleIpc('client:get-all', async () => {
     const repo = getRepositories().clientRepository
     return await repo.find({
         relations: ['cars']
     })
 })
 
-ipcMain.handle('client:find-by-name', async (_, fullname: CreateClientDto['fullname']) => {
+handleIpc('client:find-by-name', async (_, fullname: CreateClientDto['fullname']) => {
     const repo = getRepositories().clientRepository
     const owner = await repo.findOne({
         where: {
@@ -55,7 +55,7 @@ ipcMain.handle('client:find-by-name', async (_, fullname: CreateClientDto['fulln
     }
 })
 
-ipcMain.handle('client:search', async (_, query: string) => {
+handleIpc('client:search', async (_, query: string) => {
     const repo = getRepositories().clientRepository
     const sanitized = query.replace(/[\\%_]/g, '\\$&')
     const result = await repo.createQueryBuilder('client')
@@ -71,7 +71,7 @@ ipcMain.handle('client:search', async (_, query: string) => {
     }
 })
 
-ipcMain.handle('client:toggle-active', async(_, id: string) => {
+handleIpc('client:toggle-active', async(_, id: string) => {
     const repo = getRepositories().clientRepository
     const client = await repo.findOne({where: {id}, relations: ['cars']})
     if(!client){
@@ -89,7 +89,7 @@ ipcMain.handle('client:toggle-active', async(_, id: string) => {
     }
 })
 
-ipcMain.handle('client:delete', async(_, id: string) => {
+handleIpc('client:delete', async(_, id: string) => {
     const qr = AppDataSource.createQueryRunner()
     await qr.connect()
     await qr.startTransaction()
@@ -116,7 +116,7 @@ ipcMain.handle('client:delete', async(_, id: string) => {
     }
 })
 
-ipcMain.handle('client:update', async (_, updateClientDto: UpdateClientDto) => {
+handleIpc('client:update', async (_, updateClientDto: UpdateClientDto) => {
     const repo = getRepositories().clientRepository
     const {
         id,

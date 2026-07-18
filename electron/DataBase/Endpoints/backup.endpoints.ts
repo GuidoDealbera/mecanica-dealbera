@@ -1,4 +1,5 @@
-import { ipcMain, dialog, shell, app } from "electron";
+import { dialog, shell, app } from "electron";
+import { handleIpc } from "../../ipc";
 import fs from "node:fs";
 import path from "node:path";
 import { logError, logInfo } from "../../logger";
@@ -29,7 +30,7 @@ function toCsv<T extends object>(
   return BOM + [headerRow, ...dataRows].join("\n");
 }
 
-ipcMain.handle("data:export-csv", async () => {
+handleIpc("data:export-csv", async () => {
   const { carRepository } = getRepositories();
   const cars = await carRepository.find({ relations: ["owner"] });
 
@@ -92,14 +93,14 @@ ipcMain.handle("data:export-csv", async () => {
   return { status: "success", message: `${cars.length} vehículos exportados correctamente` };
 });
 
-ipcMain.handle("backup:open-folder", () => {
+handleIpc("backup:open-folder", () => {
   const backupDir = getBackupDir();
   if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
   shell.openPath(backupDir);
   return { status: "success" };
 });
 
-ipcMain.handle("backup:list", () => {
+handleIpc("backup:list", () => {
   const backupDir = getBackupDir();
   if (!fs.existsSync(backupDir)) return { status: "success", result: [] };
   const files = fs
@@ -110,7 +111,7 @@ ipcMain.handle("backup:list", () => {
   return { status: "success", result: files };
 });
 
-ipcMain.handle("backup:export", async () => {
+handleIpc("backup:export", async () => {
   const sourcePath = getDBPath();
 
   if (!fs.existsSync(sourcePath)) {
@@ -132,7 +133,7 @@ ipcMain.handle("backup:export", async () => {
   return { status: "success", message: "Base de datos exportada correctamente" };
 });
 
-ipcMain.handle("backup:import", async () => {
+handleIpc("backup:import", async () => {
   const confirm = await dialog.showMessageBox({
     type: "warning",
     title: "Importar base de datos",

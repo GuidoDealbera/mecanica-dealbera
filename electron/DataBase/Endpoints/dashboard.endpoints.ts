@@ -1,9 +1,9 @@
-import { ipcMain } from "electron";
+import { handleIpc } from "../../ipc";
 import { MoreThanOrEqual } from "typeorm";
 import { getRepositories } from "../dataSource";
 import { JobStatus } from "../../../src/Types/apiTypes";
 
-ipcMain.handle("dashboard:get-stats", async () => {
+handleIpc("dashboard:get-stats", async () => {
   const { carRepository, clientRepository } = getRepositories();
  
   const now = new Date();

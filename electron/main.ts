@@ -10,6 +10,7 @@ import path from "node:path";
 import fs from "node:fs";
 import log from "electron-log/main";
 import { logError, logInfo } from "./logger";
+import { handleIpc } from "./ipc";
 import { getRepositories, initializeDB } from "./DataBase/dataSource";
 
 log.initialize();
@@ -229,7 +230,7 @@ app.on("activate", () => {
   }
 });
 
-ipcMain.handle("app:open-logs-folder", () => {
+handleIpc("app:open-logs-folder", () => {
   const logPath = log.transports.file.getFile().path;
   shell.showItemInFolder(logPath);
 });
@@ -242,7 +243,7 @@ ipcMain.on("install-update", () => {
   autoUpdater.quitAndInstall()
 })
 
-ipcMain.handle("check-for-updates", async () => {
+handleIpc("check-for-updates", async () => {
   if(process.env.NODE_ENV === 'development'){
     win?.webContents.send("update-not-available")
     return
