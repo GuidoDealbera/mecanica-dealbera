@@ -1,7 +1,7 @@
 import React from "react";
 import { Button, Card, CardBody, Chip, Spinner } from "@heroui/react";
 import { IoCarSportSharp } from "react-icons/io5";
-import { MdPostAdd, MdWarning, MdPeople, MdBuild } from "react-icons/md";
+import { MdPostAdd, MdWarning, MdPeople, MdBuild, MdBarChart, MdPieChart } from "react-icons/md";
 import { FaSackDollar } from "react-icons/fa6";
 import { HiOutlineRefresh } from "react-icons/hi";
 import { useNavigate } from "react-router-dom";
@@ -37,6 +37,21 @@ const StatCard: React.FC<{
   </Card>
 );
 
+// Estado vacío para los gráficos: mensaje explicativo centrado, con la misma
+// altura que el gráfico para que el layout no salte cuando no hay datos.
+const ChartEmpty: React.FC<{ icon: React.ReactNode; message: string }> = ({
+  icon,
+  message,
+}) => (
+  <div
+    className="flex flex-col items-center justify-center gap-2 text-foreground-500"
+    style={{ height: 200 }}
+  >
+    <div className="opacity-40">{icon}</div>
+    <p className="text-sm text-center px-4 max-w-xs">{message}</p>
+  </div>
+);
+
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
   const { showToast } = useToasts();
@@ -66,6 +81,19 @@ const HomePage: React.FC = () => {
   React.useEffect(() => {
     fetchStats();
   }, [fetchStats]);
+
+  // Datos de la torta con el color atado a cada estado (así el color no se
+  // corre cuando algún estado está ausente). Se descartan los estados en 0.
+  const jobStatusData = stats
+    ? [
+        { name: "Sin comenzar", value: stats.pendingJobs, color: "#6b7280" },
+        { name: "En progreso", value: stats.jobsInProgress, color: "#3b82f6" },
+        { name: "Completados", value: stats.completedJobs, color: "#22c55e" },
+        { name: "Entregados", value: stats.deliveredJobs, color: "#a855f7" },
+      ].filter((d) => d.value > 0)
+    : [];
+  const hasJobStatus = jobStatusData.length > 0;
+  const hasRevenue = stats?.monthlyRevenue?.some((m) => m.revenue > 0) ?? false;
 
   return (
     <div className="w-full min-h-full bg-foreground-800 rounded-md p-5 text-white flex flex-col gap-6">
@@ -123,14 +151,14 @@ const HomePage: React.FC = () => {
           </div>
 
           {/* Charts */}
-          {stats.monthlyRevenue && stats.monthlyRevenue.length > 0 && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              {/* Bar chart: ingresos últimos 6 meses */}
-              <Card className="lg:col-span-2 bg-foreground-700 shadow shadow-primary">
-                <CardBody className="p-4">
-                  <p className="text-foreground-400 text-sm mb-3">
-                    Ingresos últimos 6 meses
-                  </p>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {/* Bar chart: ingresos últimos 6 meses */}
+            <Card className="lg:col-span-2 bg-foreground-700 shadow shadow-primary">
+              <CardBody className="p-4">
+                <p className="text-primary-400 text-base font-semibold mb-3 flex items-center gap-2">
+                  <MdBarChart size={20} /> Ingresos últimos 6 meses
+                </p>
+                {hasRevenue ? (
                   <ResponsiveContainer width="100%" height={200}>
                     <BarChart data={stats.monthlyRevenue} margin={{ top: 4, right: 8, bottom: 0, left: 8 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
@@ -148,33 +176,36 @@ const HomePage: React.FC = () => {
                       <Bar dataKey="revenue" fill="#3b82f6" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
-                </CardBody>
-              </Card>
+                ) : (
+                  <ChartEmpty
+                    icon={<FaSackDollar size={32} />}
+                    message="Todavía no hay ingresos registrados en los últimos 6 meses. Aparecerán acá al completar o entregar trabajos."
+                  />
+                )}
+              </CardBody>
+            </Card>
 
-              {/* Pie chart: distribución de estados de trabajos */}
-              <Card className="bg-foreground-700 shadow shadow-primary">
-                <CardBody className="p-4">
-                  <p className="text-foreground-400 text-sm mb-3">
-                    Trabajos por estado
-                  </p>
+            {/* Pie chart: distribución de estados de trabajos */}
+            <Card className="bg-foreground-700 shadow shadow-primary">
+              <CardBody className="p-4">
+                <p className="text-primary-400 text-base font-semibold mb-3 flex items-center gap-2">
+                  <MdPieChart size={20} /> Trabajos por estado
+                </p>
+                {hasJobStatus ? (
                   <ResponsiveContainer width="100%" height={200}>
                     <PieChart>
                       <Pie
-                        data={[
-                          { name: "Sin comenzar", value: stats.pendingJobs },
-                          { name: "En progreso", value: stats.jobsInProgress },
-                          { name: "Completados", value: stats.completedJobs },
-                          { name: "Entregados", value: stats.deliveredJobs },
-                        ].filter((d) => d.value > 0)}
+                        data={jobStatusData}
                         cx="50%"
                         cy="50%"
                         innerRadius={50}
                         outerRadius={75}
                         paddingAngle={3}
                         dataKey="value"
+                        nameKey="name"
                       >
-                        {["#6b7280", "#3b82f6", "#22c55e", "#a855f7"].map((color, i) => (
-                          <Cell key={i} fill={color} />
+                        {jobStatusData.map((d) => (
+                          <Cell key={d.name} fill={d.color} />
                         ))}
                       </Pie>
                       <Legend
@@ -188,10 +219,15 @@ const HomePage: React.FC = () => {
                       />
                     </PieChart>
                   </ResponsiveContainer>
-                </CardBody>
-              </Card>
-            </div>
-          )}
+                ) : (
+                  <ChartEmpty
+                    icon={<MdBuild size={32} />}
+                    message="Aún no hay trabajos cargados para mostrar su distribución por estado."
+                  />
+                )}
+              </CardBody>
+            </Card>
+          </div>
 
           {/* Alerts */}
           {stats.carsWithAlerts > 0 && (
