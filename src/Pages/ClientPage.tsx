@@ -42,8 +42,10 @@ const ClientPage: React.FC = () => {
 
   const handleNameFilterChange = React.useCallback(
     (v: string) => {
-      if (v) setSearchParams({ q: v });
-      else setSearchParams({});
+      // replace: true para que filtrar no apile entradas de historial
+      // (evita tener que hacer varios clicks en el botón "Atrás").
+      if (v) setSearchParams({ q: v }, { replace: true });
+      else setSearchParams({}, { replace: true });
     },
     [setSearchParams],
   );
