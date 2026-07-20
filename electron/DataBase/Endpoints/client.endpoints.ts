@@ -1,12 +1,19 @@
 import { handleIpc } from "../../ipc";
 import { logError } from "../../logger";
+import { validateDto } from "../../validation";
 import { Not } from "typeorm";
 import { CreateClientDto, UpdateClientDto } from "../Types/client.dto";
 import { AppDataSource, getRepositories } from "../dataSource";
 import { Car } from "../Entities/car.entity";
 import { Client } from "../Entities/client.entity";
 
-handleIpc('client:create', async (_, createClientDto: CreateClientDto) => {
+handleIpc('client:create', async (_, payload: CreateClientDto) => {
+    const validation = await validateDto(CreateClientDto, payload)
+    if(!validation.ok){
+        return { status: 'failed', message: validation.message }
+    }
+    const createClientDto = validation.dto
+
     const repo = getRepositories().clientRepository
     const owner = await repo.findOne({
         where: {
@@ -116,8 +123,11 @@ handleIpc('client:delete', async(_, id: string) => {
     }
 })
 
-handleIpc('client:update', async (_, updateClientDto: UpdateClientDto) => {
-    const repo = getRepositories().clientRepository
+handleIpc('client:update', async (_, payload: UpdateClientDto) => {
+    const validation = await validateDto(UpdateClientDto, payload)
+    if(!validation.ok){
+        return { status: 'failed', message: validation.message }
+    }
     const {
         id,
         address,
@@ -125,14 +135,9 @@ handleIpc('client:update', async (_, updateClientDto: UpdateClientDto) => {
         email,
         fullname,
         phone
-    } = updateClientDto
+    } = validation.dto
 
-    if(!id){
-        return {
-            status: 'failed',
-            message: 'No se especificó el cliente a modificar'
-        }
-    }
+    const repo = getRepositories().clientRepository
 
     const updateClient = await repo.findOne({
         where: {

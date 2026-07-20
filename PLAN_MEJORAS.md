@@ -39,7 +39,9 @@ Estados posibles: `pendiente` · `en progreso` · `a testear` · `hecho`
 
 ## Sprint 2 — Arquitectura de API
 
-9. **[pendiente]** Activar validación de DTOs (class-validator ya decorado, falta ejecutar)
+9. **[a testear]** Activar validación de DTOs (class-validator ya decorado, falta ejecutar)
+   - Archivos: `electron/validation.ts` (nuevo), `electron/DataBase/Endpoints/car.endpoints.ts` (`car:create`), `electron/DataBase/Endpoints/client.endpoints.ts` (`client:create`, `client:update`).
+   - Cambios: nuevo helper `validateDto(cls, plain)` que hace `plainToInstance` + `validate` (class-validator) y devuelve `{ ok, dto }` o `{ ok:false, message, errors }` con los mensajes aplanados (incluye anidados de `@ValidateNested`, ej. el `owner`). `whitelist: true` descarta props no decoradas (anti asignación masiva). Aplicado a `car:create`, `client:create` y `client:update` al inicio del handler (antes de abrir transacción); ante error devuelve `{status:'failed', message}`. Se quitó el chequeo manual `if(!id)` de `client:update` (ahora lo cubre `@IsNotEmpty` del DTO). **Nota:** no se usa conversión implícita de tipos porque esbuild no emite `design:type`; el frontend ya manda los tipos correctos (verificado con `tsx`: validación, mensajes en español, anidados y `@Transform` de patente funcionan). Endpoints de trabajos (`car:add-job`/`car:update-job`) quedan fuera: su tipo de borde es `CreateCarJob` (frontend), cablear `JobsDto`/`UpdateJobDto` es un cambio aparte.
 10. **[pendiente]** `APIResponse<T>` consistente
 11. **[pendiente]** Separar `car.endpoints.ts` por dominio (CRUD/jobs/search)
 12. **[pendiente]** Caché de estadísticas del dashboard

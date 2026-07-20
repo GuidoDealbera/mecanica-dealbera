@@ -6,6 +6,12 @@ import {
   IsPhoneNumber,
   IsString,
 } from 'class-validator';
+import { Transform } from 'class-transformer';
+
+// Normaliza "" (string vacío que envía el form) a undefined, para que
+// @IsOptional lo trate como ausente y no dispare @IsEmail sobre un vacío.
+const emptyToUndefined = ({ value }: { value: unknown }) =>
+  value === '' ? undefined : value;
 
 export class CreateClientDto {
   @IsString()
@@ -26,6 +32,7 @@ export class CreateClientDto {
   city!: string;
 
   @IsOptional()
+  @Transform(emptyToUndefined)
   @IsEmail({}, { message: 'Email inválido' })
   email?: string;
 }
@@ -56,6 +63,7 @@ export class UpdateClientDto {
   city?: string;
 
   @IsOptional()
+  @Transform(emptyToUndefined)
   @IsEmail({}, { message: 'Email inválido' })
   email?: string;
 }

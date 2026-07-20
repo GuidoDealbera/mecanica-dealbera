@@ -1,5 +1,6 @@
 import { handleIpc } from "../../ipc";
 import { logError } from "../../logger";
+import { validateDto } from "../../validation";
 import { CreateCarDto, Jobs, UpdateJobDto } from "../Types/car.dto";
 import { AppDataSource, getRepositories } from "../dataSource";
 import { v4 } from "uuid";
@@ -9,7 +10,13 @@ import { CreateClientDto } from "../Types/client.dto";
 import { Car } from "../Entities/car.entity";
 import { Client } from "../Entities/client.entity";
 
-handleIpc("car:create", async (_event, createCarDto: CreateCarDto) => {
+handleIpc("car:create", async (_event, payload: CreateCarDto) => {
+  const validation = await validateDto(CreateCarDto, payload);
+  if (!validation.ok) {
+    return { status: "failed", message: validation.message };
+  }
+  const createCarDto = validation.dto;
+
   const qr = AppDataSource.createQueryRunner();
   await qr.connect();
   await qr.startTransaction();
