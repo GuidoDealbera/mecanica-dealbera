@@ -322,6 +322,7 @@ handleIpc("car:service-alerts", async () => {
 
   return {
     status: "success",
+    message: "Alertas de service obtenidas",
     result: alerts,
   };
 });

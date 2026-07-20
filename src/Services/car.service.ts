@@ -4,7 +4,7 @@ import {
   CreateCarJob,
   UpdateJobBody,
 } from "../Types/apiTypes";
-import { Car } from "../Types/types";
+import { Car, Jobs } from "../Types/types";
 
 export const carService = {
   create: async (carBody: CreateCarBody): Promise<APIResponse> => {
@@ -13,13 +13,13 @@ export const carService = {
   getAll: async (): Promise<Car[]> => {
     return await window.api.cars.getAll();
   },
-  getByLicence: async (licence: string): Promise<APIResponse> => {
+  getByLicence: async (licence: string): Promise<APIResponse<Car>> => {
     return await window.api.cars.getByLicense(licence);
   },
   updateCar: async (
     carId: string,
     kilometers: number,
-  ): Promise<APIResponse> => {
+  ): Promise<APIResponse<Car>> => {
     return await window.api.cars.update(carId, kilometers);
   },
   delete: async (licence: string): Promise<APIResponse> => {
@@ -29,10 +29,10 @@ export const carService = {
     licence: string,
     jobId: string,
     body: UpdateJobBody,
-  ): Promise<APIResponse> => {
+  ): Promise<APIResponse<Jobs>> => {
     return await window.api.cars.updateJob(licence, jobId, body);
   },
-  addJob: async (licence: string, job: CreateCarJob): Promise<APIResponse> => {
+  addJob: async (licence: string, job: CreateCarJob): Promise<APIResponse<Jobs>> => {
     return await window.api.cars.addJob(licence, job);
   },
 };

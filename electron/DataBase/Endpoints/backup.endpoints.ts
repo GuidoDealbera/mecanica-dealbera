@@ -97,18 +97,19 @@ handleIpc("backup:open-folder", () => {
   const backupDir = getBackupDir();
   if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
   shell.openPath(backupDir);
-  return { status: "success" };
+  return { status: "success", message: "Carpeta de backups abierta" };
 });
 
 handleIpc("backup:list", () => {
   const backupDir = getBackupDir();
-  if (!fs.existsSync(backupDir)) return { status: "success", result: [] };
+  if (!fs.existsSync(backupDir))
+    return { status: "success", message: "Sin backups", result: [] };
   const files = fs
     .readdirSync(backupDir)
     .filter((f) => f.startsWith("taller_") && f.endsWith(".db"))
     .sort()
     .reverse();
-  return { status: "success", result: files };
+  return { status: "success", message: "Backups listados", result: files };
 });
 
 handleIpc("backup:export", async () => {

@@ -1,7 +1,7 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
 import { carService } from "../Services/car.service";
 import { APIResponse, AppError, CreateCarBody, CreateCarJob, UpdateJobBody } from "../Types/apiTypes";
-import { Cars } from "../Types/types";
+import { Cars, Jobs } from "../Types/types";
 import { formatDate } from "../Utils/utils";
 
 const toAppError = (error: unknown): AppError => ({
@@ -55,7 +55,7 @@ export const createCar = createAsyncThunk<APIResponse, CreateCarBody, { rejectVa
 );
 
 export const addJob = createAsyncThunk<
-  APIResponse,
+  APIResponse<Jobs>,
   { licence: string; job: CreateCarJob },
   { rejectValue: AppError }
 >(
@@ -69,23 +69,23 @@ export const addJob = createAsyncThunk<
   },
 );
 
-export const updatedCar = createAsyncThunk<APIResponse, { carId: string; kilometers: number }, { rejectValue: AppError }>(
+export const updatedCar = createAsyncThunk<APIResponse<Cars>, { carId: string; kilometers: number }, { rejectValue: AppError }>(
   "cars/updateCar",
   async ({ carId, kilometers }, { rejectWithValue }) => {
     try {
       const response = await carService.updateCar(carId, kilometers);
-      if (response.result) {
+      if (response.status === "success" && response.result) {
         return {
+          status: "success",
           message: response.message,
-          status: response.status,
           result: {
             ...response.result,
             createdAt: formatDate(response.result.createdAt),
             updatedAt: formatDate(response.result.updatedAt),
           },
-        } as APIResponse;
+        };
       }
-      return response;
+      return { status: response.status, message: response.message } as APIResponse<Cars>;
     } catch (error) {
       return rejectWithValue(toAppError(error));
     }
@@ -104,7 +104,7 @@ export const deleteCar = createAsyncThunk<APIResponse, string, { rejectValue: Ap
 );
 
 export const updateJobInCar = createAsyncThunk<
-  APIResponse,
+  APIResponse<Jobs>,
   { licence: string; jobId: string; body: UpdateJobBody },
   { rejectValue: AppError }
 >(

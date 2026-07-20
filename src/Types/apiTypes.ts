@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { CarBrand } from "../Utils/utils";
 import { Client, Jobs } from "./types";
 
@@ -35,11 +34,23 @@ export interface CreateCarBody {
   kilometers: number;
 }
 
-export interface APIResponse {
-  status: "success" | "failed";
-  message: string;
-  result?: any;
-}
+export type ApiStatus = "success" | "failed" | "cancelled";
+
+/**
+ * Respuesta unificada del backend (IPC) para operaciones tipo comando.
+ * Discriminada por `status`:
+ * - `success`: incluye `result` tipado (`T`).
+ * - `failed` / `cancelled`: sin `result`.
+ * `message` está siempre presente (los consumidores lo muestran en toasts).
+ *
+ * Los endpoints de solo-lectura que devuelven colecciones crudas
+ * (`car:get-all`, `client:get-all`, `car:find-jobs`) y la búsqueda global
+ * (`global:search`, forma `{ status, cars, clients }`) NO usan este envelope.
+ */
+export type APIResponse<T = undefined> =
+  | { status: "success"; message: string; result: T }
+  | { status: "failed"; message: string; result?: undefined }
+  | { status: "cancelled"; message: string; result?: undefined };
 
 // Body para actualizar un cliente: el id es obligatorio (identifica el registro),
 // el resto de los campos son opcionales (se actualiza solo lo que venga definido).

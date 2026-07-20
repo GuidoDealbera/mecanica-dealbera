@@ -152,6 +152,7 @@ handleIpc("dashboard:get-stats", async () => {
  
   return {
     status: "success",
+    message: "Estadísticas obtenidas",
     result: {
       totalCars,
       totalClients,

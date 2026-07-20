@@ -5,10 +5,10 @@ export const clientService = {
   getAll: async (): Promise<Client[]> => {
     return await window.api.clients.getAll()
   },
-  getOne: async (fullname:string): Promise<APIResponse> => {
+  getOne: async (fullname:string): Promise<APIResponse<Client>> => {
     return await window.api.clients.getByName(fullname)
   },
-  update: async (updateClientDto: UpdateClientBody): Promise<APIResponse> => {
+  update: async (updateClientDto: UpdateClientBody): Promise<APIResponse<Client>> => {
     return await window.api.clients.update(updateClientDto)
   }
 };

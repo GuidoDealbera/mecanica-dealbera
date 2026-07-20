@@ -73,8 +73,9 @@ const carSlice = createSlice({
       })
       .addCase(addJob.fulfilled, (state, action) => {
         state.loadingStates.creating = false
-        if(state.car && action.payload.result){
-          state.car.jobs = [...(state.car.jobs || []), action.payload.result]
+        const newJob = action.payload.result
+        if(state.car && newJob){
+          state.car.jobs = [...(state.car.jobs || []), newJob]
         }
       })
       //PATCH's
@@ -102,12 +103,13 @@ const carSlice = createSlice({
       })
       .addCase(updateJobInCar.fulfilled, (state, action) => {
         state.loadingStates.updating = false;
-        if (!state.car?.jobs || !action.payload.result) return;
+        const updatedJob = action.payload.result;
+        if (!state.car?.jobs || !updatedJob) return;
         const jobIndex = state.car.jobs.findIndex(
-          (job) => job.id === action.payload.result.id,
+          (job) => job.id === updatedJob.id,
         );
         if (jobIndex === -1) return;
-        state.car.jobs[jobIndex] = action.payload.result;
+        state.car.jobs[jobIndex] = updatedJob;
       });
   },
 });
