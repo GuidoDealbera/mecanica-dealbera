@@ -1,5 +1,7 @@
 import "reflect-metadata";
-import "./DataBase/Endpoints/car.endpoints";
+import "./DataBase/Endpoints/car.crud.endpoints";
+import "./DataBase/Endpoints/car.jobs.endpoints";
+import "./DataBase/Endpoints/car.search.endpoints";
 import "./DataBase/Endpoints/client.endpoints";
 import "./DataBase/Endpoints/dashboard.endpoints";
 import "./DataBase/Endpoints/backup.endpoints";
