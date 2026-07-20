@@ -6,6 +6,7 @@ import { CreateClientDto, UpdateClientDto } from "../Types/client.dto";
 import { AppDataSource, getRepositories } from "../dataSource";
 import { Car } from "../Entities/car.entity";
 import { Client } from "../Entities/client.entity";
+import { invalidateDashboardStatsCache } from "../dashboardCache";
 
 handleIpc('client:create', async (_, payload: CreateClientDto) => {
     const validation = await validateDto(CreateClientDto, payload)
@@ -28,6 +29,7 @@ handleIpc('client:create', async (_, payload: CreateClientDto) => {
     }
     const newOwner = repo.create(createClientDto)
     await repo.save(newOwner)
+    invalidateDashboardStatsCache()
     return {
         status: 'success',
         message: 'Cliente registrado correctamente'
@@ -89,6 +91,7 @@ handleIpc('client:toggle-active', async(_, id: string) => {
     }
     client.isActive = !client.isActive
     await repo.save(client)
+    invalidateDashboardStatsCache()
     return {
         status: 'success',
         message: `Cliente ${client.isActive ? 'activado' : 'desactivado'} correctamente`,
@@ -113,6 +116,7 @@ handleIpc('client:delete', async(_, id: string) => {
         }
         await qr.manager.remove(Client, client)
         await qr.commitTransaction()
+        invalidateDashboardStatsCache()
         return { status: 'success', message: 'Cliente eliminado correctamente' }
     } catch (error) {
         await qr.rollbackTransaction()
@@ -169,6 +173,7 @@ handleIpc('client:update', async (_, payload: UpdateClientDto) => {
     if(phone !== undefined) updateClient.phone = phone
 
     const saved = await repo.save(updateClient)
+    invalidateDashboardStatsCache()
     const withCars = await repo.findOne({
         where: {
             id: saved.id

@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { logError, logInfo } from "../../logger";
 import { AppDataSource, getDBPath, getRepositories } from "../dataSource";
+import { invalidateDashboardStatsCache } from "../dashboardCache";
 
 function getBackupDir(): string {
   return path.join(app.getPath("documents"), "backups");
@@ -176,6 +177,7 @@ handleIpc("backup:import", async () => {
 
     fs.copyFileSync(sourcePath, destPath);
     await AppDataSource.initialize();
+    invalidateDashboardStatsCache();
 
     return {
       status: "success",

@@ -3,6 +3,7 @@ import { getRepositories } from "../dataSource";
 import { v4 } from "uuid";
 import { Jobs, UpdateJobDto } from "../Types/car.dto";
 import { CreateCarJob } from "../../../src/Types/apiTypes";
+import { invalidateDashboardStatsCache } from "../dashboardCache";
 
 // ── Trabajos (jobs) de cada vehículo: alta, listado global y actualización.
 // Los jobs se guardan como JSON dentro de la entidad Car (columna simple-json).
@@ -35,6 +36,7 @@ handleIpc(
     car.jobs = Array.isArray(car.jobs) ? [...car.jobs, newJob] : [newJob];
 
     await repo.save(car);
+    invalidateDashboardStatsCache();
     return {
       status: "success",
       message: "Trabajo registrado exitosamente",
@@ -93,6 +95,7 @@ handleIpc(
     };
 
     const savedCar = await repo.save(car);
+    invalidateDashboardStatsCache();
     const updatedJob = savedCar.jobs.find((job) => job.id === jobId);
     return {
       status: "success",

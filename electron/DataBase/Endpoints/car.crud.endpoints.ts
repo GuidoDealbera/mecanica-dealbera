@@ -6,6 +6,7 @@ import { AppDataSource, getRepositories } from "../dataSource";
 import { CreateClientDto } from "../Types/client.dto";
 import { Car } from "../Entities/car.entity";
 import { Client } from "../Entities/client.entity";
+import { invalidateDashboardStatsCache } from "../dashboardCache";
 
 // ── ABM de vehículos: alta, consultas, actualización, baja y reasignación
 // de titular. Los trabajos (jobs) y las búsquedas viven en archivos aparte.
@@ -57,6 +58,7 @@ handleIpc("car:create", async (_event, payload: CreateCarDto) => {
     await qr.manager.save(Car, newCar);
 
     await qr.commitTransaction();
+    invalidateDashboardStatsCache();
     return { status: "success", message: "Vehículo registrado correctamente" };
   } catch (error) {
     await qr.rollbackTransaction();
@@ -124,6 +126,7 @@ handleIpc("car:update", async (_, id: string, kilometers: number) => {
   car.kilometers = kilometers
 
   const savedCar = await carRepo.save(car);
+  invalidateDashboardStatsCache();
   return {
     status: "success",
     message: "Vehículo actualizado correctamente",
@@ -156,6 +159,7 @@ handleIpc(
         if(remaining === 0) await qr.manager.remove(owner)
       }
     await qr.commitTransaction()
+    invalidateDashboardStatsCache()
     return {status: 'success', message: "Vehículo eliminado correctamente"}
     } catch (error) {
       await qr.rollbackTransaction()
@@ -232,6 +236,7 @@ handleIpc(
       const savedCar = await qr.manager.save(Car, car);
 
       await qr.commitTransaction();
+      invalidateDashboardStatsCache();
       return {
         status: "success",
         message: `Titular actualizado a "${newOwner.fullname}"`,

@@ -2,8 +2,22 @@ import { handleIpc } from "../../ipc";
 import { MoreThanOrEqual } from "typeorm";
 import { getRepositories } from "../dataSource";
 import { JobStatus } from "../../../src/Types/apiTypes";
+import type { DashboardStats } from "../../../src/Types/types";
+import {
+  getDashboardStatsCache,
+  setDashboardStatsCache,
+} from "../dashboardCache";
 
 handleIpc("dashboard:get-stats", async () => {
+  const cached = getDashboardStatsCache();
+  if (cached) {
+    return {
+      status: "success",
+      message: "Estadísticas obtenidas",
+      result: cached,
+    };
+  }
+
   const { carRepository, clientRepository } = getRepositories();
  
   const now = new Date();
@@ -150,27 +164,31 @@ handleIpc("dashboard:get-stats", async () => {
     }
   }
  
+  const result: DashboardStats = {
+    totalCars,
+    totalClients,
+    activeClients,
+    newCarsThisMonth,
+    newClientsThisMonth,
+    pendingJobs,
+    jobsInProgress,
+    completedJobs,
+    deliveredJobs,
+    completedThisMonth,
+    deliveredThisMonth,
+    revenueThisMonth,
+    carsWithAlerts,
+    monthlyRevenue,
+    recentActiveJobs,
+    recentCompletedJobs,
+    recentDeliveredJobs,
+  };
+
+  setDashboardStatsCache(result);
+
   return {
     status: "success",
     message: "Estadísticas obtenidas",
-    result: {
-      totalCars,
-      totalClients,
-      activeClients,
-      newCarsThisMonth,
-      newClientsThisMonth,
-      pendingJobs,
-      jobsInProgress,
-      completedJobs,
-      deliveredJobs,
-      completedThisMonth,
-      deliveredThisMonth,
-      revenueThisMonth,
-      carsWithAlerts,
-      monthlyRevenue,
-      recentActiveJobs,
-      recentCompletedJobs,
-      recentDeliveredJobs,
-    },
+    result,
   };
 });
