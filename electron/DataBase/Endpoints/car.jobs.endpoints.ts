@@ -1,18 +1,33 @@
 import { handleIpc } from "../../ipc";
 import { getRepositories } from "../dataSource";
-import { v4 } from "uuid";
-import { Jobs, UpdateJobDto } from "../Types/car.dto";
+import { UpdateJobDto } from "../Types/car.dto";
 import { CreateCarJob } from "../../../src/Types/apiTypes";
+import { Job } from "../Entities/job.entity";
 import { invalidateDashboardStatsCache } from "../dashboardCache";
 
 // ── Trabajos (jobs) de cada vehículo: alta, listado global y actualización.
-// Los jobs se guardan como JSON dentro de la entidad Car (columna simple-json).
+// Los trabajos son una entidad propia (`job`) con FK a `car`.
+
+// Devuelve el trabajo sin la relación `car` cargada, para no serializar el
+// auto completo (y su cadena de relaciones) hacia el renderer.
+function toPlainJob(job: Job) {
+  return {
+    id: job.id,
+    price: job.price,
+    description: job.description,
+    isThirdParty: job.isThirdParty,
+    status: job.status,
+    parts: job.parts ?? [],
+    createdAt: job.createdAt,
+    updatedAt: job.updatedAt,
+  };
+}
 
 handleIpc(
   "car:add-job",
   async (_, license: string, jobDto: CreateCarJob) => {
-    const repo = getRepositories().carRepository;
-    const car = await repo.findOne({
+    const { carRepository, jobRepository } = getRepositories();
+    const car = await carRepository.findOne({
       where: { licensePlate: license },
     });
     if (!car) {
@@ -22,32 +37,28 @@ handleIpc(
       };
     }
 
-    const newJob: Jobs = {
-      id: v4(),
+    const job = jobRepository.create({
       price: jobDto.price as number,
       description: jobDto.description,
       isThirdParty: jobDto.isThirdParty,
       status: jobDto.status,
       parts: jobDto.parts,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-
-    car.jobs = Array.isArray(car.jobs) ? [...car.jobs, newJob] : [newJob];
-
-    await repo.save(car);
+      car,
+    });
+    const saved = await jobRepository.save(job);
     invalidateDashboardStatsCache();
+
     return {
       status: "success",
       message: "Trabajo registrado exitosamente",
-      result: newJob,
+      result: toPlainJob(saved),
     };
   },
 );
 
 handleIpc("car:find-jobs", async () => {
-  const repo = getRepositories().carRepository;
-  const cars = await repo.find();
+  const { carRepository } = getRepositories();
+  const cars = await carRepository.find({ relations: ["jobs"] });
   const response = cars
     .filter((car) => Array.isArray(car.jobs) && car.jobs.length > 0)
     .map((car) => ({
@@ -61,46 +72,35 @@ handleIpc("car:find-jobs", async () => {
 handleIpc(
   "car:update-job",
   async (_, license: string, jobId: string, updateJobDto: UpdateJobDto) => {
-    const repo = getRepositories().carRepository;
-    const car = await repo.findOne({
-      where: {
-        licensePlate: license,
-      },
+    const { jobRepository } = getRepositories();
+    const job = await jobRepository.findOne({
+      where: { id: jobId },
+      relations: ["car"],
     });
-    if (!car) {
+    if (!job) {
       return {
         status: "failed",
-        message: "Vehículo no registrado",
+        message: "El trabajo que intenta modificar no existe",
       };
     }
-    if (!car.jobs?.length) {
-      return {
-        status: "failed",
-        message: "El vehículo no tiene trabajos registrados",
-      };
-    }
-
-    const jobIndex = car.jobs.findIndex((job) => job.id === jobId);
-    if (jobIndex === -1) {
+    if (job.car?.licensePlate !== license) {
       return {
         status: "failed",
         message: `El vehículo registrado con patente ${license} no tiene registrado el trabajo que intenta modificar`,
       };
     }
 
-    car.jobs[jobIndex] = {
-      ...car.jobs[jobIndex],
-      ...updateJobDto,
-      updatedAt: new Date(),
-    };
+    if (updateJobDto.status !== undefined) job.status = updateJobDto.status;
+    if (updateJobDto.price !== undefined) job.price = updateJobDto.price;
+    if (updateJobDto.parts !== undefined) job.parts = updateJobDto.parts;
 
-    const savedCar = await repo.save(car);
+    const saved = await jobRepository.save(job);
     invalidateDashboardStatsCache();
-    const updatedJob = savedCar.jobs.find((job) => job.id === jobId);
+
     return {
       status: "success",
       message: "Trabajo actualizado correctamente",
-      result: updatedJob,
+      result: toPlainJob(saved),
     };
   },
 );

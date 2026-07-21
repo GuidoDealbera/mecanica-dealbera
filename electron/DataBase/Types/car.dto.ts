@@ -98,16 +98,5 @@ export class UpdateJobDto {
   }[];
 }
 
-export interface Jobs {
-  id: string;
-  price: number;
-  status: JobStatus;
-  description: string;
-  isThirdParty: boolean;
-  parts: {
-    name: string;
-    price: number;
-  }[];
-  createdAt?: Date;
-  updatedAt?: Date;
-}
+// El tipo de trabajo ahora vive en la entidad `Job` (electron/DataBase/Entities/job.entity.ts).
+// El frontend mantiene su propio tipo `Jobs` en src/Types/types.ts.

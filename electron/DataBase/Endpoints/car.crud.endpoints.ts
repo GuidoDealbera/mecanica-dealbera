@@ -72,7 +72,7 @@ handleIpc("car:create", async (_event, payload: CreateCarDto) => {
 handleIpc("car:get-all", async () => {
   const repo = getRepositories().carRepository;
   return await repo.find({
-    relations: ["owner"],
+    relations: ["owner", "jobs"],
   });
 });
 
@@ -84,7 +84,7 @@ handleIpc(
       where: {
         licensePlate: licence,
       },
-      relations: ["owner"],
+      relations: ["owner", "jobs"],
     });
     if (!car) {
       return {

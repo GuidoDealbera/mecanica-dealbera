@@ -28,7 +28,7 @@ handleIpc("dashboard:get-stats", async () => {
   threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
  
   const [allCars, totalClients, activeClients, newClientsThisMonth] = await Promise.all([
-    carRepository.find(),
+    carRepository.find({ relations: ["jobs"] }),
     clientRepository.count(),
     clientRepository.countBy({ isActive: true }),
     clientRepository.count({ where: { createdAt: MoreThanOrEqual(startOfMonth) } }),

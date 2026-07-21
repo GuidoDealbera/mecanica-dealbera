@@ -7,7 +7,7 @@ import { Like } from "typeorm";
 
 handleIpc("car:service-alerts", async () => {
   const repo = getRepositories().carRepository;
-  const cars = await repo.find({ relations: ["owner"] });
+  const cars = await repo.find({ relations: ["owner", "jobs"] });
   const sixMonthsAgo = new Date();
   sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
   const threeMonthsAgo = new Date();

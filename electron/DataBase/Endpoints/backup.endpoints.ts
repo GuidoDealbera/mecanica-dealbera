@@ -33,7 +33,7 @@ function toCsv<T extends object>(
 
 handleIpc("data:export-csv", async () => {
   const { carRepository } = getRepositories();
-  const cars = await carRepository.find({ relations: ["owner"] });
+  const cars = await carRepository.find({ relations: ["owner", "jobs"] });
 
   type CarRow = {
     patente: string; marca: string; modelo: string; anio: string;

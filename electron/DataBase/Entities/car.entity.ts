@@ -7,11 +7,12 @@ import {
   Entity,
   Index,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from "typeorm";
 import { Client } from "./client.entity";
-import { Jobs } from "../Types/car.dto";
+import { Job } from "./job.entity";
 import { CarsBrands } from "../Types/enums";
 import type { CarBrand } from "../Types/enums";
 
@@ -51,8 +52,10 @@ export class Car {
   @Column("integer", { nullable: false })
   year!: number;
 
-  @Column("simple-json", { nullable: true })
-  jobs!: Jobs[];
+  // Los trabajos se administran por su propio repositorio; la baja en cascada
+  // la garantiza el ON DELETE CASCADE de la FK en la entidad Job.
+  @OneToMany(() => Job, (job) => job.car)
+  jobs!: Job[];
 
   @IsInt({ message: "Los kilómetros deben ser un número entero" })
   @Min(0, { message: "Los kilómetros no pueden ser negativos" })

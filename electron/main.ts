@@ -150,7 +150,7 @@ async function createWindow() {
   if (process.env.NODE_ENV !== "development") {
     try {
       const { carRepository } = getRepositories();
-      const cars = await carRepository.find();
+      const cars = await carRepository.find({ relations: ["jobs"] });
       const sixMonthsAgo = new Date();
       sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
       const threeMonthsAgo = new Date();
