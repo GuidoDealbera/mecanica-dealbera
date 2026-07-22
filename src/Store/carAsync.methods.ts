@@ -2,22 +2,18 @@ import { createAsyncThunk } from "@reduxjs/toolkit";
 import { carService } from "../Services/car.service";
 import { APIResponse, AppError, CreateCarBody, CreateCarJob, UpdateJobBody } from "../Types/apiTypes";
 import { Cars, Jobs } from "../Types/types";
-import { formatDate } from "../Utils/utils";
 
 const toAppError = (error: unknown): AppError => ({
   message: error instanceof Error ? error.message : "Error desconocido",
 });
 
+// Los thunks guardan los datos crudos (fechas Date). El formateo a texto se
+// hace en la capa de presentación (componentes) con formatDate().
 export const fetchCars = createAsyncThunk<Cars[], void, { rejectValue: AppError }>(
   "cars/fetchCars",
   async (_, { rejectWithValue }) => {
     try {
-      const response = await carService.getAll();
-      return response.map((car) => ({
-        ...car,
-        createdAt: formatDate(car.createdAt),
-        updatedAt: formatDate(car.updatedAt),
-      }));
+      return await carService.getAll();
     } catch (error) {
       return rejectWithValue(toAppError(error));
     }
@@ -29,14 +25,10 @@ export const fetchCarByLicence = createAsyncThunk<Cars, string, { rejectValue: A
   async (licence, { rejectWithValue }) => {
     try {
       const response = await carService.getByLicence(licence);
-      if (!response.result) {
+      if (response.status !== "success" || !response.result) {
         return rejectWithValue({ message: response.message ?? "Vehículo no encontrado" });
       }
-      return {
-        ...response.result,
-        createdAt: formatDate(response.result.createdAt),
-        updatedAt: formatDate(response.result.updatedAt),
-      };
+      return response.result;
     } catch (error) {
       return rejectWithValue(toAppError(error));
     }
@@ -73,19 +65,7 @@ export const updatedCar = createAsyncThunk<APIResponse<Cars>, { carId: string; k
   "cars/updateCar",
   async ({ carId, kilometers }, { rejectWithValue }) => {
     try {
-      const response = await carService.updateCar(carId, kilometers);
-      if (response.status === "success" && response.result) {
-        return {
-          status: "success",
-          message: response.message,
-          result: {
-            ...response.result,
-            createdAt: formatDate(response.result.createdAt),
-            updatedAt: formatDate(response.result.updatedAt),
-          },
-        };
-      }
-      return { status: response.status, message: response.message } as APIResponse<Cars>;
+      return await carService.updateCar(carId, kilometers);
     } catch (error) {
       return rejectWithValue(toAppError(error));
     }

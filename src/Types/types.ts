@@ -17,10 +17,6 @@ export interface Client {
   cars?: Car[];
 }
 
-export interface Clients extends Omit<Client, "cars"> {
-  cars?: Cars[];
-}
-
 export interface Car {
   id: string;
   licensePlate: string;
@@ -35,10 +31,12 @@ export interface Car {
   updatedAt: Date;
 }
 
-export interface Cars extends Omit<Car, "createdAt" | "updatedAt"> {
-  createdAt: string;
-  updatedAt: string;
-}
+// El store guarda los datos crudos: las fechas quedan como `Date` (sin
+// formatear). El formateo a texto se hace en la capa de presentación
+// (componentes) con `formatDate()`. `Cars`/`Clients` se conservan como alias
+// por los consumidores que ya los referencian.
+export type Cars = Car;
+export type Clients = Client;
 
 export interface Jobs {
   id: string;

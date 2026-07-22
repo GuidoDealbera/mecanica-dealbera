@@ -32,6 +32,7 @@ import { FaCube, FaTag } from "react-icons/fa";
 import { IoCarSportSharp } from "react-icons/io5";
 import LicenceTable from "../Components/Licenses/LicenceTable";
 import KmHistoryModal from "./Components/KmHistoryModal";
+import { formatDate } from "../Utils/utils";
 import { useClientQueries } from "../Hooks/useClientQueries";
 import { useToasts } from "../Hooks/useToasts";
 import { CreateCarBody, JobStatus } from "../Types/apiTypes";
@@ -282,13 +283,13 @@ const CarDetailPage: React.FC = () => {
                 <div>
                   <p className="text-foreground-400 text-xs">Registrado</p>
                   <p className="text-foreground-300 text-xs mt-0.5">
-                    {car.createdAt ?? "---"}
+                    {formatDate(car.createdAt)}
                   </p>
                 </div>
                 <div>
                   <p className="text-foreground-400 text-xs">Actualizado</p>
                   <p className="text-foreground-300 text-xs mt-0.5">
-                    {car.updatedAt ?? "---"}
+                    {formatDate(car.updatedAt)}
                   </p>
                 </div>
               </div>

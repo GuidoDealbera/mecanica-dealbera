@@ -1,31 +1,19 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
 import { clientService } from "../Services/client.service";
 import { APIResponse, AppError, UpdateClientBody } from "../Types/apiTypes";
-import { Cars, Client, Clients } from "../Types/types";
-import { formatDate } from "../Utils/utils";
+import { Clients } from "../Types/types";
 
 const toAppError = (error: unknown): AppError => ({
   message: error instanceof Error ? error.message : "Error desconocido",
 });
 
-// Formatea las fechas de los autos del cliente (Date -> string) para que
-// coincidan con el tipo `Clients` que maneja el store. Se comparte entre el
-// listado y el detalle para mantener el mismo formato en todos lados.
-const formatClient = (client: Client): Clients => {
-  const cars: Cars[] | undefined = client.cars?.map((car) => ({
-    ...car,
-    createdAt: formatDate(car.createdAt),
-    updatedAt: formatDate(car.updatedAt),
-  }));
-  return { ...client, cars };
-};
-
+// Los thunks guardan los datos crudos (fechas Date). El formateo a texto se
+// hace en la capa de presentación (componentes) con formatDate().
 export const fetchClients = createAsyncThunk<Clients[], void, { rejectValue: AppError }>(
   "clients/fetchClients",
   async (_, { rejectWithValue }) => {
     try {
-      const response = await clientService.getAll();
-      return response.map(formatClient);
+      return await clientService.getAll();
     } catch (error) {
       return rejectWithValue(toAppError(error));
     }
@@ -40,15 +28,7 @@ export const fetchClientByName = createAsyncThunk<
   "clients/fetchClientByName",
   async (fullname, { rejectWithValue }) => {
     try {
-      const response = await clientService.getOne(fullname);
-      if (response.status === "success" && response.result) {
-        return {
-          status: "success",
-          message: response.message,
-          result: formatClient(response.result),
-        };
-      }
-      return { status: response.status, message: response.message } as APIResponse<Clients>;
+      return await clientService.getOne(fullname);
     } catch (error) {
       return rejectWithValue(toAppError(error));
     }
@@ -63,15 +43,7 @@ export const updateClient = createAsyncThunk<
   "clients/updateClient",
   async (body, { rejectWithValue }) => {
     try {
-      const response = await clientService.update(body);
-      if (response.status === "success" && response.result) {
-        return {
-          status: "success",
-          message: response.message,
-          result: formatClient(response.result),
-        };
-      }
-      return { status: response.status, message: response.message } as APIResponse<Clients>;
+      return await clientService.update(body);
     } catch (error) {
       return rejectWithValue(toAppError(error));
     }
