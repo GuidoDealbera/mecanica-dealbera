@@ -2,7 +2,7 @@
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch } from "../Store/store";
 import {
-  selectAllClients,
+  selectClientsList,
   selectClient,
   selectClientError,
   selectClientLoadingStates,
@@ -14,28 +14,31 @@ import {
   updateClient,
 } from "../Store/clientAsync.methods";
 import { useToasts } from "./useToasts";
-import { UpdateClientBody } from "../Types/apiTypes";
+import { ClientQueryParams, UpdateClientBody } from "../Types/apiTypes";
 
 export const useClientQueries = () => {
   const { showToast } = useToasts();
   const dispatch = useDispatch<AppDispatch>();
   const [loading, setLoading] = useState<boolean>(false);
   const [refreshing, setRefreshing] = useState<boolean>(false);
-  const allClients = useSelector(selectAllClients);
+  const list = useSelector(selectClientsList);
   const client = useSelector(selectClient);
   const error = useSelector(selectClientError);
   const loadingStates = useSelector(selectClientLoadingStates);
 
-  const getAllClients = useCallback(async () => {
-    setLoading(true);
-    try {
-      await dispatch(fetchClients()).unwrap();
-    } catch (error) {
-      return error;
-    } finally {
-      setLoading(false);
-    }
-  }, [dispatch]);
+  const getClients = useCallback(
+    async (params: ClientQueryParams) => {
+      setLoading(true);
+      try {
+        await dispatch(fetchClients(params)).unwrap();
+      } catch (error) {
+        return error;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [dispatch],
+  );
 
   const getClientByName = useCallback(
     async (fullname: string) => {
@@ -51,18 +54,21 @@ export const useClientQueries = () => {
     [dispatch],
   );
 
-  const refresh = useCallback(async () => {
-    setRefreshing(true);
-    try {
-      await dispatch(fetchClients()).unwrap();
-      showToast("Datos actualizados correctamente", "success", "Actualizar");
-    } catch (error) {
-      showToast("Error al actualizar los datos", "danger", "Actualizar");
-      return error;
-    } finally {
-      setRefreshing(false);
-    }
-  }, [dispatch, showToast]);
+  const refresh = useCallback(
+    async (params: ClientQueryParams) => {
+      setRefreshing(true);
+      try {
+        await dispatch(fetchClients(params)).unwrap();
+        showToast("Datos actualizados correctamente", "success", "Actualizar");
+      } catch (error) {
+        showToast("Error al actualizar los datos", "danger", "Actualizar");
+        return error;
+      } finally {
+        setRefreshing(false);
+      }
+    },
+    [dispatch, showToast],
+  );
 
   const updateOwner = useCallback(
     async (body: UpdateClientBody, isOnly?: boolean) => {
@@ -93,11 +99,11 @@ export const useClientQueries = () => {
   return {
     loading,
     refreshing,
-    allClients,
+    list,
     client,
     error,
     loadingStates,
-    getAllClients,
+    getClients,
     getClientByName,
     updateOwner,
     refresh,

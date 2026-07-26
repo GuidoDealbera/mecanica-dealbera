@@ -52,6 +52,36 @@ export type APIResponse<T = undefined> =
   | { status: "failed"; message: string; result?: undefined }
   | { status: "cancelled"; message: string; result?: undefined };
 
+export type SortDir = "asc" | "desc";
+
+/**
+ * Parámetros de un listado paginado server-side. `page` es 1-based. `search`
+ * filtra (LIKE, case-insensitive) y `sortBy`/`sortDir` ordenan en la DB. Las
+ * columnas válidas de `sortBy` las define cada endpoint.
+ */
+export interface PaginationParams {
+  page: number;
+  pageSize: number;
+  search?: string;
+  sortBy?: string;
+  sortDir?: SortDir;
+}
+
+export type CarQueryParams = PaginationParams;
+
+export interface ClientQueryParams extends PaginationParams {
+  /** Si es `true` incluye también los clientes inactivos. */
+  includeInactive?: boolean;
+}
+
+/** Una página de resultados + metadatos para paginar en la vista. */
+export interface Paginated<T> {
+  items: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
 // Body para actualizar un cliente: el id es obligatorio (identifica el registro),
 // el resto de los campos son opcionales (se actualiza solo lo que venga definido).
 export type UpdateClientBody = Partial<Omit<Client, "id" | "cars">> & {

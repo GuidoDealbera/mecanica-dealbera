@@ -1,12 +1,19 @@
 import { handleIpc } from "../../ipc";
 import { logError } from "../../logger";
 import { validateDto } from "../../validation";
+import { escapeLike, resolvePage } from "../../pagination";
 import { Not } from "typeorm";
 import { CreateClientDto, UpdateClientDto } from "../Types/client.dto";
 import { AppDataSource, getRepositories } from "../dataSource";
+import type { ClientQueryParams, Paginated } from "../Types/types";
 import { Car } from "../Entities/car.entity";
 import { Client } from "../Entities/client.entity";
 import { invalidateDashboardStatsCache } from "../dashboardCache";
+
+// Columnas por las que se permite ordenar el listado de clientes.
+const CLIENT_SORT_COLUMNS: Record<string, string> = {
+  fullname: "client.fullname",
+};
 
 handleIpc('client:create', async (_, payload: CreateClientDto) => {
     const validation = await validateDto(CreateClientDto, payload)
@@ -36,20 +43,51 @@ handleIpc('client:create', async (_, payload: CreateClientDto) => {
     }
 })
 
-handleIpc('client:get-all', async () => {
-    const repo = getRepositories().clientRepository
-    return await repo.find({
-        relations: ['cars']
-    })
-})
+// Listado paginado server-side. Por defecto solo clientes activos (el filtro
+// `includeInactive` los incluye). Búsqueda por nombre (LIKE) y orden en la DB.
+// El join de `cars` es a-muchos: TypeORM pagina con subconsulta de ids, así que
+// `total` cuenta clientes distintos (no filas del join).
+handleIpc(
+    'client:get-all',
+    async (_event, params: ClientQueryParams): Promise<Paginated<Client>> => {
+        const { page, pageSize, skip, take } = resolvePage(params)
+        const repo = getRepositories().clientRepository
+
+        const qb = repo
+            .createQueryBuilder('client')
+            .leftJoinAndSelect('client.cars', 'cars')
+
+        if (!params?.includeInactive) {
+            qb.andWhere('client.isActive = :active', { active: true })
+        }
+
+        const search = params?.search?.trim()
+        if (search) {
+            qb.andWhere('client.fullname LIKE :q ESCAPE :esc', {
+                q: `%${escapeLike(search)}%`,
+                esc: '\\',
+            })
+        }
+
+        const sortColumn = params?.sortBy ? CLIENT_SORT_COLUMNS[params.sortBy] : undefined
+        qb.orderBy(sortColumn ?? 'client.fullname', params?.sortDir === 'desc' ? 'DESC' : 'ASC')
+
+        qb.skip(skip).take(take)
+
+        const [items, total] = await qb.getManyAndCount()
+        return { items, total, page, pageSize }
+    },
+)
 
 handleIpc('client:find-by-name', async (_, fullname: CreateClientDto['fullname']) => {
     const repo = getRepositories().clientRepository
+    // Se cargan también los trabajos de cada auto (`cars.jobs`) porque la ficha
+    // del cliente muestra el conteo de trabajos por vehículo.
     const owner = await repo.findOne({
         where: {
             fullname
         },
-        relations: ['cars']
+        relations: ['cars', 'cars.jobs']
     })
     if(!owner){
         return {

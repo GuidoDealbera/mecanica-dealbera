@@ -6,8 +6,15 @@ import {
   updateClient,
 } from "./clientAsync.methods";
 
+const emptyList = (): ClientState["list"] => ({
+  items: [],
+  total: 0,
+  page: 1,
+  pageSize: 8,
+});
+
 const initialState: ClientState = {
-  allClients: [],
+  list: emptyList(),
   client: undefined,
   loadingStates: {
     fetching_all: false,
@@ -27,7 +34,7 @@ const clientSlice = createSlice({
       state.client = undefined;
     },
     cleanOwners: (state) => {
-      state.allClients = [];
+      state.list = emptyList();
     },
     cleanError: (state) => {
       state.error = null;
@@ -45,7 +52,7 @@ const clientSlice = createSlice({
       })
       .addCase(fetchClients.fulfilled, (state, action) => {
         state.loadingStates.fetching_all = false;
-        state.allClients = action.payload;
+        state.list = action.payload;
       })
       .addCase(fetchClientByName.pending, (state) => {
         state.loadingStates.fetching = true;

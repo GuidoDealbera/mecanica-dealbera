@@ -2,12 +2,12 @@
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch } from "../Store/store";
 import {
-  selectAllCars,
+  selectCarsList,
   selectCar,
   selectCarLoadingStates,
   selectCarError,
 } from "../Store/selectors";
-import { CreateCarBody, CreateCarJob, UpdateJobBody } from "../Types/apiTypes";
+import { CarQueryParams, CreateCarBody, CreateCarJob, UpdateJobBody } from "../Types/apiTypes";
 import {
   createCar,
   fetchCarByLicence,
@@ -29,7 +29,7 @@ export const useCarQueries = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch<AppDispatch>();
 
-  const allCars = useSelector(selectAllCars);
+  const list = useSelector(selectCarsList);
   const car = useSelector(selectCar);
   const loadingStates = useSelector(selectCarLoadingStates);
   const error = useSelector(selectCarError);
@@ -67,33 +67,39 @@ export const useCarQueries = () => {
     [dispatch, navigate, showToast],
   );
 
-  const getAllCars = useCallback(async () => {
-    setLoading(true);
-    try {
-      await dispatch(fetchCars()).unwrap();
-    } catch (error) {
-      return error;
-    } finally {
-      setLoading(false);
-    }
-  }, [dispatch]);
+  const getCars = useCallback(
+    async (params: CarQueryParams) => {
+      setLoading(true);
+      try {
+        await dispatch(fetchCars(params)).unwrap();
+      } catch (error) {
+        return error;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [dispatch],
+  );
 
-  const refresh = useCallback(async () => {
-    setRefreshing(true);
-    try {
-      await dispatch(fetchCars()).unwrap();
-      showToast(
-        "Datos actualizados correctamente",
-        "success",
-        CarActions.REFRESH,
-      );
-    } catch (error) {
-      showToast("Error al actualizar los datos", "danger", CarActions.REFRESH);
-      return error;
-    } finally {
-      setRefreshing(false);
-    }
-  }, [dispatch, showToast]);
+  const refresh = useCallback(
+    async (params: CarQueryParams) => {
+      setRefreshing(true);
+      try {
+        await dispatch(fetchCars(params)).unwrap();
+        showToast(
+          "Datos actualizados correctamente",
+          "success",
+          CarActions.REFRESH,
+        );
+      } catch (error) {
+        showToast("Error al actualizar los datos", "danger", CarActions.REFRESH);
+        return error;
+      } finally {
+        setRefreshing(false);
+      }
+    },
+    [dispatch, showToast],
+  );
 
   const refreshCar = useCallback(
     async (licence: string) => {
@@ -228,12 +234,12 @@ export const useCarQueries = () => {
   return {
     loading,
     refreshing,
-    allCars,
+    list,
     car,
     error,
     loadingStates,
     create,
-    getAllCars,
+    getCars,
     getCarDetail,
     updateCar,
     addCarJob,

@@ -6,15 +6,22 @@ import ClientTable from "../Components/Tables/ClientsTable";
 import FilterName from "../Components/SearchBars/FilterName";
 import CustomDialog from "../Components/CustomDialog";
 import { useToasts } from "../Hooks/useToasts";
-import { normalizeText } from "../Utils/utils";
 import { useSearchParams } from "react-router-dom";
+import { ClientQueryParams } from "../Types/apiTypes";
+
+const PAGE_SIZE = 8;
 
 const ClientPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const fullnameFilter = normalizeText(searchParams.get("q") ?? "");
-  const { allClients, loading, refreshing, getAllClients, refresh } = useClientQueries();
+  const nameFilter = searchParams.get("q") ?? "";
+  const { list, loading, refreshing, getClients, refresh } = useClientQueries();
   const { showToast } = useToasts();
   const [showInactive, setShowInactive] = React.useState(false);
+  const [page, setPage] = React.useState(1);
+  const [sort, setSort] = React.useState<{ by: string | null; dir: "asc" | "desc" }>({
+    by: null,
+    dir: "asc",
+  });
 
   // Toggle active dialog
   const [toggleDialog, setToggleDialog] = React.useState<{
@@ -28,17 +35,30 @@ const ClientPage: React.FC = () => {
 
   const [actionLoading, setActionLoading] = React.useState(false);
 
-  const filteredClients = React.useMemo(() => {
-    let list = allClients;
-    if (!showInactive) list = list.filter((c) => c.isActive);
-    if (fullnameFilter)
-      list = list.filter((c) =>
-        normalizeText(c.fullname).includes(fullnameFilter)
-      );
-    return list;
-  }, [allClients, fullnameFilter, showInactive]);
+  // Parámetros de la consulta paginada. Al cambiar, se dispara el fetch.
+  const params = React.useMemo<ClientQueryParams>(
+    () => ({
+      page,
+      pageSize: PAGE_SIZE,
+      search: nameFilter || undefined,
+      includeInactive: showInactive,
+      sortBy: sort.by ?? undefined,
+      sortDir: sort.dir,
+    }),
+    [page, nameFilter, showInactive, sort],
+  );
 
-  React.useEffect(() => { getAllClients(); }, [getAllClients]);
+  React.useEffect(() => {
+    getClients(params);
+  }, [getClients, params]);
+
+  // Autocorrección: si la página quedó vacía pero hay resultados (p.ej. se
+  // desactivó/eliminó el último item de la última página), retrocede una.
+  React.useEffect(() => {
+    if (!loading && !refreshing && list.total > 0 && list.items.length === 0 && page > 1) {
+      setPage((p) => Math.max(1, p - 1));
+    }
+  }, [loading, refreshing, list.total, list.items.length, page]);
 
   const handleNameFilterChange = React.useCallback(
     (v: string) => {
@@ -46,9 +66,25 @@ const ClientPage: React.FC = () => {
       // (evita tener que hacer varios clicks en el botón "Atrás").
       if (v) setSearchParams({ q: v }, { replace: true });
       else setSearchParams({}, { replace: true });
+      setPage(1);
     },
     [setSearchParams],
   );
+
+  const handleToggleShowInactive = React.useCallback(() => {
+    setShowInactive((v) => !v);
+    setPage(1);
+  }, []);
+
+  // Ciclo de orden por columna: asc → desc → sin orden.
+  const handleSortChange = React.useCallback((columnKey: string) => {
+    setSort((prev) => {
+      if (prev.by !== columnKey) return { by: columnKey, dir: "asc" };
+      if (prev.dir === "asc") return { by: columnKey, dir: "desc" };
+      return { by: null, dir: "asc" };
+    });
+    setPage(1);
+  }, []);
 
   const handleToggleActive = React.useCallback(
     (id: string, name: string, isActive: boolean) => {
@@ -66,7 +102,7 @@ const ClientPage: React.FC = () => {
       const res = await window.api.clients.toggleActive(toggleDialog.id);
       if (res.status === "success") {
         showToast(res.message, "success", "Cliente");
-        await getAllClients();
+        await getClients(params);
       } else {
         showToast(res.message, "danger", "Cliente");
       }
@@ -82,7 +118,7 @@ const ClientPage: React.FC = () => {
       const res = await window.api.clients.delete(deleteDialog.id);
       if (res.status === "success") {
         showToast(res.message, "success", "Cliente");
-        await getAllClients();
+        await getClients(params);
       } else {
         showToast(res.message, "danger", "Cliente");
       }
@@ -104,7 +140,7 @@ const ClientPage: React.FC = () => {
           <Button
             size="sm"
             color="default"
-            onPress={() => setShowInactive((v) => !v)}
+            onPress={handleToggleShowInactive}
           >
             {showInactive ? "Ocultar inactivos" : "Mostrar inactivos"}
           </Button>
@@ -113,7 +149,7 @@ const ClientPage: React.FC = () => {
             startContent={!isLoading ? <HiOutlineRefresh size={20} /> : undefined}
             color="primary"
             className="font-bold"
-            onPress={refresh}
+            onPress={() => refresh(params)}
           >
             {isLoading ? "Actualizando" : "Actualizar"}
           </Button>
@@ -121,20 +157,27 @@ const ClientPage: React.FC = () => {
       </div>
 
       <FilterName
-        initialValue={searchParams.get("q") ?? ""}
+        initialValue={nameFilter}
         onFilterChange={handleNameFilterChange}
       />
 
       <ClientTable
-        clients={filteredClients}
+        clients={list.items}
         isLoading={isLoading}
         noRowsLabel={
-          fullnameFilter
+          nameFilter
             ? "No hay clientes que coincidan con la búsqueda"
             : "No hay clientes registrados"
         }
         onToggleActive={handleToggleActive}
         onDelete={handleDelete}
+        page={page}
+        pageSize={PAGE_SIZE}
+        total={list.total}
+        onPageChange={setPage}
+        sortBy={sort.by}
+        sortDir={sort.dir}
+        onSortChange={handleSortChange}
       />
 
       {/* Toggle active dialog */}

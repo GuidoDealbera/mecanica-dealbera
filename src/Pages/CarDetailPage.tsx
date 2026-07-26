@@ -66,17 +66,13 @@ const CarDetailPage: React.FC = () => {
 
   const { car, getCarDetail, loading, refreshing, refreshCar, updateCar } =
     useCarQueries();
-  const { updateOwner, getAllClients } = useClientQueries();
+  const { updateOwner } = useClientQueries();
   const { showToast } = useToasts();
   const isLoading = loading || refreshing;
 
   React.useEffect(() => {
     if (licence) getCarDetail(licence);
   }, [getCarDetail, licence]);
-
-  React.useEffect(() => {
-    getAllClients();
-  }, [getAllClients]);
 
   const handleSubmit = async (data: CreateCarBody): Promise<void> => {
     try {

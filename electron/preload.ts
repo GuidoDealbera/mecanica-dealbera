@@ -1,7 +1,7 @@
 import { ipcRenderer, contextBridge } from "electron";
 import { CreateCarDto, UpdateJobDto } from "./DataBase/Types/car.dto";
 import { CreateClientDto, UpdateClientDto } from "./DataBase/Types/client.dto";
-import { CreateCarJob } from "../src/Types/apiTypes";
+import { CarQueryParams, ClientQueryParams, CreateCarJob } from "../src/Types/apiTypes";
 import { UpdateInfo, UpdateProgress } from "../global";
 
 // --------- Expose some API to the Renderer process ---------
@@ -32,7 +32,10 @@ contextBridge.exposeInMainWorld("ipcRenderer", {
 contextBridge.exposeInMainWorld("api", {
   cars: {
     create: (car: CreateCarDto) => ipcRenderer.invoke("car:create", car),
-    getAll: async () => await ipcRenderer.invoke("car:get-all"),
+    getAll: async (params: CarQueryParams) =>
+      await ipcRenderer.invoke("car:get-all", params),
+    getActiveJobsCount: async () =>
+      await ipcRenderer.invoke("car:active-jobs-count"),
     getByLicense: async (licence: string) =>
       await ipcRenderer.invoke("car:get-by-license", licence),
     update: async (id: string, kilometers: number) =>
@@ -63,7 +66,8 @@ contextBridge.exposeInMainWorld("api", {
   clients: {
     create: async (dto: CreateClientDto) =>
       await ipcRenderer.invoke("client:create", dto),
-    getAll: async () => await ipcRenderer.invoke("client:get-all"),
+    getAll: async (params: ClientQueryParams) =>
+      await ipcRenderer.invoke("client:get-all", params),
     getByName: async (fullname: string) =>
       await ipcRenderer.invoke("client:find-by-name", fullname),
     search: async (query: string) =>

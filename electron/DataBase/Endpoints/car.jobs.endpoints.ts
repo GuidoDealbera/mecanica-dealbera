@@ -1,7 +1,8 @@
+import { In } from "typeorm";
 import { handleIpc } from "../../ipc";
 import { getRepositories } from "../dataSource";
 import { UpdateJobDto } from "../Types/car.dto";
-import { CreateCarJob } from "../../../src/Types/apiTypes";
+import { CreateCarJob, JobStatus } from "../../../src/Types/apiTypes";
 import { Job } from "../Entities/job.entity";
 import { invalidateDashboardStatsCache } from "../dashboardCache";
 
@@ -55,6 +56,16 @@ handleIpc(
     };
   },
 );
+
+// Cantidad de trabajos activos (pendientes o en progreso) en todo el taller.
+// Alimenta el badge de la barra de navegación: es un COUNT liviano sobre la
+// tabla `job`, sin traer autos ni trabajos completos al renderer.
+handleIpc("car:active-jobs-count", async (): Promise<number> => {
+  const { jobRepository } = getRepositories();
+  return await jobRepository.count({
+    where: { status: In([JobStatus.PENDING, JobStatus.IN_PROGRESS]) },
+  });
+});
 
 handleIpc("car:find-jobs", async () => {
   const { carRepository } = getRepositories();

@@ -7,6 +7,9 @@ import { IoIosAddCircleOutline } from "react-icons/io";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import DeleteCarDialog from "../Components/DeleteCarDialog";
 import FilterByLicence from "../Components/SearchBars/FilterLicence";
+import { CarQueryParams } from "../Types/apiTypes";
+
+const PAGE_SIZE = 8;
 
 const CarsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -14,17 +17,54 @@ const CarsPage: React.FC = () => {
   const licenceFilter = searchParams.get("q") ?? "";
   const { isOpen: isDeleteDialogOpen, onClose, onOpen } = useDisclosure();
   const [selectedLicenceToDelete, setSelectedLicenceToDelete] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [sort, setSort] = useState<{ by: string | null; dir: "asc" | "desc" }>({
+    by: null,
+    dir: "asc",
+  });
 
   const {
-    allCars,
+    list,
     loading,
     refreshing,
-    getAllCars,
+    getCars,
     cleanCars,
     clearError,
     deleteOneCar,
     refresh,
   } = useCarQueries();
+
+  // Parámetros de la consulta paginada. Al cambiar, se dispara el fetch.
+  const params = useMemo<CarQueryParams>(
+    () => ({
+      page,
+      pageSize: PAGE_SIZE,
+      search: licenceFilter || undefined,
+      sortBy: sort.by ?? undefined,
+      sortDir: sort.dir,
+    }),
+    [page, licenceFilter, sort],
+  );
+
+  useEffect(() => {
+    getCars(params);
+  }, [getCars, params]);
+
+  // Si la página actual quedó vacía pero hay resultados (p.ej. se borró el
+  // último item de la última página), retrocede una página. Autocorrige.
+  useEffect(() => {
+    if (!loading && !refreshing && list.total > 0 && list.items.length === 0 && page > 1) {
+      setPage((p) => Math.max(1, p - 1));
+    }
+  }, [loading, refreshing, list.total, list.items.length, page]);
+
+  // Limpieza al desmontar (evita que se vea data vieja al volver a entrar).
+  useEffect(() => {
+    return () => {
+      cleanCars();
+      clearError();
+    };
+  }, [cleanCars, clearError]);
 
   const handleOpenDeleteDialog = useCallback(
     (licence: string) => {
@@ -35,12 +75,12 @@ const CarsPage: React.FC = () => {
   );
 
   const handleConfirmDelete = async () => {
-    if (selectedLicenceToDelete) {
-      await deleteOneCar(selectedLicenceToDelete);
-      await getAllCars();
-      onClose();
-    }
+    if (!selectedLicenceToDelete) return;
+    await deleteOneCar(selectedLicenceToDelete);
+    await getCars(params);
+    onClose();
   };
+
   const handleCancelDelete = useCallback(() => {
     setSelectedLicenceToDelete(null);
     onClose();
@@ -52,28 +92,20 @@ const CarsPage: React.FC = () => {
       // (evita tener que hacer varios clicks en el botón "Atrás").
       if (v) setSearchParams({ q: v }, { replace: true });
       else setSearchParams({}, { replace: true });
+      setPage(1);
     },
     [setSearchParams],
   );
 
-  const filteredCars = useMemo(() => {
-    if (!licenceFilter) return allCars;
-    return allCars.filter((car) =>
-      car.licensePlate
-        .toLowerCase()
-        .trim()
-        .includes(licenceFilter.toLowerCase().trim())
-    );
-  }, [allCars, licenceFilter]);
-
-  useEffect(() => {
-    getAllCars();
-
-    return () => {
-      cleanCars();
-      clearError();
-    };
-  }, [getAllCars, cleanCars, clearError]);
+  // Ciclo de orden por columna: asc → desc → sin orden.
+  const handleSortChange = useCallback((columnKey: string) => {
+    setSort((prev) => {
+      if (prev.by !== columnKey) return { by: columnKey, dir: "asc" };
+      if (prev.dir === "asc") return { by: columnKey, dir: "desc" };
+      return { by: null, dir: "asc" };
+    });
+    setPage(1);
+  }, []);
 
   const isLoading = loading || refreshing;
   return (
@@ -90,7 +122,7 @@ const CarsPage: React.FC = () => {
             }
             color="primary"
             className="font-bold"
-            onPress={refresh}
+            onPress={() => refresh(params)}
           >
             {loading && !refreshing
               ? "Cargando..."
@@ -114,7 +146,7 @@ const CarsPage: React.FC = () => {
         onFilterChange={handleLicenceFilterChange}
       />
       <CarsTable
-        cars={filteredCars}
+        cars={list.items}
         isLoading={isLoading}
         noRowsLabel={
           licenceFilter
@@ -122,6 +154,13 @@ const CarsPage: React.FC = () => {
             : "No hay vehículos registrados"
         }
         deleteCar={handleOpenDeleteDialog}
+        page={page}
+        pageSize={PAGE_SIZE}
+        total={list.total}
+        onPageChange={setPage}
+        sortBy={sort.by}
+        sortDir={sort.dir}
+        onSortChange={handleSortChange}
       />
       <DeleteCarDialog
         isOpen={isDeleteDialogOpen}

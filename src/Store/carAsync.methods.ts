@@ -1,6 +1,6 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
 import { carService } from "../Services/car.service";
-import { APIResponse, AppError, CreateCarBody, CreateCarJob, UpdateJobBody } from "../Types/apiTypes";
+import { APIResponse, AppError, CarQueryParams, CreateCarBody, CreateCarJob, Paginated, UpdateJobBody } from "../Types/apiTypes";
 import { Cars, Jobs } from "../Types/types";
 
 const toAppError = (error: unknown): AppError => ({
@@ -9,11 +9,13 @@ const toAppError = (error: unknown): AppError => ({
 
 // Los thunks guardan los datos crudos (fechas Date). El formateo a texto se
 // hace en la capa de presentación (componentes) con formatDate().
-export const fetchCars = createAsyncThunk<Cars[], void, { rejectValue: AppError }>(
+// `fetchCars` recibe los parámetros de paginación/orden/búsqueda y devuelve una
+// página de resultados (`Paginated<Cars>`), no el dataset completo.
+export const fetchCars = createAsyncThunk<Paginated<Cars>, CarQueryParams, { rejectValue: AppError }>(
   "cars/fetchCars",
-  async (_, { rejectWithValue }) => {
+  async (params, { rejectWithValue }) => {
     try {
-      return await carService.getAll();
+      return await carService.getAll(params);
     } catch (error) {
       return rejectWithValue(toAppError(error));
     }

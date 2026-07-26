@@ -1,7 +1,6 @@
 import { Button, Input, Tooltip } from "@heroui/react";
 import React from "react";
 import { MdDelete } from "react-icons/md";
-import { normalizeText } from "../../Utils/utils";
 import { useDebounce } from "../../Hooks/useDebounce";
 
 interface FilterNameProps {
@@ -26,12 +25,14 @@ const FilterName: React.FC<FilterNameProps> = ({ onFilterChange, initialValue = 
   }, []);
 
   // El filtro efectivo se dispara con el valor debounceado, no en cada tecla.
+  // Se envía el valor crudo: la búsqueda se resuelve server-side con LIKE
+  // (case-insensitive), consistente con el resto de las búsquedas.
   React.useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
       return;
     }
-    onFilterChange(normalizeText(debouncedValue));
+    onFilterChange(debouncedValue.trim());
   }, [debouncedValue, onFilterChange]);
 
   return (

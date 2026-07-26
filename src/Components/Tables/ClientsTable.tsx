@@ -20,11 +20,21 @@ import { HiArrowUp } from "react-icons/hi";
 import { useNavigate } from "react-router-dom";
 
 interface ClientTableProps {
+  /** Items de la página actual (ya paginados y ordenados en el servidor). */
   clients: Clients[];
   isLoading: boolean;
   noRowsLabel: string;
   onToggleActive?: (id: string, name: string, isActive: boolean) => void;
   onDelete?: (id: string, name: string) => void;
+  // Paginación controlada por el padre (server-side)
+  page: number;
+  pageSize: number;
+  total: number;
+  onPageChange: (page: number) => void;
+  // Orden controlado por el padre (server-side)
+  sortBy: string | null;
+  sortDir: "asc" | "desc";
+  onSortChange: (columnKey: string) => void;
 }
 
 const ClientTable: React.FC<ClientTableProps> = ({
@@ -33,30 +43,17 @@ const ClientTable: React.FC<ClientTableProps> = ({
   noRowsLabel,
   onToggleActive,
   onDelete,
+  page,
+  pageSize,
+  total,
+  onPageChange,
+  sortBy,
+  sortDir,
+  onSortChange,
 }) => {
   const navigate = useNavigate();
-  const [page, setPage] = React.useState<number>(1);
-  const [sortMode, setSortMode] = React.useState<"asc" | "desc" | null>(null);
-  const rowsPerPage = 5;
 
-  const sortedClients = React.useMemo(() => {
-    if (!sortMode) return clients;
-    return [...clients].sort((a, b) =>
-      sortMode === "asc"
-        ? a.fullname.localeCompare(b.fullname)
-        : b.fullname.localeCompare(a.fullname),
-    );
-  }, [clients, sortMode]);
-
-  const pages = Math.ceil(sortedClients.length / rowsPerPage);
-  const clientsToShow = React.useMemo(() => {
-    const start = (page - 1) * rowsPerPage;
-    return sortedClients.slice(start, start + rowsPerPage);
-  }, [page, sortedClients]);
-
-  const handleSort = () => {
-    setSortMode((m) => (m === null ? "asc" : m === "asc" ? "desc" : null));
-  };
+  const pages = Math.max(1, Math.ceil(total / pageSize));
 
   const showActions = !!onToggleActive || !!onDelete;
 
@@ -105,7 +102,7 @@ const ClientTable: React.FC<ClientTableProps> = ({
                 {column.sortable && (
                   <Tooltip content="Ordenar" placement="bottom" showArrow>
                     <Button
-                      onPress={handleSort}
+                      onPress={() => onSortChange(column.key)}
                       isIconOnly
                       size="sm"
                       className="bg-transparent"
@@ -113,8 +110,12 @@ const ClientTable: React.FC<ClientTableProps> = ({
                       <HiArrowUp
                         size={20}
                         className={`transition-all duration-200 ${
-                          sortMode ? "text-white" : "text-white/30"
-                        } ${sortMode === "desc" ? "rotate-180" : ""}`}
+                          sortBy === column.key ? "text-white" : "text-white/30"
+                        } ${
+                          sortBy === column.key && sortDir === "desc"
+                            ? "rotate-180"
+                            : ""
+                        }`}
                       />
                     </Button>
                   </Tooltip>
@@ -132,7 +133,7 @@ const ClientTable: React.FC<ClientTableProps> = ({
             </div>
           }
         >
-          {clientsToShow.map((client, i) => (
+          {clients.map((client, i) => (
             <TableRow
               key={client.id}
               className={`rounded-lg h-10 shadow-sm ${
@@ -140,33 +141,33 @@ const ClientTable: React.FC<ClientTableProps> = ({
               } ${!client.isActive ? "opacity-60" : ""}`}
             >
               <TableCell
-                className={`${i !== clientsToShow.length - 1 ? "border-b-2" : ""} border-r-2 border-foreground-700`}
+                className={`${i !== clients.length - 1 ? "border-b-2" : ""} border-r-2 border-foreground-700`}
                 style={{ borderTopLeftRadius: 8, borderBottomLeftRadius: 8 }}
               >
                 {client.fullname}
               </TableCell>
               <TableCell
-                className={`${i !== clientsToShow.length - 1 ? "border-b-2" : ""} border-r-2 border-foreground-700 text-center`}
+                className={`${i !== clients.length - 1 ? "border-b-2" : ""} border-r-2 border-foreground-700 text-center`}
               >
                 {client.phone}
               </TableCell>
               <TableCell
-                className={`${i !== clientsToShow.length - 1 ? "border-b-2" : ""} border-r-2 border-foreground-700`}
+                className={`${i !== clients.length - 1 ? "border-b-2" : ""} border-r-2 border-foreground-700`}
               >
                 {client.email ?? "---"}
               </TableCell>
               <TableCell
-                className={`${i !== clientsToShow.length - 1 ? "border-b-2" : ""} border-r-2 border-foreground-700`}
+                className={`${i !== clients.length - 1 ? "border-b-2" : ""} border-r-2 border-foreground-700`}
               >
                 {client.address}
               </TableCell>
               <TableCell
-                className={`${i !== clientsToShow.length - 1 ? "border-b-2" : ""} border-r-2 border-foreground-700 text-center`}
+                className={`${i !== clients.length - 1 ? "border-b-2" : ""} border-r-2 border-foreground-700 text-center`}
               >
                 {client.city}
               </TableCell>
               <TableCell
-                className={`${i !== clientsToShow.length - 1 ? "border-b-2" : ""} border-r-2 border-foreground-700`}
+                className={`${i !== clients.length - 1 ? "border-b-2" : ""} border-r-2 border-foreground-700`}
               >
                 {client.cars && client.cars.length > 0 ? (
                   client.cars.length > 1 ? (
@@ -188,7 +189,7 @@ const ClientTable: React.FC<ClientTableProps> = ({
                 )}
               </TableCell>
               <TableCell
-                className={`${i !== clientsToShow.length - 1 ? "border-b-2" : ""} border-r-2 border-foreground-700 text-center`}
+                className={`${i !== clients.length - 1 ? "border-b-2" : ""} border-r-2 border-foreground-700 text-center`}
               >
                 <Chip
                   size="sm"
@@ -198,7 +199,7 @@ const ClientTable: React.FC<ClientTableProps> = ({
                 </Chip>
               </TableCell>
               <TableCell
-                className={`${i !== clientsToShow.length - 1 ? "border-b-2" : ""} border-foreground-700 text-center`}
+                className={`${i !== clients.length - 1 ? "border-b-2" : ""} border-foreground-700 text-center`}
                 style={{ borderTopRightRadius: 8, borderBottomRightRadius: 8 }}
               >
                 {showActions && (
@@ -268,20 +269,21 @@ const ClientTable: React.FC<ClientTableProps> = ({
           ))}
         </TableBody>
       </Table>
-      {clients.length > 4 && (
+      {total > 0 && (
         <div className="flex justify-end items-center p-3 gap-4">
           <span>
-            Mostrando {(page - 1) * rowsPerPage + 1} –{" "}
-            {Math.min(page * rowsPerPage, clients.length)} de {clients.length}{" "}
-            registros
+            Mostrando {(page - 1) * pageSize + 1} –{" "}
+            {Math.min(page * pageSize, total)} de {total} registros
           </span>
-          <Pagination
-            showControls
-            showShadow
-            page={page}
-            total={pages}
-            onChange={setPage}
-          />
+          {pages > 1 && (
+            <Pagination
+              showControls
+              showShadow
+              page={page}
+              total={pages}
+              onChange={onPageChange}
+            />
+          )}
         </div>
       )}
     </div>

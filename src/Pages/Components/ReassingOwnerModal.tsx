@@ -4,10 +4,10 @@ import {
   Button, Divider, Input, Autocomplete, AutocompleteItem,
 } from "@heroui/react";
 import { MdPerson, MdPersonAdd, MdWarning } from "react-icons/md";
-import { useSelector } from "react-redux";
 import { useForm, Controller } from "react-hook-form";
 import { useToasts } from "../../Hooks/useToasts";
-import { selectAllClients } from "../../Store/selectors";
+import { useDebounce } from "../../Hooks/useDebounce";
+import { Clients } from "../../Types/types";
 import { handleCapitalizedChange } from "../../Utils/utils";
 
 interface NewOwnerForm {
@@ -41,11 +41,16 @@ const ReassignOwnerModal: React.FC<ReassignOwnerModalProps> = ({
   onSuccess,
 }) => {
   const { showToast } = useToasts();
-  const allClients = useSelector(selectAllClients);
 
   const [mode, setMode] = React.useState<"existing" | "new">("existing");
   const [selectedFullname, setSelectedFullname] = React.useState<string>("");
   const [loading, setLoading] = React.useState(false);
+
+  // Búsqueda de clientes existentes (server-side, as-you-type).
+  const [query, setQuery] = React.useState("");
+  const [results, setResults] = React.useState<Clients[]>([]);
+  const [selectedClient, setSelectedClient] = React.useState<Clients | undefined>();
+  const debouncedQuery = useDebounce(query, 250);
 
   const {
     control,
@@ -62,23 +67,42 @@ const ReassignOwnerModal: React.FC<ReassignOwnerModalProps> = ({
     if (!isOpen) {
       setMode("existing");
       setSelectedFullname("");
+      setQuery("");
+      setResults([]);
+      setSelectedClient(undefined);
       reset();
       setLoading(false);
     }
   }, [isOpen, reset]);
 
+  // Busca clientes por nombre a medida que se escribe (mínimo 2 caracteres).
+  React.useEffect(() => {
+    const q = debouncedQuery.trim();
+    if (q.length < 2) {
+      setResults([]);
+      return;
+    }
+    let cancelled = false;
+    window.api.clients
+      .search(q)
+      .then((res) => {
+        if (!cancelled && res.status === "success") setResults(res.result ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setResults([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [debouncedQuery]);
+
   const clientOptions = React.useMemo(
     () =>
-      allClients
+      results
         // Excluir al titular actual para evitar confusión
         .filter((c) => c.fullname !== currentOwnerName)
         .map((c) => ({ key: c.fullname, label: c.fullname, phone: c.phone, city: c.city })),
-    [allClients, currentOwnerName]
-  );
-
-  const selectedClient = React.useMemo(
-    () => allClients.find((c) => c.fullname === selectedFullname),
-    [allClients, selectedFullname]
+    [results, currentOwnerName]
   );
 
   const handleExistingSubmit = async () => {
@@ -192,8 +216,13 @@ const ReassignOwnerModal: React.FC<ReassignOwnerModalProps> = ({
                 label="Buscar cliente por nombre"
                 placeholder="Escribí el nombre..."
                 allowsCustomValue={false}
-                defaultItems={clientOptions}
-                onSelectionChange={(key) => setSelectedFullname(key as string ?? "")}
+                items={clientOptions}
+                onInputChange={setQuery}
+                onSelectionChange={(key) => {
+                  const k = (key as string) ?? "";
+                  setSelectedFullname(k);
+                  setSelectedClient(results.find((c) => c.fullname === k));
+                }}
                 isDisabled={loading}
               >
                 {(item) => (

@@ -1,7 +1,6 @@
 import React from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useClientQueries } from "../Hooks/useClientQueries";
-import { useCarQueries } from "../Hooks/useCarQueries";
 import {
   Button,
   Card,
@@ -52,7 +51,6 @@ const ClientDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const { showToast } = useToasts();
   const { client, getClientByName, updateOwner, loading } = useClientQueries();
-  const { allCars, getAllCars } = useCarQueries();
   const [isEditing, setIsEditing] = React.useState(false);
 
   const decodedName = fullname ? decodeURIComponent(fullname) : "";
@@ -69,10 +67,6 @@ const ClientDetailPage: React.FC = () => {
   }, [decodedName, getClientByName]);
 
   React.useEffect(() => {
-    getAllCars();
-  }, [getAllCars]);
-
-  React.useEffect(() => {
     if (client) {
       reset({
         phone: client.phone,
@@ -83,10 +77,9 @@ const ClientDetailPage: React.FC = () => {
     }
   }, [client, reset]);
 
-  const clientCars = React.useMemo(() => {
-    if (!client) return [];
-    return allCars.filter((car) => car.owner?.id === client.id);
-  }, [allCars, client]);
+  // Los vehículos vienen en la propia relación del cliente (client:find-by-name
+  // carga `cars` y `cars.jobs`), así que no hace falta traer todos los autos.
+  const clientCars = client?.cars ?? [];
 
   const handleSave = async (data: Partial<Client>) => {
     if (!client) return;

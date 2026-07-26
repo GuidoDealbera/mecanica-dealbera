@@ -8,8 +8,15 @@ import {
   addJob,
 } from "./carAsync.methods";
 
+const emptyList = (): CarState["list"] => ({
+  items: [],
+  total: 0,
+  page: 1,
+  pageSize: 8,
+});
+
 const initialState: CarState = {
-  allCars: [],
+  list: emptyList(),
   car: undefined,
   loadingStates: {
     fetching_all: false,
@@ -26,7 +33,7 @@ const carSlice = createSlice({
   initialState,
   reducers: {
     cleanCarsState: (state) => {
-      state.allCars = [];
+      state.list = emptyList();
     },
     cleanCarState: (state) => {
       state.car = undefined;
@@ -48,7 +55,7 @@ const carSlice = createSlice({
       })
       .addCase(fetchCars.fulfilled, (state, action) => {
         state.loadingStates.fetching_all = false;
-        state.allCars = action.payload;
+        state.list = action.payload;
       })
       .addCase(fetchCarByLicence.pending, (state) => {
         state.loadingStates.fetching = true;

@@ -19,10 +19,20 @@ import { HiArrowUp } from "react-icons/hi";
 import { useNavigate } from "react-router-dom";
 
 interface CarsTableProps {
+  /** Items de la página actual (ya paginados y ordenados en el servidor). */
   cars: Cars[];
   isLoading: boolean;
   noRowsLabel: string;
   deleteCar: (licence: string) => void;
+  // Paginación controlada por el padre (server-side)
+  page: number;
+  pageSize: number;
+  total: number;
+  onPageChange: (page: number) => void;
+  // Orden controlado por el padre (server-side)
+  sortBy: string | null;
+  sortDir: "asc" | "desc";
+  onSortChange: (columnKey: string) => void;
 }
 
 const CarsTable: React.FC<CarsTableProps> = ({
@@ -30,61 +40,17 @@ const CarsTable: React.FC<CarsTableProps> = ({
   isLoading,
   noRowsLabel,
   deleteCar,
+  page,
+  pageSize,
+  total,
+  onPageChange,
+  sortBy,
+  sortDir,
+  onSortChange,
 }) => {
   const navigate = useNavigate();
-  const [page, setPage] = React.useState<number>(1);
-  const [sortColumn, setSortColumn] = React.useState<string | null>(null);
-  const [sortDirection, setSortDirection] = React.useState<"asc" | "desc">(
-    "asc"
-  );
 
-  const rowsPerPage = 5;
-
-  const handleSort = (columnKey: string) => {
-    if (sortColumn === columnKey) {
-      if (sortDirection === "asc") {
-        setSortDirection("desc");
-      } else if (sortDirection === "desc") {
-        setSortColumn(null);
-        setSortDirection("asc");
-      }
-    } else {
-      setSortColumn(columnKey);
-      setSortDirection("asc");
-    }
-  };
-
-  const sortedCars = React.useMemo(() => {
-    if (!sortColumn) return [...cars];
-
-    return [...cars].sort((a, b) => {
-      const getValue = (car: Cars) => {
-        if (sortColumn === "owner") return car.owner?.fullname ?? "";
-        const v = car[sortColumn as keyof Cars];
-        return v ?? "";
-      };
-
-      const valueA = getValue(a);
-      const valueB = getValue(b);
-
-      if (typeof valueA === "number" && typeof valueB === "number") {
-        return sortDirection === "asc" ? valueA - valueB : valueB - valueA;
-      }
-
-      return sortDirection === "asc"
-        ? String(valueA).localeCompare(String(valueB))
-        : String(valueB).localeCompare(String(valueA));
-    });
-  }, [cars, sortColumn, sortDirection]);
-
-  const pages = Math.ceil(cars.length / rowsPerPage);
-
-  const carsToShow = React.useMemo(() => {
-    const start = (page - 1) * rowsPerPage;
-    const end = start + rowsPerPage;
-
-    return sortedCars.slice(start, end);
-  }, [page, sortedCars]);
+  const pages = Math.max(1, Math.ceil(total / pageSize));
 
   const columns: TableColumnDef<Cars>[] = [
     { key: "licensePlate", label: "Patente",     width: 180, sortable: true },
@@ -127,7 +93,7 @@ const CarsTable: React.FC<CarsTableProps> = ({
                 {column.sortable && (
                   <Tooltip content="Ordenar" placement="bottom" showArrow>
                     <Button
-                      onPress={() => handleSort(column.key)}
+                      onPress={() => onSortChange(column.key)}
                       isIconOnly
                       size="sm"
                       className="bg-transparent"
@@ -135,11 +101,11 @@ const CarsTable: React.FC<CarsTableProps> = ({
                       <HiArrowUp
                         size={20}
                         className={`transition-all duration-200 ${
-                          sortColumn === column.key && sortDirection
+                          sortBy === column.key
                             ? "text-white"
                             : "text-white/30"
                         } ${
-                          sortColumn === column.key && sortDirection === "desc"
+                          sortBy === column.key && sortDir === "desc"
                             ? "rotate-180"
                             : ""
                         }`}
@@ -161,7 +127,7 @@ const CarsTable: React.FC<CarsTableProps> = ({
             </div>
           }
         >
-          {carsToShow.map((car, i) => (
+          {cars.map((car, i) => (
             <TableRow
               key={car.id}
               className={`rounded-lg h-10 shadow-sm ${
@@ -170,7 +136,7 @@ const CarsTable: React.FC<CarsTableProps> = ({
             >
               <TableCell
                 className={`${
-                  i !== carsToShow.length - 1 && "border-b-2"
+                  i !== cars.length - 1 && "border-b-2"
                 } border-r-2 border-foreground-700`}
                 style={{
                   borderTopLeftRadius: 8,
@@ -183,42 +149,42 @@ const CarsTable: React.FC<CarsTableProps> = ({
               </TableCell>
               <TableCell
                 className={`${
-                  i !== carsToShow.length - 1 && "border-b-2"
+                  i !== cars.length - 1 && "border-b-2"
                 } border-r-2 border-foreground-700 text-center`}
               >
                 {car.brand}
               </TableCell>
               <TableCell
                 className={`${
-                  i !== carsToShow.length - 1 && "border-b-2"
+                  i !== cars.length - 1 && "border-b-2"
                 } border-r-2 border-foreground-700`}
               >
                 {car.model}
               </TableCell>
               <TableCell
                 className={`${
-                  i !== carsToShow.length - 1 && "border-b-2"
+                  i !== cars.length - 1 && "border-b-2"
                 } border-r-2 border-foreground-700 text-center`}
               >
                 {car.year}
               </TableCell>
               <TableCell
                 className={`${
-                  i !== carsToShow.length - 1 && "border-b-2"
+                  i !== cars.length - 1 && "border-b-2"
                 } border-r-2 border-foreground-700 text-center`}
               >
                 {car.kilometers.toLocaleString("es-AR")} km
               </TableCell>
               <TableCell
                 className={`${
-                  i !== carsToShow.length - 1 && "border-b-2"
+                  i !== cars.length - 1 && "border-b-2"
                 } border-r-2 border-foreground-700`}
               >
                 {car.owner.fullname}
               </TableCell>
               <TableCell
                 className={`${
-                  i !== carsToShow.length - 1 && "border-b-2"
+                  i !== cars.length - 1 && "border-b-2"
                 } border-foreground-700 text-center`}
                 style={{
                   borderTopRightRadius: 8,
@@ -252,21 +218,21 @@ const CarsTable: React.FC<CarsTableProps> = ({
           ))}
         </TableBody>
       </Table>
-      {cars.length > 4 && (
+      {total > 0 && (
         <div className="flex justify-end items-center p-3 gap-4">
           <span>
-            Mostrando {(page - 1) * rowsPerPage + 1} -{" "}
-            {Math.min(page * rowsPerPage, cars.length)} de {cars.length}{" "}
-            registros
+            Mostrando {(page - 1) * pageSize + 1} -{" "}
+            {Math.min(page * pageSize, total)} de {total} registros
           </span>
-          <Pagination
-            showControls
-            showShadow
-            page={page}
-            total={pages}
-            onChange={(page) => setPage(page)}
-            className=""
-          />
+          {pages > 1 && (
+            <Pagination
+              showControls
+              showShadow
+              page={page}
+              total={pages}
+              onChange={onPageChange}
+            />
+          )}
         </div>
       )}
     </div>

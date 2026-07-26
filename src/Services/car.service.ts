@@ -1,7 +1,9 @@
 import {
   APIResponse,
+  CarQueryParams,
   CreateCarBody,
   CreateCarJob,
+  Paginated,
   UpdateJobBody,
 } from "../Types/apiTypes";
 import { Car, Jobs } from "../Types/types";
@@ -10,8 +12,8 @@ export const carService = {
   create: async (carBody: CreateCarBody): Promise<APIResponse> => {
     return await window.api.cars.create(carBody);
   },
-  getAll: async (): Promise<Car[]> => {
-    return await window.api.cars.getAll();
+  getAll: async (params: CarQueryParams): Promise<Paginated<Car>> => {
+    return await window.api.cars.getAll(params);
   },
   getByLicence: async (licence: string): Promise<APIResponse<Car>> => {
     return await window.api.cars.getByLicense(licence);

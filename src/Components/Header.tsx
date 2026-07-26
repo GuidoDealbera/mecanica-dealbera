@@ -17,12 +17,10 @@ import { IoMdArrowBack } from "react-icons/io";
 import { IoSearch } from "react-icons/io5";
 import { MdWarning, MdBackup, MdSystemUpdate, MdInstallDesktop } from "react-icons/md";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useSelector } from "react-redux";
 import avatarImg from "../assets/images/avatar.png";
 import GlobalSearch from "./SearchBars/GlobalSearch";
 import UpdateModal from "./UpdateModal";
 import { useToasts } from "../Hooks/useToasts";
-import { selectPendingJobsCount } from "../Store/selectors";
 
 const BUTTONS = [
   { path: "/", text: "Inicio" },
@@ -64,7 +62,7 @@ const Header = () => {
   const [updateError, setUpdateError] = React.useState<string | null>(null);
   const [searchOpen, setSearchOpen] = React.useState(false);
   const [serviceAlertCount, setServiceAlertCount] = React.useState(0);
-  const pendingJobsCount = useSelector(selectPendingJobsCount);
+  const [pendingJobsCount, setPendingJobsCount] = React.useState(0);
   const isHome = location.pathname === "/";
 
   React.useEffect(() => {
@@ -73,6 +71,11 @@ const Header = () => {
         setServiceAlertCount(res.result?.length ?? 0);
       }
     });
+    // Conteo de trabajos activos para el badge (COUNT liviano en la DB).
+    window.api.cars
+      .getActiveJobsCount()
+      .then(setPendingJobsCount)
+      .catch(() => {});
   }, []);
 
   React.useEffect(() => {

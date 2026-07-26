@@ -1,6 +1,6 @@
 import { CreateCarDto, UpdateCarDto, UpdateJobDto } from "./electron/DataBase/Types/car.dto";
 import { CreateClientDto } from "./electron/DataBase/Types/client.dto";
-import { APIResponse, CreateCarJob, UpdateClientBody } from "./src/Types/apiTypes";
+import { APIResponse, CarQueryParams, ClientQueryParams, CreateCarJob, Paginated, UpdateClientBody } from "./src/Types/apiTypes";
 import { Car, Client, DashboardStats, Jobs, ServiceAlert } from "./src/Types/types";
 export {};
 
@@ -39,7 +39,8 @@ declare global {
     api: {
       cars: {
         create: (car: CreateCarDto) => Promise<APIResponse>;
-        getAll: () => Promise<Car[]>;
+        getAll: (params: CarQueryParams) => Promise<Paginated<Car>>;
+        getActiveJobsCount: () => Promise<number>;
         getByLicense: (license: string) => Promise<APIResponse<Car>>;
         update: (id: string, kilometers: number) => Promise<APIResponse<Car>>;
         delete: (licence: string) => Promise<APIResponse>;
@@ -56,7 +57,7 @@ declare global {
       };
       clients: {
         create: (dto: CreateClientDto) => Promise<APIResponse>;
-        getAll: () => Promise<Client[]>;
+        getAll: (params: ClientQueryParams) => Promise<Paginated<Client>>;
         getByName: (fullname: string) => Promise<APIResponse<Client>>;
         search: (query: string) => Promise<APIResponse<Client[]>>;
         update: (dto: UpdateClientBody) => Promise<APIResponse<Client>>;

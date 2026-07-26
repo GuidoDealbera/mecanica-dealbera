@@ -1,5 +1,5 @@
 import type { CarBrand } from "../Utils/utils";
-import { AppError, JobStatus } from "./apiTypes";
+import { AppError, JobStatus, Paginated } from "./apiTypes";
 
 export interface KmRecord {
   km: number;
@@ -52,8 +52,11 @@ export interface Jobs {
   updatedAt?: string;
 }
 
+// Los listados guardan una PÁGINA de resultados (server-side), no el dataset
+// completo: `list` incluye los items de la página actual + `total`/`page`/
+// `pageSize` para paginar en la vista.
 export interface ClientState {
-  allClients: Clients[];
+  list: Paginated<Clients>;
   client: Clients | undefined;
   loadingStates: {
     fetching_all: boolean;
@@ -66,7 +69,7 @@ export interface ClientState {
 }
 
 export interface CarState {
-  allCars: Cars[];
+  list: Paginated<Cars>;
   car: Cars | undefined;
   loadingStates: {
     fetching_all: boolean;

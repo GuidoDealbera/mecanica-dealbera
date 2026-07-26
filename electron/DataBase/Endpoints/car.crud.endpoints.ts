@@ -1,12 +1,24 @@
 import { handleIpc } from "../../ipc";
 import { logError } from "../../logger";
 import { validateDto } from "../../validation";
+import { escapeLike, resolvePage } from "../../pagination";
 import { CreateCarDto } from "../Types/car.dto";
 import { AppDataSource, getRepositories } from "../dataSource";
 import { CreateClientDto } from "../Types/client.dto";
+import type { CarQueryParams, Paginated } from "../Types/types";
 import { Car } from "../Entities/car.entity";
 import { Client } from "../Entities/client.entity";
 import { invalidateDashboardStatsCache } from "../dashboardCache";
+
+// Columnas por las que se permite ordenar el listado de autos (mapa
+// campo-de-la-UI → columna calificada de la query, para no interpolar texto
+// del cliente en el ORDER BY).
+const CAR_SORT_COLUMNS: Record<string, string> = {
+  licensePlate: "car.licensePlate",
+  year: "car.year",
+  kilometers: "car.kilometers",
+  owner: "owner.fullname",
+};
 
 // ── ABM de vehículos: alta, consultas, actualización, baja y reasignación
 // de titular. Los trabajos (jobs) y las búsquedas viven en archivos aparte.
@@ -69,12 +81,36 @@ handleIpc("car:create", async (_event, payload: CreateCarDto) => {
   }
 });
 
-handleIpc("car:get-all", async () => {
-  const repo = getRepositories().carRepository;
-  return await repo.find({
-    relations: ["owner", "jobs"],
-  });
-});
+// Listado paginado server-side. Solo carga la relación `owner` (el listado no
+// muestra los trabajos, así que no se traen para no cargar todos los `job` de
+// todos los autos). Búsqueda por patente (LIKE) y orden opcional en la DB.
+handleIpc(
+  "car:get-all",
+  async (_event, params: CarQueryParams): Promise<Paginated<Car>> => {
+    const { page, pageSize, skip, take } = resolvePage(params);
+    const repo = getRepositories().carRepository;
+
+    const qb = repo
+      .createQueryBuilder("car")
+      .leftJoinAndSelect("car.owner", "owner");
+
+    const search = params?.search?.trim();
+    if (search) {
+      qb.andWhere("car.licensePlate LIKE :q ESCAPE :esc", {
+        q: `%${escapeLike(search)}%`,
+        esc: "\\",
+      });
+    }
+
+    const sortColumn = params?.sortBy ? CAR_SORT_COLUMNS[params.sortBy] : undefined;
+    qb.orderBy(sortColumn ?? "car.licensePlate", params?.sortDir === "desc" ? "DESC" : "ASC");
+
+    qb.skip(skip).take(take);
+
+    const [items, total] = await qb.getManyAndCount();
+    return { items, total, page, pageSize };
+  },
+);
 
 handleIpc(
   "car:get-by-license",

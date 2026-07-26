@@ -9,9 +9,7 @@ import {
   formatNumbers,
   handleCapitalizedChange,
 } from "../../Utils/utils";
-import { useSelector } from "react-redux";
-import { selectAllClients } from "../../Store/selectors";
-import { useClientQueries } from "../../Hooks/useClientQueries";
+import { useDebounce } from "../../Hooks/useDebounce";
 
 interface AddCarFormProps {
   onSubmit: (data: CreateCarBody) => Promise<void>;
@@ -28,7 +26,6 @@ const AddCarForm: React.FC<AddCarFormProps> = ({
   isEditing,
   readonly,
 }) => {
-  const { getAllClients } = useClientQueries();
   const INITIAL_STATE: Partial<CreateCarBody> = React.useMemo(
     () => ({
       brand: undefined,
@@ -64,25 +61,30 @@ const AddCarForm: React.FC<AddCarFormProps> = ({
     watch,
     reset,
   } = form;
-  const allClients = useSelector(selectAllClients);
+  // Búsqueda de titulares existentes (server-side, as-you-type) en lugar de
+  // tener toda la lista de clientes en memoria.
+  const [ownerQuery, setOwnerQuery] = React.useState("");
+  const [clientResults, setClientResults] = React.useState<Clients[]>([]);
+  const debouncedOwnerQuery = useDebounce(ownerQuery, 250);
 
   const filterClient = React.useCallback(
     (fullname: string | null) => {
-      const filtered = allClients.find(
+      const filtered = clientResults.find(
         (client) => client.fullname === fullname,
       );
       setSelectedOwner(filtered);
     },
-    [allClients],
+    [clientResults],
   );
 
-  const clientsNames = React.useMemo(() => {
-    if (!allClients || allClients.length === 0) return null;
-    return allClients.map((client) => ({
-      key: client.fullname,
-      label: client.fullname,
-    }));
-  }, [allClients]);
+  const clientsNames = React.useMemo(
+    () =>
+      clientResults.map((client) => ({
+        key: client.fullname,
+        label: client.fullname,
+      })),
+    [clientResults],
+  );
 
   const shouldEnableSubmit = isEditing ? isDirty && isValid : isValid;
   const watchedValues = watch();
@@ -106,9 +108,28 @@ const AddCarForm: React.FC<AddCarFormProps> = ({
     }
   }, [watchedValues, isDirty, reset, INITIAL_STATE]);
 
+  // Busca titulares por nombre a medida que se escribe (mínimo 2 caracteres).
   React.useEffect(() => {
-    getAllClients();
-  }, [getAllClients]);
+    const q = debouncedOwnerQuery.trim();
+    if (q.length < 2) {
+      setClientResults([]);
+      return;
+    }
+    let cancelled = false;
+    window.api.clients
+      .search(q)
+      .then((res) => {
+        if (!cancelled && res.status === "success") {
+          setClientResults(res.result ?? []);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setClientResults([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [debouncedOwnerQuery]);
 
   React.useEffect(() => {
     if (selectedOwner) {
@@ -153,7 +174,7 @@ const AddCarForm: React.FC<AddCarFormProps> = ({
               }}
               disabled={isLoading || readonly || isEditing}
               render={({ field, fieldState: { error } }) =>
-                !initialValues && clientsNames && clientsNames.length >= 1 ? (
+                !initialValues && !isEditing ? (
                   <Autocomplete
                     {...field}
                     label="Nombre completo"
@@ -164,9 +185,10 @@ const AddCarForm: React.FC<AddCarFormProps> = ({
                     }}
                     onInputChange={(value) => {
                       field.onChange(value);
+                      setOwnerQuery(value);
                       filterClient(value);
                     }}
-                    defaultItems={clientsNames}
+                    items={clientsNames}
                     fullWidth
                     isRequired
                     isDisabled={isLoading || readonly || isEditing}
