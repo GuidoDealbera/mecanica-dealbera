@@ -1,64 +1,53 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { useDispatch, useSelector } from "react-redux";
-import { AppDispatch } from "../Store/store";
-import {
-  selectClientsList,
-  selectClient,
-  selectClientError,
-  selectClientLoadingStates,
-} from "../Store/selectors";
 import { useCallback, useState } from "react";
-import {
-  fetchClientByName,
-  fetchClients,
-  updateClient,
-} from "../Store/clientAsync.methods";
+import { useClientStore } from "./useClientStore";
 import { useToasts } from "./useToasts";
 import { ClientQueryParams, UpdateClientBody } from "../Types/apiTypes";
 
+/**
+ * Capa de presentación sobre `useClientStore`: agrega toasts y el estado local
+ * de carga alrededor de las acciones de datos. Los componentes usan este hook;
+ * el acceso "crudo" al store vive en `useClientStore`.
+ */
 export const useClientQueries = () => {
+  const { list, client, error, loadingStates, fetchList, fetchByName, update } =
+    useClientStore();
   const { showToast } = useToasts();
-  const dispatch = useDispatch<AppDispatch>();
   const [loading, setLoading] = useState<boolean>(false);
   const [refreshing, setRefreshing] = useState<boolean>(false);
-  const list = useSelector(selectClientsList);
-  const client = useSelector(selectClient);
-  const error = useSelector(selectClientError);
-  const loadingStates = useSelector(selectClientLoadingStates);
 
   const getClients = useCallback(
     async (params: ClientQueryParams) => {
       setLoading(true);
       try {
-        await dispatch(fetchClients(params)).unwrap();
+        await fetchList(params);
       } catch (error) {
         return error;
       } finally {
         setLoading(false);
       }
     },
-    [dispatch],
+    [fetchList],
   );
 
   const getClientByName = useCallback(
     async (fullname: string) => {
       setLoading(true);
       try {
-        await dispatch(fetchClientByName(fullname)).unwrap();
+        await fetchByName(fullname);
       } catch (error) {
         return error;
       } finally {
         setLoading(false);
       }
     },
-    [dispatch],
+    [fetchByName],
   );
 
   const refresh = useCallback(
     async (params: ClientQueryParams) => {
       setRefreshing(true);
       try {
-        await dispatch(fetchClients(params)).unwrap();
+        await fetchList(params);
         showToast("Datos actualizados correctamente", "success", "Actualizar");
       } catch (error) {
         showToast("Error al actualizar los datos", "danger", "Actualizar");
@@ -67,14 +56,14 @@ export const useClientQueries = () => {
         setRefreshing(false);
       }
     },
-    [dispatch, showToast],
+    [fetchList, showToast],
   );
 
   const updateOwner = useCallback(
     async (body: UpdateClientBody, isOnly?: boolean) => {
       setLoading(true);
       try {
-        await dispatch(updateClient(body)).unwrap();
+        await update(body);
         if (isOnly)
           showToast(
             "Cliente actualizado correctamente",
@@ -93,7 +82,7 @@ export const useClientQueries = () => {
         setLoading(false);
       }
     },
-    [dispatch, showToast],
+    [update, showToast],
   );
 
   return {

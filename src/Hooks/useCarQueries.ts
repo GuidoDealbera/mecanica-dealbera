@@ -1,38 +1,37 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useDispatch, useSelector } from "react-redux";
-import { AppDispatch } from "../Store/store";
-import {
-  selectCarsList,
-  selectCar,
-  selectCarLoadingStates,
-  selectCarError,
-} from "../Store/selectors";
-import { CarQueryParams, CreateCarBody, CreateCarJob, UpdateJobBody } from "../Types/apiTypes";
-import {
-  createCar,
-  fetchCarByLicence,
-  fetchCars,
-  deleteCar,
-  updateJobInCar,
-  updatedCar,
-  addJob,
-} from "../Store/carAsync.methods";
 import { useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { cleanCarsState, cleanCarState, cleanError } from "../Store/carSlice";
-
+import { useCarStore } from "./useCarStore";
 import { useToasts } from "./useToasts";
 import { CarActions } from "../Constants/car.constants";
+import { CarQueryParams, CreateCarBody, CreateCarJob, UpdateJobBody } from "../Types/apiTypes";
 
+/**
+ * Capa de presentación sobre `useCarStore`: agrega los efectos de UI (toasts,
+ * navegación y el estado local de carga) alrededor de las acciones de datos.
+ * Los componentes usan este hook; el acceso "crudo" al store vive en
+ * `useCarStore`.
+ */
 export const useCarQueries = () => {
+  const {
+    list,
+    car,
+    error,
+    loadingStates,
+    fetchList,
+    fetchByLicence,
+    create: createInStore,
+    remove: removeInStore,
+    update: updateInStore,
+    addJob: addJobInStore,
+    updateJob: updateJobInStore,
+    cleanCar,
+    cleanCars,
+    clearError,
+  } = useCarStore();
   const { showToast } = useToasts();
   const navigate = useNavigate();
-  const dispatch = useDispatch<AppDispatch>();
 
-  const list = useSelector(selectCarsList);
-  const car = useSelector(selectCar);
-  const loadingStates = useSelector(selectCarLoadingStates);
-  const error = useSelector(selectCarError);
   const [loading, setLoading] = useState<boolean>(false);
   const [refreshing, setRefreshing] = useState<boolean>(false);
 
@@ -47,7 +46,7 @@ export const useCarQueries = () => {
             email: body.owner.email ?? undefined,
           },
         };
-        const response = await dispatch(createCar(data)).unwrap();
+        const response = await createInStore(data);
         showToast(
           response.message,
           response.status === "failed" ? "danger" : "success",
@@ -64,28 +63,28 @@ export const useCarQueries = () => {
         setLoading(false);
       }
     },
-    [dispatch, navigate, showToast],
+    [createInStore, navigate, showToast],
   );
 
   const getCars = useCallback(
     async (params: CarQueryParams) => {
       setLoading(true);
       try {
-        await dispatch(fetchCars(params)).unwrap();
+        await fetchList(params);
       } catch (error) {
         return error;
       } finally {
         setLoading(false);
       }
     },
-    [dispatch],
+    [fetchList],
   );
 
   const refresh = useCallback(
     async (params: CarQueryParams) => {
       setRefreshing(true);
       try {
-        await dispatch(fetchCars(params)).unwrap();
+        await fetchList(params);
         showToast(
           "Datos actualizados correctamente",
           "success",
@@ -98,14 +97,14 @@ export const useCarQueries = () => {
         setRefreshing(false);
       }
     },
-    [dispatch, showToast],
+    [fetchList, showToast],
   );
 
   const refreshCar = useCallback(
     async (licence: string) => {
       setRefreshing(true);
       try {
-        await dispatch(fetchCarByLicence(licence)).unwrap();
+        await fetchByLicence(licence);
         showToast(
           "Datos actualizados exitosamente",
           "success",
@@ -122,14 +121,14 @@ export const useCarQueries = () => {
         setRefreshing(false);
       }
     },
-    [dispatch, showToast],
+    [fetchByLicence, showToast],
   );
 
   const getCarDetail = useCallback(
     async (licence: string) => {
       setLoading(true);
       try {
-        await dispatch(fetchCarByLicence(licence)).unwrap();
+        await fetchByLicence(licence);
       } catch (error: any) {
         showToast(error.message, "danger", CarActions.FETCH);
         return error;
@@ -137,14 +136,14 @@ export const useCarQueries = () => {
         setLoading(false);
       }
     },
-    [dispatch, showToast],
+    [fetchByLicence, showToast],
   );
 
   const deleteOneCar = useCallback(
     async (licence: string) => {
       setLoading(true);
       try {
-        const response = await dispatch(deleteCar(licence)).unwrap();
+        const response = await removeInStore(licence);
         showToast(response.message, "success", CarActions.DELETE);
       } catch (error: any) {
         showToast(error.message, "danger", CarActions.DELETE);
@@ -153,16 +152,14 @@ export const useCarQueries = () => {
         setLoading(false);
       }
     },
-    [dispatch, showToast],
+    [removeInStore, showToast],
   );
 
   const updateCar = useCallback(
     async (carId: string, kilometers: number, isOnly?: boolean) => {
       setLoading(true);
       try {
-        const response = await dispatch(
-          updatedCar({ carId, kilometers }),
-        ).unwrap();
+        const response = await updateInStore(carId, kilometers);
         if (isOnly) {
           showToast(
             response.message,
@@ -177,14 +174,14 @@ export const useCarQueries = () => {
         setLoading(false);
       }
     },
-    [dispatch, showToast],
+    [updateInStore, showToast],
   );
 
   const addCarJob = useCallback(
     async (licence: string, job: CreateCarJob) => {
       setLoading(true);
       try {
-        const response = await dispatch(addJob({ licence, job })).unwrap();
+        const response = await addJobInStore(licence, job);
         showToast(response.message, response.status === "failed" ? "danger" : "success", CarActions.JOB_CREATE);
         if (response.status === "success") {
           navigate(`/cars/${licence}`, { state: { bypassGuard: true } });
@@ -197,16 +194,14 @@ export const useCarQueries = () => {
         setLoading(false);
       }
     },
-    [showToast, dispatch, navigate],
+    [addJobInStore, navigate, showToast],
   );
 
   const updateJob = useCallback(
     async (licence: string, jobId: string, body: UpdateJobBody) => {
       setLoading(true);
       try {
-        const response = await dispatch(
-          updateJobInCar({ licence, jobId, body }),
-        ).unwrap();
+        const response = await updateJobInStore(licence, jobId, body);
         showToast(response.message as string, "success", CarActions.JOB_UPDATE);
         return response;
       } catch (error: any) {
@@ -216,20 +211,8 @@ export const useCarQueries = () => {
         setLoading(false);
       }
     },
-    [dispatch, showToast],
+    [updateJobInStore, showToast],
   );
-
-  const clean = useCallback(() => {
-    dispatch(cleanCarState());
-  }, [dispatch]);
-
-  const cleanCars = useCallback(() => {
-    dispatch(cleanCarsState());
-  }, [dispatch]);
-
-  const clearError = useCallback(() => {
-    dispatch(cleanError());
-  }, [dispatch]);
 
   return {
     loading,
@@ -247,7 +230,7 @@ export const useCarQueries = () => {
     refresh,
     deleteOneCar,
     refreshCar,
-    clean,
+    clean: cleanCar,
     cleanCars,
     clearError,
   };

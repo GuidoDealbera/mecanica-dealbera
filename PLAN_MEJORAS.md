@@ -66,7 +66,9 @@ Estados posibles: `pendiente` · `en progreso` · `a testear` · `hecho`
 
 ## Sprint 4 — Separación de responsabilidades
 
-16. **[pendiente]** Hooks de datos vs UI (`useCarStore`/`useClientStore` puros)
+16. **[a testear]** Hooks de datos vs UI (`useCarStore`/`useClientStore` puros)
+   - Archivos: `src/Hooks/useCarStore.ts` (nuevo), `src/Hooks/useClientStore.ts` (nuevo), `src/Hooks/useCarQueries.ts`, `src/Hooks/useClientQueries.ts`.
+   - Cambios: se separa **datos** de **UI**. Nuevos hooks puros `useCarStore`/`useClientStore` que solo tocan Redux: exponen el estado (`list`, `car`/`client`, `error`, `loadingStates`) y acciones que despachan los thunks devolviendo la promesa **desenvuelta** (`.unwrap()` → resuelve con el resultado o rechaza con el error). Sin toasts, navegación ni loading local. Los hooks `useCarQueries`/`useClientQueries` pasan a ser la **capa de presentación** construida sobre los store hooks: agregan toasts, navegación y el estado local `loading`/`refreshing`, y **mantienen su API pública idéntica** → los 7 consumidores (CarsPage, ClientPage, CarDetailPage, ClientDetailPage, AddCarPage, AddJobPage, Jobs) no cambian. Detalle de robustez: las callbacks de los store hooks dependen solo de `dispatch` (estable), así las callbacks de la capa UI siguen siendo estables y no disparan loops en los `useEffect` de fetch. Refactor sin cambio de comportamiento. Verificado: `tsc` (src+electron) + `npm run lint` + 36 tests OK.
 
 ## Sprint 5 — Features rápidas
 
