@@ -152,9 +152,9 @@ const ClientTable: React.FC<ClientTableProps> = ({
                 {client.phone}
               </TableCell>
               <TableCell
-                className={`${i !== clients.length - 1 ? "border-b-2" : ""} border-r-2 border-foreground-700`}
+                className={`${i !== clients.length - 1 ? "border-b-2" : ""} border-r-2 border-foreground-700 text-center`}
               >
-                {client.email ?? "---"}
+                {client.email || "---"}
               </TableCell>
               <TableCell
                 className={`${i !== clients.length - 1 ? "border-b-2" : ""} border-r-2 border-foreground-700`}

@@ -77,6 +77,7 @@ declare global {
       global: {
         search: (query: string) => Promise<{ status: string } & SearchResult>;
         openLogsFolder: () => Promise<void>;
+        openExternal: (url: string) => Promise<void>;
       };
     },
     updater: UpdaterAPI

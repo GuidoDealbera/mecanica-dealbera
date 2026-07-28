@@ -28,11 +28,11 @@ import {
   MdLocationCity,
   MdEmail,
 } from "react-icons/md";
-import { FaCube, FaTag } from "react-icons/fa";
+import { FaCube, FaTag, FaWhatsapp } from "react-icons/fa";
 import { IoCarSportSharp } from "react-icons/io5";
 import LicenceTable from "../Components/Licenses/LicenceTable";
 import KmHistoryModal from "./Components/KmHistoryModal";
-import { formatDate } from "../Utils/utils";
+import { buildWhatsappUrl, formatDate } from "../Utils/utils";
 import { useClientQueries } from "../Hooks/useClientQueries";
 import { useToasts } from "../Hooks/useToasts";
 import { CreateCarBody, JobStatus } from "../Types/apiTypes";
@@ -117,6 +117,12 @@ const CarDetailPage: React.FC = () => {
     car.jobs?.filter((j) => j.status === JobStatus.IN_PROGRESS).length ?? 0;
   const pending =
     car.jobs?.filter((j) => j.status === JobStatus.PENDING).length ?? 0;
+
+  // WhatsApp al titular con un mensaje pre-cargado (editable antes de enviar).
+  const ownerFirstName = car.owner?.fullname?.trim().split(/\s+/)[0] ?? "";
+  const whatsappMessage = `Hola ${ownerFirstName}! 👋 Te escribimos de Mecánica Dealbera por tu ${car.brand} ${car.model} (patente ${car.licensePlate}).`;
+  const whatsappUrl = buildWhatsappUrl(car.owner?.phone, whatsappMessage);
+
   return (
     <div className="w-full bg-foreground-800 rounded-xl p-3 min-h-full flex flex-col gap-4 text-white">
       {/* ═══════════════════════════════════════════════════════════════════
@@ -337,6 +343,19 @@ const CarDetailPage: React.FC = () => {
                 label="Correo"
                 value={car.owner?.email || "---"}
               />
+              <Button
+                color="success"
+                variant="flat"
+                fullWidth
+                startContent={<FaWhatsapp size={18} />}
+                isDisabled={!whatsappUrl}
+                onPress={() =>
+                  whatsappUrl && window.api.global.openExternal(whatsappUrl)
+                }
+                className="text-success-500 font-semibold mt-1"
+              >
+                {whatsappUrl ? "Enviar WhatsApp" : "Sin teléfono"}
+              </Button>
             </CardBody>
           </Card>
             </div>

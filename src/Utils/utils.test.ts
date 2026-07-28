@@ -9,6 +9,8 @@ import {
   formatNumbers,
   normalizeText,
   toCsv,
+  toWhatsappNumber,
+  buildWhatsappUrl,
 } from "./utils";
 
 describe("formatLicence", () => {
@@ -159,5 +161,62 @@ describe("toCsv", () => {
     const csv = toCsv({ note: "Nota" }, [{ note: null as unknown as string }]);
     const lines = csv.replace(BOM, "").split("\n");
     expect(lines[1]).toBe("");
+  });
+});
+
+describe("toWhatsappNumber", () => {
+  it("normaliza un celular local de Tucumán (381) a 54 9 + número", () => {
+    expect(toWhatsappNumber("3814556677")).toBe("5493814556677");
+  });
+
+  it("saca el 0 inicial", () => {
+    expect(toWhatsappNumber("03814556677")).toBe("5493814556677");
+  });
+
+  it("saca el 0 y el 15 (área de 3 dígitos)", () => {
+    expect(toWhatsappNumber("0381154556677")).toBe("5493814556677");
+  });
+
+  it("ignora espacios, guiones y paréntesis", () => {
+    expect(toWhatsappNumber("(0381) 15-455 6677")).toBe("5493814556677");
+  });
+
+  it("maneja el 15 de un número de Buenos Aires (área de 2 dígitos)", () => {
+    expect(toWhatsappNumber("011 15 2345-6789")).toBe("5491123456789");
+  });
+
+  it("respeta un número que ya trae 54 9", () => {
+    expect(toWhatsappNumber("+54 9 381 455 6677")).toBe("5493814556677");
+  });
+
+  it("agrega el 9 de celular si viene 54 sin el 9", () => {
+    expect(toWhatsappNumber("+54 381 455 6677")).toBe("5493814556677");
+  });
+
+  it("saca el prefijo internacional 00", () => {
+    expect(toWhatsappNumber("0054 9 381 455 6677")).toBe("5493814556677");
+  });
+
+  it("devuelve '' para vacío o sin dígitos", () => {
+    expect(toWhatsappNumber("")).toBe("");
+    expect(toWhatsappNumber(null)).toBe("");
+    expect(toWhatsappNumber("abc")).toBe("");
+  });
+});
+
+describe("buildWhatsappUrl", () => {
+  it("arma el link wa.me con el número normalizado", () => {
+    expect(buildWhatsappUrl("3814556677")).toBe("https://wa.me/5493814556677");
+  });
+
+  it("agrega el mensaje pre-cargado codificado", () => {
+    expect(buildWhatsappUrl("3814556677", "a b")).toBe(
+      "https://wa.me/5493814556677?text=a%20b",
+    );
+  });
+
+  it("devuelve '' si no hay teléfono válido", () => {
+    expect(buildWhatsappUrl("")).toBe("");
+    expect(buildWhatsappUrl(null)).toBe("");
   });
 });

@@ -93,6 +93,8 @@ contextBridge.exposeInMainWorld("api", {
       await ipcRenderer.invoke("global:search", query),
     openLogsFolder: async () =>
       await ipcRenderer.invoke("app:open-logs-folder"),
+    openExternal: async (url: string) =>
+      await ipcRenderer.invoke("app:open-external", url),
   },
 });
 

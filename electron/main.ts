@@ -237,6 +237,16 @@ handleIpc("app:open-logs-folder", () => {
   shell.showItemInFolder(logPath);
 });
 
+// Abre una URL en el navegador/app externa por defecto (ej. el link wa.me de
+// WhatsApp). Se restringe a https para no abrir esquemas arbitrarios.
+handleIpc("app:open-external", async (_event, url: string) => {
+  if (typeof url !== "string" || !url.startsWith("https://")) {
+    logError("app:open-external", new Error(`URL no permitida: ${url}`));
+    return;
+  }
+  await shell.openExternal(url);
+});
+
 ipcMain.on("start-update-download", () => {
   autoUpdater.downloadUpdate()
 })

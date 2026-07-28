@@ -72,7 +72,9 @@ Estados posibles: `pendiente` · `en progreso` · `a testear` · `hecho`
 
 ## Sprint 5 — Features rápidas
 
-17. **[pendiente]** WhatsApp directo desde la ficha del auto
+17. **[a testear]** WhatsApp directo desde la ficha del auto
+   - Archivos: `src/Utils/utils.ts`, `src/Utils/utils.test.ts`, `electron/main.ts`, `electron/preload.ts`, `global.d.ts`, `src/Pages/CarDetailPage.tsx`.
+   - Cambios: botón **"Enviar WhatsApp"** en la card de Titular de la ficha del auto. Abre `wa.me` con el teléfono del cliente y un **mensaje pre-cargado** (editable antes de enviar): *"Hola {nombre}! 👋 Te escribimos de Mecánica Dealbera por tu {marca} {modelo} (patente {patente})."*. Helpers nuevos en `utils.ts`: `toWhatsappNumber(phone)` normaliza teléfonos argentinos al formato de WhatsApp (dígitos + `54 9`, saca el `0` inicial y el `15`; si ya trae `54` lo respeta; autodetecta ambos casos) y `buildWhatsappUrl(phone, message?)` arma el link con el texto codificado. Para abrir el link afuera de Electron: nuevo handler `app:open-external` (`shell.openExternal`, **restringido a `https://`** por seguridad) expuesto como `window.api.global.openExternal`. El botón se deshabilita ("Sin teléfono") si el cliente no tiene teléfono cargado. Es best-effort: WhatsApp muestra el contacto antes de enviar, así que el usuario confirma el número. 12 tests nuevos del normalizador (formatos locales, con/sin 0 y 15, Buenos Aires, ya-internacional, prefijo 00, vacíos). Verificado: `tsc` + `npm run lint` + 48 tests OK.
 18. **[pendiente]** Confirmación de borrado descriptiva
 19. **[pendiente]** Estado vacío con CTA en listados
 20. **[pendiente]** Notas internas por trabajo

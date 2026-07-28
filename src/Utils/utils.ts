@@ -190,6 +190,62 @@ export const normalizeText = (text: string): string => {
 };
 
 /**
+ * Saca el prefijo "15" de celular que va despu\u00e9s del c\u00f3digo de \u00e1rea en un
+ * n\u00famero local argentino. El n\u00famero can\u00f3nico (\u00e1rea + abonado) tiene 10 d\u00edgitos;
+ * con el 15 son 12, as\u00ed que s\u00f3lo se remueve cuando el "15" aparece justo
+ * despu\u00e9s de un \u00e1rea de 2, 3 o 4 d\u00edgitos y el total es 12.
+ */
+const stripArMobilePrefix = (local: string): string => {
+  if (local.length !== 12) return local;
+  for (const areaLen of [2, 3, 4]) {
+    if (local.slice(areaLen, areaLen + 2) === "15") {
+      return local.slice(0, areaLen) + local.slice(areaLen + 2);
+    }
+  }
+  return local;
+};
+
+/**
+ * Normaliza un tel\u00e9fono argentino al formato que espera WhatsApp (wa.me):
+ * d\u00edgitos, con c\u00f3digo de pa\u00eds 54 y el 9 de celular, sin 0 inicial ni el 15.
+ *
+ * - Si ya viene con c\u00f3digo de pa\u00eds (54...), lo respeta y s\u00f3lo re-normaliza el
+ *   9/15 del celular.
+ * - Si es local (ej. 381..., 0381..., con o sin 15), saca el 0 y el 15 y
+ *   antepone `54 9`.
+ *
+ * Es best-effort: WhatsApp muestra el contacto antes de enviar, as\u00ed que el
+ * usuario confirma visualmente el n\u00famero. Devuelve "" si no hay d\u00edgitos.
+ */
+export const toWhatsappNumber = (phone: string | null | undefined): string => {
+  let digits = (phone ?? "").replace(/\D/g, "");
+  if (!digits) return "";
+  if (digits.startsWith("00")) digits = digits.slice(2); // prefijo internacional
+
+  // Ya trae el c\u00f3digo de pa\u00eds argentino.
+  if (digits.startsWith("54")) {
+    let rest = digits.slice(2);
+    if (rest.startsWith("9")) rest = rest.slice(1); // sacamos el 9 para re-normalizar el 15
+    return `549${stripArMobilePrefix(rest)}`;
+  }
+
+  // N\u00famero local: sacar 0 inicial y el 15, anteponer 54 9.
+  if (digits.startsWith("0")) digits = digits.slice(1);
+  return `549${stripArMobilePrefix(digits)}`;
+};
+
+/** Arma el link de wa.me con un mensaje opcional pre-cargado. */
+export const buildWhatsappUrl = (
+  phone: string | null | undefined,
+  message?: string,
+): string => {
+  const number = toWhatsappNumber(phone);
+  if (!number) return "";
+  const base = `https://wa.me/${number}`;
+  return message ? `${base}?text=${encodeURIComponent(message)}` : base;
+};
+
+/**
  * Serializa un array de objetos a CSV con BOM UTF-8 (compatible con Excel en espa\u00f1ol).
  * Usa `;` como separador \u2014 convenci\u00f3n Argentina.
  */
