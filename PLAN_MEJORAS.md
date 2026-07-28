@@ -72,10 +72,12 @@ Estados posibles: `pendiente` · `en progreso` · `a testear` · `hecho`
 
 ## Sprint 5 — Features rápidas
 
-17. **[a testear]** WhatsApp directo desde la ficha del auto
+17. **[hecho]** WhatsApp directo desde la ficha del auto
    - Archivos: `src/Utils/utils.ts`, `src/Utils/utils.test.ts`, `electron/main.ts`, `electron/preload.ts`, `global.d.ts`, `src/Pages/CarDetailPage.tsx`.
    - Cambios: botón **"Enviar WhatsApp"** en la card de Titular de la ficha del auto. Abre `wa.me` con el teléfono del cliente y un **mensaje pre-cargado** (editable antes de enviar): *"Hola {nombre}! 👋 Te escribimos de Mecánica Dealbera por tu {marca} {modelo} (patente {patente})."*. Helpers nuevos en `utils.ts`: `toWhatsappNumber(phone)` normaliza teléfonos argentinos al formato de WhatsApp (dígitos + `54 9`, saca el `0` inicial y el `15`; si ya trae `54` lo respeta; autodetecta ambos casos) y `buildWhatsappUrl(phone, message?)` arma el link con el texto codificado. Para abrir el link afuera de Electron: nuevo handler `app:open-external` (`shell.openExternal`, **restringido a `https://`** por seguridad) expuesto como `window.api.global.openExternal`. El botón se deshabilita ("Sin teléfono") si el cliente no tiene teléfono cargado. Es best-effort: WhatsApp muestra el contacto antes de enviar, así que el usuario confirma el número. 12 tests nuevos del normalizador (formatos locales, con/sin 0 y 15, Buenos Aires, ya-internacional, prefijo 00, vacíos). Verificado: `tsc` + `npm run lint` + 48 tests OK.
-18. **[pendiente]** Confirmación de borrado descriptiva
+18. **[a testear]** Confirmación de borrado descriptiva
+   - Archivos: `src/Components/DeleteCarDialog.tsx`, `src/Pages/CarsPage.tsx`, `src/Pages/ClientPage.tsx`.
+   - Cambios: los diálogos de borrado ahora dicen **qué** se elimina y las **consecuencias**. `DeleteCarDialog` recibe el auto completo (antes solo la patente) y muestra patente + marca/modelo/año + titular, más un aviso en caja de peligro: *"Se eliminarán también todos sus trabajos y el historial de kilometraje. Esta acción es irreversible."* (`CarsPage` pasa a trackear `carToDelete` buscándolo en `list.items`). El borrado de cliente (`ClientPage`, vía `CustomDialog`) ahora incluye el **conteo de vehículos** que se eliminan en cascada, con singular/plural y caso 0: *"¿Eliminar permanentemente a "X"? Se eliminarán también sus N vehículos y todos sus trabajos. Esta acción es irreversible."* (el conteo sale de `client.cars`, ya cargado por `client:get-all`). Sin cambios de colores/estilos de botones (se respeta la convención existente). Verificado: `tsc` + `npm run lint` + 48 tests OK.
 19. **[pendiente]** Estado vacío con CTA en listados
 20. **[pendiente]** Notas internas por trabajo
 21. **[pendiente]** Resumen de actividad en la ficha del cliente

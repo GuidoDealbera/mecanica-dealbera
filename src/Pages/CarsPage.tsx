@@ -8,6 +8,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import DeleteCarDialog from "../Components/DeleteCarDialog";
 import FilterByLicence from "../Components/SearchBars/FilterLicence";
 import { CarQueryParams } from "../Types/apiTypes";
+import { Cars } from "../Types/types";
 
 const PAGE_SIZE = 8;
 
@@ -16,7 +17,7 @@ const CarsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const licenceFilter = searchParams.get("q") ?? "";
   const { isOpen: isDeleteDialogOpen, onClose, onOpen } = useDisclosure();
-  const [selectedLicenceToDelete, setSelectedLicenceToDelete] = useState<string | null>(null);
+  const [carToDelete, setCarToDelete] = useState<Cars | null>(null);
   const [page, setPage] = useState(1);
   const [sort, setSort] = useState<{ by: string | null; dir: "asc" | "desc" }>({
     by: null,
@@ -68,21 +69,21 @@ const CarsPage: React.FC = () => {
 
   const handleOpenDeleteDialog = useCallback(
     (licence: string) => {
-      setSelectedLicenceToDelete(licence);
+      setCarToDelete(list.items.find((c) => c.licensePlate === licence) ?? null);
       onOpen();
     },
-    [onOpen]
+    [onOpen, list.items]
   );
 
   const handleConfirmDelete = async () => {
-    if (!selectedLicenceToDelete) return;
-    await deleteOneCar(selectedLicenceToDelete);
+    if (!carToDelete) return;
+    await deleteOneCar(carToDelete.licensePlate);
     await getCars(params);
     onClose();
   };
 
   const handleCancelDelete = useCallback(() => {
-    setSelectedLicenceToDelete(null);
+    setCarToDelete(null);
     onClose();
   }, [onClose]);
 
@@ -166,7 +167,7 @@ const CarsPage: React.FC = () => {
         isOpen={isDeleteDialogOpen}
         onClose={onClose}
         onConfirm={handleConfirmDelete}
-        licence={selectedLicenceToDelete}
+        car={carToDelete}
         onCancel={handleCancelDelete}
         title="Eliminar automóvil"
       />

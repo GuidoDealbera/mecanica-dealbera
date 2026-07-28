@@ -30,8 +30,8 @@ const ClientPage: React.FC = () => {
 
   // Delete dialog
   const [deleteDialog, setDeleteDialog] = React.useState<{
-    open: boolean; id: string; name: string;
-  }>({ open: false, id: "", name: "" });
+    open: boolean; id: string; name: string; carsCount: number;
+  }>({ open: false, id: "", name: "", carsCount: 0 });
 
   const [actionLoading, setActionLoading] = React.useState(false);
 
@@ -92,9 +92,26 @@ const ClientPage: React.FC = () => {
     }, []
   );
 
-  const handleDelete = React.useCallback((id: string, name: string) => {
-    setDeleteDialog({ open: true, id, name });
-  }, []);
+  const handleDelete = React.useCallback(
+    (id: string, name: string) => {
+      const carsCount = list.items.find((c) => c.id === id)?.cars?.length ?? 0;
+      setDeleteDialog({ open: true, id, name, carsCount });
+    },
+    [list.items],
+  );
+
+  // Texto descriptivo del borrado: incluye la cantidad de vehículos que se
+  // eliminarán en cascada (con sus trabajos), con singular/plural.
+  const deleteContent = React.useMemo(() => {
+    const n = deleteDialog.carsCount;
+    const vehiculos =
+      n === 0
+        ? "No tiene vehículos registrados."
+        : n === 1
+          ? "Se eliminará también su vehículo y todos sus trabajos."
+          : `Se eliminarán también sus ${n} vehículos y todos sus trabajos.`;
+    return `¿Eliminar permanentemente a "${deleteDialog.name}"? ${vehiculos} Esta acción es irreversible.`;
+  }, [deleteDialog.name, deleteDialog.carsCount]);
 
   const confirmToggle = async () => {
     setActionLoading(true);
@@ -124,7 +141,7 @@ const ClientPage: React.FC = () => {
       }
     } finally {
       setActionLoading(false);
-      setDeleteDialog({ open: false, id: "", name: "" });
+      setDeleteDialog({ open: false, id: "", name: "", carsCount: 0 });
     }
   };
 
@@ -198,11 +215,11 @@ const ClientPage: React.FC = () => {
       {/* Delete dialog */}
       <CustomDialog
         isOpen={deleteDialog.open}
-        onClose={() => setDeleteDialog({ open: false, id: "", name: "" })}
+        onClose={() => setDeleteDialog({ open: false, id: "", name: "", carsCount: 0 })}
         onConfirm={confirmDelete}
         isLoading={actionLoading}
         title="Eliminar cliente"
-        content={`¿Eliminar permanentemente a "${deleteDialog.name}" y todos sus vehículos? Esta acción es irreversible.`}
+        content={deleteContent}
         confirmText="Eliminar"
       />
     </div>
