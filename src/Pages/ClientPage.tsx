@@ -5,14 +5,18 @@ import { HiOutlineRefresh } from "react-icons/hi";
 import ClientTable from "../Components/Tables/ClientsTable";
 import FilterName from "../Components/SearchBars/FilterName";
 import CustomDialog from "../Components/CustomDialog";
+import EmptyState from "../Components/EmptyState";
 import { useToasts } from "../Hooks/useToasts";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { IoSearch, IoCarSportSharp } from "react-icons/io5";
+import { MdPersonOutline } from "react-icons/md";
 import { ClientQueryParams } from "../Types/apiTypes";
 
 const PAGE_SIZE = 8;
 
 const ClientPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const nameFilter = searchParams.get("q") ?? "";
   const { list, loading, refreshing, getClients, refresh } = useClientQueries();
   const { showToast } = useToasts();
@@ -147,6 +151,25 @@ const ClientPage: React.FC = () => {
 
   const isLoading = loading || refreshing;
 
+  const emptyContent = nameFilter ? (
+    <EmptyState
+      icon={<IoSearch size={28} />}
+      title="Sin resultados"
+      description="No hay clientes que coincidan con la búsqueda."
+    />
+  ) : (
+    <EmptyState
+      icon={<MdPersonOutline size={30} />}
+      title="No hay clientes registrados"
+      description="Los clientes se registran al cargar un vehículo."
+      action={{
+        label: "Registrar vehículo",
+        icon: <IoCarSportSharp size={18} />,
+        onPress: () => navigate("/cars/new"),
+      }}
+    />
+  );
+
   return (
     <div className="w-full h-full shadow shadow-primary bg-foreground-800 rounded-md p-3">
       <div className="flex justify-between items-center mb-2">
@@ -181,11 +204,7 @@ const ClientPage: React.FC = () => {
       <ClientTable
         clients={list.items}
         isLoading={isLoading}
-        noRowsLabel={
-          nameFilter
-            ? "No hay clientes que coincidan con la búsqueda"
-            : "No hay clientes registrados"
-        }
+        emptyContent={emptyContent}
         onToggleActive={handleToggleActive}
         onDelete={handleDelete}
         page={page}

@@ -22,7 +22,7 @@ interface CarsTableProps {
   /** Items de la página actual (ya paginados y ordenados en el servidor). */
   cars: Cars[];
   isLoading: boolean;
-  noRowsLabel: string;
+  emptyContent: React.ReactNode;
   deleteCar: (licence: string) => void;
   // Paginación controlada por el padre (server-side)
   page: number;
@@ -38,7 +38,7 @@ interface CarsTableProps {
 const CarsTable: React.FC<CarsTableProps> = ({
   cars,
   isLoading,
-  noRowsLabel,
+  emptyContent,
   deleteCar,
   page,
   pageSize,
@@ -121,11 +121,7 @@ const CarsTable: React.FC<CarsTableProps> = ({
         <TableBody
           isLoading={isLoading}
           className="bg-foreground-800 w-full"
-          emptyContent={
-            <div className="fixed">
-              <span>{noRowsLabel}</span>
-            </div>
-          }
+          emptyContent={emptyContent}
         >
           {cars.map((car, i) => (
             <TableRow

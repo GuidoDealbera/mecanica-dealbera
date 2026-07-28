@@ -4,9 +4,11 @@ import CarsTable from "../Components/Tables/CarsTable";
 import { Button, useDisclosure } from "@heroui/react";
 import { HiOutlineRefresh } from "react-icons/hi";
 import { IoIosAddCircleOutline } from "react-icons/io";
+import { IoCarSportSharp, IoSearch } from "react-icons/io5";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import DeleteCarDialog from "../Components/DeleteCarDialog";
 import FilterByLicence from "../Components/SearchBars/FilterLicence";
+import EmptyState from "../Components/EmptyState";
 import { CarQueryParams } from "../Types/apiTypes";
 import { Cars } from "../Types/types";
 
@@ -109,6 +111,26 @@ const CarsPage: React.FC = () => {
   }, []);
 
   const isLoading = loading || refreshing;
+
+  const emptyContent = licenceFilter ? (
+    <EmptyState
+      icon={<IoSearch size={28} />}
+      title="Sin resultados"
+      description="No hay vehículos que coincidan con la búsqueda."
+    />
+  ) : (
+    <EmptyState
+      icon={<IoCarSportSharp size={28} />}
+      title="No hay vehículos registrados"
+      description="Registrá el primer vehículo para empezar a gestionarlos."
+      action={{
+        label: "Nuevo vehículo",
+        icon: <IoIosAddCircleOutline size={20} />,
+        onPress: () => navigate("/cars/new"),
+      }}
+    />
+  );
+
   return (
     <div className="w-full h-full shadow shadow-primary bg-foreground-800 rounded-md p-3">
       <div className="flex justify-between items-center mb-2">
@@ -149,11 +171,7 @@ const CarsPage: React.FC = () => {
       <CarsTable
         cars={list.items}
         isLoading={isLoading}
-        noRowsLabel={
-          licenceFilter
-            ? "No hay vehículos coincidentes con la búsqueda"
-            : "No hay vehículos registrados"
-        }
+        emptyContent={emptyContent}
         deleteCar={handleOpenDeleteDialog}
         page={page}
         pageSize={PAGE_SIZE}

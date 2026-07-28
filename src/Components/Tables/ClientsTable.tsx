@@ -23,7 +23,7 @@ interface ClientTableProps {
   /** Items de la página actual (ya paginados y ordenados en el servidor). */
   clients: Clients[];
   isLoading: boolean;
-  noRowsLabel: string;
+  emptyContent: React.ReactNode;
   onToggleActive?: (id: string, name: string, isActive: boolean) => void;
   onDelete?: (id: string, name: string) => void;
   // Paginación controlada por el padre (server-side)
@@ -40,7 +40,7 @@ interface ClientTableProps {
 const ClientTable: React.FC<ClientTableProps> = ({
   clients,
   isLoading,
-  noRowsLabel,
+  emptyContent,
   onToggleActive,
   onDelete,
   page,
@@ -127,11 +127,7 @@ const ClientTable: React.FC<ClientTableProps> = ({
         <TableBody
           isLoading={isLoading}
           className="bg-foreground-800 w-full"
-          emptyContent={
-            <div className="fixed">
-              <span>{noRowsLabel}</span>
-            </div>
-          }
+          emptyContent={emptyContent}
         >
           {clients.map((client, i) => (
             <TableRow
