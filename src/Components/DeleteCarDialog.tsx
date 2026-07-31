@@ -48,31 +48,31 @@ const DeleteCarDialog: React.FC<DeleteCarDialogProps> = ({
       <ModalContent>
         <ModalHeader className="text-xl font-bold">{title}</ModalHeader>
         <ModalBody className="flex flex-col gap-3">
-          <span className="text-center text-foreground-300">
+          <span className="text-center text-foreground-400">
             Estás por eliminar este vehículo:
           </span>
           {car && (
             <div className="flex flex-col items-center gap-2">
               <LicenceTable licence={car.licensePlate} dialog />
               <div className="flex items-center gap-2">
-                <span className="text-white font-semibold">
+                <span className="text-foreground-700 font-semibold">
                   {car.brand} {car.model}
                 </span>
                 <Chip size="sm" variant="flat" color="primary" className="text-primary">
                   {car.year}
                 </Chip>
               </div>
-              <span className="text-foreground-400 text-sm">
+              <span className="text-foreground-600 text-sm">
                 Titular: {car.owner?.fullname ?? "—"}
               </span>
             </div>
           )}
-          <div className="flex items-start gap-2 p-3 rounded-lg bg-danger-900/30 border border-danger-700/50">
-            <MdWarning size={18} className="text-danger-400 flex-shrink-0 mt-0.5" />
-            <p className="text-danger-300 text-sm">
+          <div className="flex items-start gap-2 p-3 rounded-lg bg-danger border border-danger-600">
+            <MdWarning size={18} className="text-white flex-shrink-0 mt-0.5" />
+            <p className="text-white text-sm">
               Se eliminarán también todos sus trabajos y el historial de
               kilometraje. Esta acción es{" "}
-              <span className="font-semibold">irreversible</span>.
+              <span className="font-bold">irreversible</span>.
             </p>
           </div>
         </ModalBody>
