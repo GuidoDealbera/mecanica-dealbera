@@ -15,12 +15,14 @@ import {
 } from "@heroui/react";
 import { IoMdArrowBack } from "react-icons/io";
 import { IoSearch } from "react-icons/io5";
-import { MdWarning, MdBackup, MdSystemUpdate, MdInstallDesktop } from "react-icons/md";
+import { MdWarning, MdBackup, MdSystemUpdate, MdInstallDesktop, MdKeyboard } from "react-icons/md";
 import { useLocation, useNavigate } from "react-router-dom";
 import avatarImg from "../assets/images/avatar.png";
 import GlobalSearch from "./SearchBars/GlobalSearch";
+import ShortcutsModal from "./ShortcutsModal";
 import UpdateModal from "./UpdateModal";
 import { useToasts } from "../Hooks/useToasts";
+import { useGlobalShortcuts } from "../Hooks/useGlobalShortcuts";
 
 const BUTTONS = [
   { path: "/", text: "Inicio" },
@@ -61,6 +63,7 @@ const Header = () => {
   const [checking, setChecking] = React.useState(false);
   const [updateError, setUpdateError] = React.useState<string | null>(null);
   const [searchOpen, setSearchOpen] = React.useState(false);
+  const [helpOpen, setHelpOpen] = React.useState(false);
   const [serviceAlertCount, setServiceAlertCount] = React.useState(0);
   const [pendingJobsCount, setPendingJobsCount] = React.useState(0);
   const isHome = location.pathname === "/";
@@ -78,16 +81,13 @@ const Header = () => {
       .catch(() => {});
   }, []);
 
-  React.useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
-        e.preventDefault();
-        setSearchOpen(true);
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, []);
+  // Atajos de teclado globales (navegación, búsqueda, ayuda, nuevo vehículo).
+  useGlobalShortcuts({
+    onSearch: () => setSearchOpen(true),
+    onHelp: () => setHelpOpen(true),
+    onNavigate: (path) => navigate(path),
+    onNewCar: () => navigate("/cars/new"),
+  });
 
   const isManualCheck = React.useRef<boolean>(false);
 
@@ -319,7 +319,7 @@ const Header = () => {
               </div>
             </DropdownTrigger>
             <DropdownMenu aria-label="Opciones" closeOnSelect={false} className="w-fit">
-              <DropdownItem 
+              <DropdownItem
                 key="update"
                 startContent={updateMenuIcon()}
                 description={
@@ -336,12 +336,21 @@ const Header = () => {
               >
                 {updateMenuLabel()}
               </DropdownItem>
+              <DropdownItem
+                key="shortcuts"
+                startContent={<MdKeyboard size={16} />}
+                description="Ver la lista de atajos de teclado"
+                onPress={() => setHelpOpen(true)}
+              >
+                Atajos de teclado
+              </DropdownItem>
             </DropdownMenu>
           </Dropdown>
         </NavbarContent>
       </Navbar>
 
       <GlobalSearch isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
+      <ShortcutsModal isOpen={helpOpen} onClose={() => setHelpOpen(false)} />
       <UpdateModal
         isOpen={modalOpen}
         downloaded={downloaded}

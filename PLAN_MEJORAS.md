@@ -103,7 +103,7 @@ Estados posibles: `pendiente` · `en progreso` · `a testear` · `hecho`
 25. **[hecho]** Quick-actions de estado en listado de trabajos
    - Archivos: `src/Components/Tables/JobsTable.tsx`, `src/Pages/Components/Jobs.tsx`.
    - Cambios: en el listado de trabajos, el Chip de estado pasa a ser un **Dropdown** para cambiar el estado sin abrir el modal de edición. `JobsTable` acepta `onQuickStatusChange(job, status)` (opcional) e `isUpdating` (deshabilita las quick-actions mientras hay una actualización en curso); el trigger es el Chip con una flechita, y el menú lista los 4 estados (el actual deshabilitado) con sus colores. `Jobs.tsx` implementa `handleQuickStatus` → `updateJob(license, jobId, { status })` (que ya emite el toast y actualiza el trabajo en el store) y pasa `isUpdating={updating}`. Si no se pasa `onQuickStatusChange`, la celda cae al Chip de solo lectura de antes. Verificado: `tsc` + `npm run lint` + 48 tests OK.
-26. **[a testear]** Filtros avanzados y ordenamiento en tablas
+26. **[hecho]** Filtros avanzados y ordenamiento en tablas
    - Archivos: `src/Types/apiTypes.ts`, `electron/DataBase/Endpoints/{car.crud,client}.endpoints.ts`, `electron/preload.ts`, `global.d.ts`, `src/Pages/{CarsPage,ClientPage}.tsx`, `src/Components/Tables/JobsTable.tsx`.
    - Alcance elegido por el usuario: las **tres** tablas.
    - Cambios:
@@ -111,7 +111,15 @@ Estados posibles: `pendiente` · `en progreso` · `a testear` · `hecho`
      - **Clientes** (`client:get-all` + `ClientPage`): filtro por **ciudad** (dropdown de ciudades distintas). Param `city` en `ClientQueryParams` (`client.city = :city`). Endpoint nuevo `client:cities` (`SELECT DISTINCT ... ORDER BY city`) expuesto como `window.api.clients.getCities`; el dropdown se muestra solo si hay ciudades. (El filtro activos/inactivos ya existía.)
      - **Trabajos** (`JobsTable`, client-side): **filtro por estado** (Select "Todos / Sin comenzar / En progreso / Completado / Entregado") y **orden por columnas** Estado (por avance del estado) y Precio (flechas asc→desc→sin orden, igual que autos/clientes). Filtro + orden se aplican antes de paginar; al cambiarlos se resetea a la página 1.
    - Todos los filtros de los listados resetean la página a 1 al cambiar. Verificado: `tsc` + `npm run lint` + 48 tests OK.
-27. **[pendiente]** Atajos de teclado globales
+27. **[a testear]** Atajos de teclado globales
+   - Archivos: `src/Hooks/useGlobalShortcuts.ts` (nuevo), `src/Components/ShortcutsModal.tsx` (nuevo), `src/Components/Header.tsx`, `src/Components/SearchBars/GlobalSearch.tsx`.
+   - Cambios:
+     - Hook centralizado `useGlobalShortcuts` con un único listener global de `keydown`. Los handlers se leen desde una ref (no re-suscribe el listener en cada render, no pierde la secuencia en curso).
+     - Atajos: **navegación por secuencia** estilo Gmail — `G` y luego la inicial de la sección (`I` Inicio, `C` Clientes, `A` Autos, `R` Recordatorios, `D` Datos), con ventana de 900ms; **acciones** — `Ctrl+K` o `/` búsqueda global, `N` nuevo vehículo, `?` modal de ayuda, `Esc` cerrar (cada modal maneja el suyo).
+     - Se eligió **no usar `Alt`** (revelaría la barra de menú oculta en Windows) ni `Ctrl`+letra de navegación (choca con edición de texto). El único `Ctrl+K` se mantiene y funciona incluso escribiendo en un campo.
+     - Guardas de robustez: los atajos de tecla simple/secuencia se suspenden si el foco está en un campo editable (`input`/`textarea`/`select`/contenteditable) o si hay un modal/diálogo abierto (`[aria-modal="true"]`) — evita navegar "por detrás" de un diálogo. Se le agregó `role="dialog"`/`aria-modal` a `GlobalSearch` (también mejora accesibilidad).
+     - `ShortcutsModal`: modal de ayuda (HeroUI `Modal` + `Kbd`) con las secciones Navegación y Acciones; se abre con `?` y desde el menú del usuario ("Atajos de teclado"). Reemplaza el listener inline de `Ctrl+K` que vivía suelto en `Header`.
+   - Verificado: `tsc` + `npm run lint` + 48 tests OK.
 28. **[pendiente]** Modo claro/oscuro con toggle persistido
 29. **[pendiente]** Presupuesto PDF mejorado con número correlativo
 30. **[pendiente]** Historial cruzado de cliente

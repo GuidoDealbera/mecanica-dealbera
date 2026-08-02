@@ -104,6 +104,9 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose }) => {
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Búsqueda global"
         className="w-full max-w-xl bg-foreground-800 rounded-xl shadow-2xl shadow-primary-900 border border-primary-800 overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
