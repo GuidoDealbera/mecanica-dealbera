@@ -88,10 +88,12 @@ Estados posibles: `pendiente` · `en progreso` · `a testear` · `hecho`
 21. **[hecho]** Resumen de actividad en la ficha del cliente
    - Archivos: `src/Pages/ClientDetailPage.tsx`.
    - Cambios: fila de **stat tiles** debajo del header de la ficha del cliente con el resumen de actividad, calculado sobre los trabajos de todos sus vehículos (`client.cars[].jobs`, ya cargados por `client:find-by-name`): **Vehículos** (cantidad), **Trabajos** (total), **Activos** (pendientes + en progreso), **Facturado** (suma de precios de trabajos completados/entregados, en ARS) y **Último trabajo** (fecha del trabajo más reciente por `updatedAt`/`createdAt`). Componente local `StatTile` (ícono + label + valor con color de acento). El cálculo va en un `useMemo` sobre `clientCars` (que también se memoiza para estabilizar la dependencia). Sin cambios de backend. Verificado: `tsc` + `npm run lint` + 48 tests OK.
-22. **[a testear]** KM history como gráfico de línea
+22. **[hecho]** KM history como gráfico de línea
    - Archivos: `src/Pages/Components/KmHistoryModal.tsx`.
    - Cambios: el modal de historial de kilometraje pasa de una lista de barras horizontales a un **gráfico de línea** (recharts `LineChart`) con la evolución del KM en el tiempo. Datos ordenados cronológicamente (ascendente) para el eje X (fecha dd/mm/aa), eje Y con KM formateado (`toLocaleString es-AR`) y dominio `[dataMin, dataMax]`, tooltip con el KM del punto. Estilo consistente con los gráficos del dashboard (grid `#374151`, ticks `#9ca3af`, tooltip `#1f2937`, línea/puntos `#3b82f6`). Estado vacío si no hay registros. El footer ahora muestra el kilometraje actual + cantidad de registros. Modal agrandado a `2xl`. Verificado: `tsc` + `npm run lint` + 48 tests OK.
-23. **[pendiente]** Acceso directo desde alerta de service a lista filtrada
+23. **[a testear]** Acceso directo desde alerta de service a lista filtrada
+   - Archivos: `src/Pages/HomePage.tsx`.
+   - Cambios: el banner de alertas del dashboard ("N vehículos sin service en los últimos 6 meses") tenía un botón "Ver autos" que llevaba a `/cars` (la lista **completa**). Ahora el botón dice "Ver recordatorios" y navega a `/alerts` (la lista **filtrada** de vehículos que requieren service). Se ajustó el subtítulo a "Revisalos en Recordatorios de service". Verificado: `tsc` + `npm run lint` + 48 tests OK.
 24. **[pendiente]** Badge de trabajos activos en la barra de navegación
 
 ## Sprint 6 — Features de esfuerzo medio

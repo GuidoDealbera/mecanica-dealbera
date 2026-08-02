@@ -244,15 +244,15 @@ const HomePage: React.FC = () => {
                     últimos 6 meses
                   </p>
                   <p className="text-warning-400 text-sm">
-                    Revisalos en la sección de Autos
+                    Revisalos en Recordatorios de service
                   </p>
                 </div>
                 <Button
                   size="sm"
                   color="warning"
-                  onPress={() => navigate("/cars")}
+                  onPress={() => navigate("/alerts")}
                 >
-                  Ver autos
+                  Ver recordatorios
                 </Button>
               </CardBody>
             </Card>
