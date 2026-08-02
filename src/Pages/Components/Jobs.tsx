@@ -54,6 +54,16 @@ const Jobs: React.FC<JobsProps> = ({ jobs, isLoading, license }) => {
     setEditingJob(null);
   }, []);
 
+  // Cambio rápido de estado desde el listado (sin abrir el modal). `updateJob`
+  // ya emite el toast y actualiza el trabajo en el store.
+  const handleQuickStatus = React.useCallback(
+    async (job: CarJobs, status: JobStatus) => {
+      if (!license || status === job.status) return;
+      await updateJob(license, job.id, { status });
+    },
+    [license, updateJob],
+  );
+
   const handleSaveEdit = async () => {
     if (!editingJob || !license) return;
 
@@ -119,6 +129,8 @@ const Jobs: React.FC<JobsProps> = ({ jobs, isLoading, license }) => {
         isLoading={isLoading}
         noRowsLabel="No hay trabajos registrados"
         onEditJob={handleOpenEdit}
+        onQuickStatusChange={handleQuickStatus}
+        isUpdating={updating}
       />
 
       {/* Modal de edición */}

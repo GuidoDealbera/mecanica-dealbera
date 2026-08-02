@@ -4,6 +4,10 @@ import { TableColumnDef } from "../../Types/tableTypes";
 import {
   Button,
   Chip,
+  Dropdown,
+  DropdownItem,
+  DropdownMenu,
+  DropdownTrigger,
   Table,
   TableBody,
   TableCell,
@@ -13,7 +17,7 @@ import {
   Tooltip,
 } from "@heroui/react";
 import { JobStatus } from "../../Types/apiTypes";
-import { MdEdit, MdStickyNote2 } from "react-icons/md";
+import { MdEdit, MdKeyboardArrowDown, MdStickyNote2 } from "react-icons/md";
 import { formatARS } from "../../Utils/utils";
 import TableLoadingContent from "../TableLoadingContent";
 import TablePagination from "../TablePagination";
@@ -22,6 +26,10 @@ interface JobsProps {
   isLoading: boolean;
   noRowsLabel: string;
   onEditJob?: (job: Jobs) => void;
+  /** Cambio rápido de estado desde el listado (sin abrir el modal). */
+  onQuickStatusChange?: (job: Jobs, status: JobStatus) => void;
+  /** Deshabilita las quick-actions mientras hay una actualización en curso. */
+  isUpdating?: boolean;
 }
 
 const STATUS_MAP: Record<
@@ -43,6 +51,8 @@ const JobsTable: React.FC<JobsProps> = ({
   isLoading,
   noRowsLabel,
   onEditJob,
+  onQuickStatusChange,
+  isUpdating,
 }) => {
   const jobs = React.useMemo(() => jobsProp ?? [], [jobsProp])
 
@@ -134,9 +144,55 @@ const JobsTable: React.FC<JobsProps> = ({
                   </div>
                 </TableCell>
                 <TableCell className="text-center">
-                  <Chip color={statusInfo.color} variant="flat" className={statusInfo.textColor}>
-                    {statusInfo.label}
-                  </Chip>
+                  {onQuickStatusChange ? (
+                    <Dropdown>
+                      <DropdownTrigger>
+                        <button
+                          type="button"
+                          disabled={isUpdating}
+                          className="inline-flex disabled:opacity-60"
+                        >
+                          <Chip
+                            color={statusInfo.color}
+                            variant="flat"
+                            className={`${statusInfo.textColor} cursor-pointer`}
+                            endContent={<MdKeyboardArrowDown size={16} />}
+                          >
+                            {statusInfo.label}
+                          </Chip>
+                        </button>
+                      </DropdownTrigger>
+                      <DropdownMenu
+                        aria-label="Cambiar estado del trabajo"
+                        disabledKeys={[job.status]}
+                        onAction={(key) => {
+                          const next = key as JobStatus;
+                          if (next !== job.status) onQuickStatusChange(job, next);
+                        }}
+                      >
+                        {Object.values(JobStatus).map((s) => {
+                          const info = STATUS_MAP[s];
+                          return (
+                            <DropdownItem
+                              key={s}
+                              color={info.color}
+                              className={info.textColor}
+                            >
+                              {info.label}
+                            </DropdownItem>
+                          );
+                        })}
+                      </DropdownMenu>
+                    </Dropdown>
+                  ) : (
+                    <Chip
+                      color={statusInfo.color}
+                      variant="flat"
+                      className={statusInfo.textColor}
+                    >
+                      {statusInfo.label}
+                    </Chip>
+                  )}
                 </TableCell>
                 <TableCell className="text-center">
                   <Chip
