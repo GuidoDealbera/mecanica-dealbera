@@ -198,18 +198,43 @@ const Header = () => {
               path === "/"
                 ? location.pathname === "/"
                 : location.pathname.startsWith(path);
+            const button = (
+              <Button
+                onPress={() => (!isActive ? navigate(path) : null)}
+                className={`font-bold text-white text-shadow-2xs shadow ${
+                  isActive
+                    ? "bg-primary-500 shadow-primary-500"
+                    : "bg-primary-700 shadow-primary-700"
+                }`}
+              >
+                {text}
+              </Button>
+            );
+            // Badge de trabajos activos (pendientes o en progreso) sobre "Autos".
+            const showJobsBadge = path === "/cars" && pendingJobsCount > 0;
             return (
               <NavbarItem key={path} isActive={isActive}>
-                <Button
-                  onPress={() => (!isActive ? navigate(path) : null)}
-                  className={`font-bold text-white text-shadow-2xs shadow ${
-                    isActive
-                      ? "bg-primary-500 shadow-primary-500"
-                      : "bg-primary-700 shadow-primary-700"
-                  }`}
-                >
-                  {text}
-                </Button>
+                {showJobsBadge ? (
+                  <Tooltip
+                    content={`${pendingJobsCount} trabajo${
+                      pendingJobsCount > 1 ? "s" : ""
+                    } activo${pendingJobsCount > 1 ? "s" : ""}`}
+                    color="primary"
+                    placement="bottom"
+                    showArrow
+                  >
+                    <Badge
+                      content={pendingJobsCount > 99 ? "99+" : pendingJobsCount}
+                      color="primary"
+                      size="sm"
+                      placement="top-right"
+                    >
+                      {button}
+                    </Badge>
+                  </Tooltip>
+                ) : (
+                  button
+                )}
               </NavbarItem>
             );
           })}
@@ -220,9 +245,9 @@ const Header = () => {
             const isActive = location.pathname === path;
             const Icon = icon;
             const isAlerts = path === "/alerts";
-            const alertBadgeCount = isAlerts
-              ? serviceAlertCount + pendingJobsCount
-              : 0;
+            // El badge de /alerts cuenta solo las alertas de service. Los
+            // trabajos activos tienen su propio badge sobre "Autos".
+            const alertBadgeCount = isAlerts ? serviceAlertCount : 0;
 
             const button = (
               <Button

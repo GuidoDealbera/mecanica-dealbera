@@ -91,10 +91,12 @@ Estados posibles: `pendiente` · `en progreso` · `a testear` · `hecho`
 22. **[hecho]** KM history como gráfico de línea
    - Archivos: `src/Pages/Components/KmHistoryModal.tsx`.
    - Cambios: el modal de historial de kilometraje pasa de una lista de barras horizontales a un **gráfico de línea** (recharts `LineChart`) con la evolución del KM en el tiempo. Datos ordenados cronológicamente (ascendente) para el eje X (fecha dd/mm/aa), eje Y con KM formateado (`toLocaleString es-AR`) y dominio `[dataMin, dataMax]`, tooltip con el KM del punto. Estilo consistente con los gráficos del dashboard (grid `#374151`, ticks `#9ca3af`, tooltip `#1f2937`, línea/puntos `#3b82f6`). Estado vacío si no hay registros. El footer ahora muestra el kilometraje actual + cantidad de registros. Modal agrandado a `2xl`. Verificado: `tsc` + `npm run lint` + 48 tests OK.
-23. **[a testear]** Acceso directo desde alerta de service a lista filtrada
+23. **[hecho]** Acceso directo desde alerta de service a lista filtrada
    - Archivos: `src/Pages/HomePage.tsx`.
    - Cambios: el banner de alertas del dashboard ("N vehículos sin service en los últimos 6 meses") tenía un botón "Ver autos" que llevaba a `/cars` (la lista **completa**). Ahora el botón dice "Ver recordatorios" y navega a `/alerts` (la lista **filtrada** de vehículos que requieren service). Se ajustó el subtítulo a "Revisalos en Recordatorios de service". Verificado: `tsc` + `npm run lint` + 48 tests OK.
-24. **[pendiente]** Badge de trabajos activos en la barra de navegación
+24. **[a testear]** Badge de trabajos activos en la barra de navegación
+   - Archivos: `src/Components/Header.tsx`.
+   - Cambios: se **separó** el conteo de trabajos activos del badge de alertas de service (antes el badge de `/alerts` mostraba `serviceAlertCount + pendingJobsCount`, mezclando dos conceptos). Ahora el badge de `/alerts` cuenta **solo** las alertas de service, y los **trabajos activos** (pendientes + en progreso, vía `car:active-jobs-count`) tienen su **propio badge** sobre el botón "Autos" de la barra, con tooltip ("N trabajos activos") y tope "99+". Verificado: `tsc` + `npm run lint` + 48 tests OK.
 
 ## Sprint 6 — Features de esfuerzo medio
 
