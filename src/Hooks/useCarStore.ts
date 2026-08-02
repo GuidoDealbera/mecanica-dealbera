@@ -3,7 +3,9 @@ import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch } from "../Store/store";
 import {
   selectCarsList,
+  selectCarsListLoaded,
   selectCar,
+  selectCarLoaded,
   selectCarLoadingStates,
   selectCarError,
 } from "../Store/selectors";
@@ -37,7 +39,9 @@ export const useCarStore = () => {
   const dispatch = useDispatch<AppDispatch>();
 
   const list = useSelector(selectCarsList);
+  const listLoaded = useSelector(selectCarsListLoaded);
   const car = useSelector(selectCar);
+  const carLoaded = useSelector(selectCarLoaded);
   const error = useSelector(selectCarError);
   const loadingStates = useSelector(selectCarLoadingStates);
 
@@ -94,7 +98,9 @@ export const useCarStore = () => {
   return {
     // Estado
     list,
+    listLoaded,
     car,
+    carLoaded,
     error,
     loadingStates,
     // Acciones (devuelven la promesa desenvuelta)

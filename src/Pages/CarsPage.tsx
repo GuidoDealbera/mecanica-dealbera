@@ -28,8 +28,8 @@ const CarsPage: React.FC = () => {
 
   const {
     list,
-    loading,
     refreshing,
+    listLoading,
     getCars,
     cleanCars,
     clearError,
@@ -56,10 +56,10 @@ const CarsPage: React.FC = () => {
   // Si la página actual quedó vacía pero hay resultados (p.ej. se borró el
   // último item de la última página), retrocede una página. Autocorrige.
   useEffect(() => {
-    if (!loading && !refreshing && list.total > 0 && list.items.length === 0 && page > 1) {
+    if (!listLoading && list.total > 0 && list.items.length === 0 && page > 1) {
       setPage((p) => Math.max(1, p - 1));
     }
-  }, [loading, refreshing, list.total, list.items.length, page]);
+  }, [listLoading, list.total, list.items.length, page]);
 
   // Limpieza al desmontar (evita que se vea data vieja al volver a entrar).
   useEffect(() => {
@@ -110,8 +110,6 @@ const CarsPage: React.FC = () => {
     setPage(1);
   }, []);
 
-  const isLoading = loading || refreshing;
-
   const emptyContent = licenceFilter ? (
     <EmptyState
       icon={<IoSearch size={28} />}
@@ -139,22 +137,22 @@ const CarsPage: React.FC = () => {
         </h4>
         <div className="flex justify-center items-center gap-2">
           <Button
-            isLoading={isLoading}
+            isLoading={listLoading}
             startContent={
-              !isLoading ? <HiOutlineRefresh size={20} /> : undefined
+              !listLoading ? <HiOutlineRefresh size={20} /> : undefined
             }
             color="primary"
             className="font-bold"
             onPress={() => refresh(params)}
           >
-            {loading && !refreshing
-              ? "Cargando..."
-              : refreshing && !loading
+            {refreshing
               ? "Actualizando"
-              : "Actualizar"}
+              : listLoading
+                ? "Cargando..."
+                : "Actualizar"}
           </Button>
           <Button
-            isDisabled={isLoading}
+            isDisabled={listLoading}
             startContent={<IoIosAddCircleOutline size={22} />}
             color="primary"
             className="font-bold"
@@ -170,7 +168,7 @@ const CarsPage: React.FC = () => {
       />
       <CarsTable
         cars={list.items}
-        isLoading={isLoading}
+        isLoading={listLoading}
         emptyContent={emptyContent}
         deleteCar={handleOpenDeleteDialog}
         page={page}

@@ -18,23 +18,33 @@ const ClientPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const nameFilter = searchParams.get("q") ?? "";
-  const { list, loading, refreshing, getClients, refresh } = useClientQueries();
+  const { list, refreshing, listLoading, getClients, refresh, clearOwners } =
+    useClientQueries();
   const { showToast } = useToasts();
   const [showInactive, setShowInactive] = React.useState(false);
   const [page, setPage] = React.useState(1);
-  const [sort, setSort] = React.useState<{ by: string | null; dir: "asc" | "desc" }>({
+  const [sort, setSort] = React.useState<{
+    by: string | null;
+    dir: "asc" | "desc";
+  }>({
     by: null,
     dir: "asc",
   });
 
   // Toggle active dialog
   const [toggleDialog, setToggleDialog] = React.useState<{
-    open: boolean; id: string; name: string; isActive: boolean;
+    open: boolean;
+    id: string;
+    name: string;
+    isActive: boolean;
   }>({ open: false, id: "", name: "", isActive: true });
 
   // Delete dialog
   const [deleteDialog, setDeleteDialog] = React.useState<{
-    open: boolean; id: string; name: string; carsCount: number;
+    open: boolean;
+    id: string;
+    name: string;
+    carsCount: number;
   }>({ open: false, id: "", name: "", carsCount: 0 });
 
   const [actionLoading, setActionLoading] = React.useState(false);
@@ -59,10 +69,16 @@ const ClientPage: React.FC = () => {
   // Autocorrección: si la página quedó vacía pero hay resultados (p.ej. se
   // desactivó/eliminó el último item de la última página), retrocede una.
   React.useEffect(() => {
-    if (!loading && !refreshing && list.total > 0 && list.items.length === 0 && page > 1) {
+    if (!listLoading && list.total > 0 && list.items.length === 0 && page > 1) {
       setPage((p) => Math.max(1, p - 1));
     }
-  }, [loading, refreshing, list.total, list.items.length, page]);
+  }, [listLoading, list.total, list.items.length, page]);
+
+  React.useEffect(() => {
+    return () => {
+      clearOwners();
+    };
+  }, [clearOwners]);
 
   const handleNameFilterChange = React.useCallback(
     (v: string) => {
@@ -93,7 +109,8 @@ const ClientPage: React.FC = () => {
   const handleToggleActive = React.useCallback(
     (id: string, name: string, isActive: boolean) => {
       setToggleDialog({ open: true, id, name, isActive });
-    }, []
+    },
+    [],
   );
 
   const handleDelete = React.useCallback(
@@ -149,8 +166,6 @@ const ClientPage: React.FC = () => {
     }
   };
 
-  const isLoading = loading || refreshing;
-
   const emptyContent = nameFilter ? (
     <EmptyState
       icon={<IoSearch size={28} />}
@@ -177,21 +192,23 @@ const ClientPage: React.FC = () => {
           Listado de clientes
         </h4>
         <div className="flex gap-2 items-center">
-          <Button
-            size="sm"
-            color="default"
-            onPress={handleToggleShowInactive}
-          >
+          <Button size="sm" color="default" onPress={handleToggleShowInactive}>
             {showInactive ? "Ocultar inactivos" : "Mostrar inactivos"}
           </Button>
           <Button
-            isLoading={isLoading}
-            startContent={!isLoading ? <HiOutlineRefresh size={20} /> : undefined}
+            isLoading={listLoading}
+            startContent={
+              !listLoading ? <HiOutlineRefresh size={20} /> : undefined
+            }
             color="primary"
             className="font-bold"
             onPress={() => refresh(params)}
           >
-            {isLoading ? "Actualizando" : "Actualizar"}
+            {refreshing
+              ? "Actualizando"
+              : listLoading
+                ? "Cargando..."
+                : "Actualizar"}
           </Button>
         </div>
       </div>
@@ -203,7 +220,7 @@ const ClientPage: React.FC = () => {
 
       <ClientTable
         clients={list.items}
-        isLoading={isLoading}
+        isLoading={listLoading}
         emptyContent={emptyContent}
         onToggleActive={handleToggleActive}
         onDelete={handleDelete}
@@ -219,7 +236,9 @@ const ClientPage: React.FC = () => {
       {/* Toggle active dialog */}
       <CustomDialog
         isOpen={toggleDialog.open}
-        onClose={() => setToggleDialog({ open: false, id: "", name: "", isActive: true })}
+        onClose={() =>
+          setToggleDialog({ open: false, id: "", name: "", isActive: true })
+        }
         onConfirm={confirmToggle}
         isLoading={actionLoading}
         title={toggleDialog.isActive ? "Desactivar cliente" : "Activar cliente"}
@@ -234,7 +253,9 @@ const ClientPage: React.FC = () => {
       {/* Delete dialog */}
       <CustomDialog
         isOpen={deleteDialog.open}
-        onClose={() => setDeleteDialog({ open: false, id: "", name: "", carsCount: 0 })}
+        onClose={() =>
+          setDeleteDialog({ open: false, id: "", name: "", carsCount: 0 })
+        }
         onConfirm={confirmDelete}
         isLoading={actionLoading}
         title="Eliminar cliente"

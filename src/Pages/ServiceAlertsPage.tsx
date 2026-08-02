@@ -18,18 +18,28 @@ import { IoCarSportSharp } from "react-icons/io5";
 import { useNavigate } from "react-router-dom";
 import { ServiceAlert } from "../Types/types";
 import LicenceTable from "../Components/Licenses/LicenceTable";
+import TablePagination from "../Components/TablePagination";
 import { getServiceUrgency, formatServiceUrgencyLabel } from "../Utils/serviceAlerts";
+
+const PAGE_SIZE = 8;
 
 const ServiceAlertsPage: React.FC = () => {
   const navigate = useNavigate();
   const [alerts, setAlerts] = React.useState<ServiceAlert[]>([]);
   const [loading, setLoading] = React.useState(false);
+  const [page, setPage] = React.useState(1);
 
   const fetchAlerts = React.useCallback(async () => {
     setLoading(true);
     try {
       const res = await window.api.cars.getServiceAlerts();
-      if (res.status === "success") setAlerts(res.result);
+      if (res.status === "success") {
+        setAlerts(res.result);
+        // El endpoint devuelve todas las alertas de una, así que la paginación
+        // es del lado del cliente: al recargar se vuelve a la primera página
+        // para no quedar fuera de rango si la lista se achicó.
+        setPage(1);
+      }
     } finally {
       setLoading(false);
     }
@@ -38,6 +48,11 @@ const ServiceAlertsPage: React.FC = () => {
   React.useEffect(() => {
     fetchAlerts();
   }, [fetchAlerts]);
+
+  const paginatedAlerts = React.useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return alerts.slice(start, start + PAGE_SIZE);
+  }, [alerts, page]);
 
   const columns = [
     { key: "licensePlate", label: "Patente", width: 160 },
@@ -115,7 +130,7 @@ const ServiceAlertsPage: React.FC = () => {
                 ))}
               </TableHeader>
               <TableBody>
-                {alerts.map((alert, i) => (
+                {paginatedAlerts.map((alert, i) => (
                   <TableRow
                     key={alert.licensePlate}
                     className={i % 2 === 0 ? "bg-foreground-100" : "bg-foreground-50"}
@@ -163,6 +178,14 @@ const ServiceAlertsPage: React.FC = () => {
               </TableBody>
             </Table>
           </div>
+          {/* Fuera del contenedor `bg-white`: el texto de la página es blanco
+              y adentro no se leería. */}
+          <TablePagination
+            page={page}
+            pageSize={PAGE_SIZE}
+            total={alerts.length}
+            onPageChange={setPage}
+          />
         </>
       )}
     </div>

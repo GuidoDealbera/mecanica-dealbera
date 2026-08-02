@@ -15,7 +15,9 @@ import { CarQueryParams, CreateCarBody, CreateCarJob, UpdateJobBody } from "../T
 export const useCarQueries = () => {
   const {
     list,
+    listLoaded,
     car,
+    carLoaded,
     error,
     loadingStates,
     fetchList,
@@ -34,6 +36,14 @@ export const useCarQueries = () => {
 
   const [loading, setLoading] = useState<boolean>(false);
   const [refreshing, setRefreshing] = useState<boolean>(false);
+
+  /**
+   * Estado de carga del listado, listo para pasarle a la tabla. Incluye
+   * `!listLoaded` porque el efecto que dispara el fetch corre *después* del
+   * primer paint: sin eso habría un frame con la lista vacía y `loading` en
+   * `false`, que la tabla pinta como estado vacío (flash).
+   */
+  const listLoading = loading || refreshing || !listLoaded;
 
   const create = useCallback(
     async (body: CreateCarBody) => {
@@ -217,8 +227,11 @@ export const useCarQueries = () => {
   return {
     loading,
     refreshing,
+    listLoading,
     list,
+    listLoaded,
     car,
+    carLoaded,
     error,
     loadingStates,
     create,

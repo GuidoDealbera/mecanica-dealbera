@@ -64,8 +64,16 @@ const CarDetailPage: React.FC = () => {
   const [kmHistoryOpen, setKmHistoryOpen] = React.useState<boolean>(false);
   const [reassignOpen, setReassignOpen] = React.useState<boolean>(false);
 
-  const { car, getCarDetail, loading, refreshing, refreshCar, updateCar } =
-    useCarQueries();
+  const {
+    car,
+    carLoaded,
+    getCarDetail,
+    loading,
+    refreshing,
+    refreshCar,
+    updateCar,
+    clean,
+  } = useCarQueries();
   const { updateOwner } = useClientQueries();
   const { showToast } = useToasts();
   const isLoading = loading || refreshing;
@@ -73,6 +81,15 @@ const CarDetailPage: React.FC = () => {
   React.useEffect(() => {
     if (licence) getCarDetail(licence);
   }, [getCarDetail, licence]);
+
+  // Limpieza al desmontar: sin esto `carLoaded` queda en `true` con el auto
+  // anterior en el store, y al abrir otro detalle se vería la ficha vieja
+  // (con la patente nueva en la URL) hasta que llegue la respuesta.
+  React.useEffect(() => {
+    return () => {
+      clean();
+    };
+  }, [clean]);
 
   const handleSubmit = async (data: CreateCarBody): Promise<void> => {
     try {
@@ -94,7 +111,11 @@ const CarDetailPage: React.FC = () => {
   const kmHistory = React.useMemo(() => car?.kmHistory ?? [], [car?.kmHistory])
 
   // ── Loading inicial ────────────────────────────────────────────────────
-  if (isLoading && !car) {
+  // Hasta que la consulta se resuelve por primera vez no se puede saber si el
+  // auto existe (`car` es `undefined` tanto si no cargó como si no existe), así
+  // que se muestra el spinner. Sin esto el primer render —anterior al efecto
+  // que dispara el fetch— pinta "Vehículo no encontrado" por un frame.
+  if (!carLoaded) {
     return (
       <div className="w-full h-full flex justify-center items-center">
         <Spinner size="lg" color="primary" />

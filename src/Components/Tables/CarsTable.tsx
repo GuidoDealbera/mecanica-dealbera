@@ -3,7 +3,6 @@ import { Cars } from "../../Types/types";
 import { TableColumnDef } from "../../Types/tableTypes";
 import {
   Button,
-  Pagination,
   Table,
   TableBody,
   TableCell,
@@ -17,6 +16,8 @@ import { MdDelete } from "react-icons/md";
 import LicenceTable from "../Licenses/LicenceTable";
 import { HiArrowUp } from "react-icons/hi";
 import { useNavigate } from "react-router-dom";
+import TableLoadingContent from "../TableLoadingContent";
+import TablePagination from "../TablePagination";
 
 interface CarsTableProps {
   /** Items de la página actual (ya paginados y ordenados en el servidor). */
@@ -50,8 +51,6 @@ const CarsTable: React.FC<CarsTableProps> = ({
 }) => {
   const navigate = useNavigate();
 
-  const pages = Math.max(1, Math.ceil(total / pageSize));
-
   const columns: TableColumnDef<Cars>[] = [
     { key: "licensePlate", label: "Patente",     width: 180, sortable: true },
     { key: "brand",        label: "Marca",       width: 150, center: true },
@@ -68,7 +67,7 @@ const CarsTable: React.FC<CarsTableProps> = ({
         classNames={{
           wrapper: "relative min-h-[250px] bg-foreground-700", // altura mínima definida
           emptyWrapper:
-            "absolute inset-0 flex items-center justify-center z-10 h-full",
+            "absolute inset-0 flex items-center justify-center z-10 h-full bg-foreground-700",
         }}
       >
         <TableHeader>
@@ -120,6 +119,7 @@ const CarsTable: React.FC<CarsTableProps> = ({
 
         <TableBody
           isLoading={isLoading}
+          loadingContent={<TableLoadingContent />}
           className="bg-foreground-800 w-full"
           emptyContent={emptyContent}
         >
@@ -214,23 +214,12 @@ const CarsTable: React.FC<CarsTableProps> = ({
           ))}
         </TableBody>
       </Table>
-      {total > 0 && (
-        <div className="flex justify-end items-center p-3 gap-4">
-          <span>
-            Mostrando {(page - 1) * pageSize + 1} -{" "}
-            {Math.min(page * pageSize, total)} de {total} registros
-          </span>
-          {pages > 1 && (
-            <Pagination
-              showControls
-              showShadow
-              page={page}
-              total={pages}
-              onChange={onPageChange}
-            />
-          )}
-        </div>
-      )}
+      <TablePagination
+        page={page}
+        pageSize={pageSize}
+        total={total}
+        onPageChange={onPageChange}
+      />
     </div>
   );
 };

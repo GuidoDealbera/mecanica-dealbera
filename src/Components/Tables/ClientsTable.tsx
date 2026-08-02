@@ -4,7 +4,6 @@ import { TableColumnDef } from "../../Types/tableTypes";
 import {
   Button,
   Chip,
-  Pagination,
   Table,
   TableBody,
   TableCell,
@@ -18,6 +17,8 @@ import { MdDelete, MdToggleOn, MdToggleOff } from "react-icons/md";
 import LicenceTable from "../Licenses/LicenceTable";
 import { HiArrowUp } from "react-icons/hi";
 import { useNavigate } from "react-router-dom";
+import TableLoadingContent from "../TableLoadingContent";
+import TablePagination from "../TablePagination";
 
 interface ClientTableProps {
   /** Items de la página actual (ya paginados y ordenados en el servidor). */
@@ -53,8 +54,6 @@ const ClientTable: React.FC<ClientTableProps> = ({
 }) => {
   const navigate = useNavigate();
 
-  const pages = Math.max(1, Math.ceil(total / pageSize));
-
   const showActions = !!onToggleActive || !!onDelete;
 
   const columns: TableColumnDef<Clients>[] = [
@@ -71,12 +70,12 @@ const ClientTable: React.FC<ClientTableProps> = ({
   ];
 
   return (
-    <div className="bg-foreground-800 rounded-lg flex flex-col gap-4">
+    <div className="bg-foreground-700 rounded-lg flex flex-col gap-4">
       <Table
         classNames={{
           wrapper: "relative min-h-[250px] bg-foreground-700",
           emptyWrapper:
-            "absolute inset-0 flex items-center justify-center z-10 h-full",
+            "absolute inset-0 flex items-center justify-center z-10 h-full bg-foreground-700",
         }}
         aria-label="Tabla de clientes"
       >
@@ -126,6 +125,7 @@ const ClientTable: React.FC<ClientTableProps> = ({
         </TableHeader>
         <TableBody
           isLoading={isLoading}
+          loadingContent={<TableLoadingContent />}
           className="bg-foreground-800 w-full"
           emptyContent={emptyContent}
         >
@@ -265,23 +265,12 @@ const ClientTable: React.FC<ClientTableProps> = ({
           ))}
         </TableBody>
       </Table>
-      {total > 0 && (
-        <div className="flex justify-end items-center p-3 gap-4">
-          <span>
-            Mostrando {(page - 1) * pageSize + 1} –{" "}
-            {Math.min(page * pageSize, total)} de {total} registros
-          </span>
-          {pages > 1 && (
-            <Pagination
-              showControls
-              showShadow
-              page={page}
-              total={pages}
-              onChange={onPageChange}
-            />
-          )}
-        </div>
-      )}
+      <TablePagination
+        page={page}
+        pageSize={pageSize}
+        total={total}
+        onPageChange={onPageChange}
+      />
     </div>
   );
 };

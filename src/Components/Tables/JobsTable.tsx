@@ -4,7 +4,6 @@ import { TableColumnDef } from "../../Types/tableTypes";
 import {
   Button,
   Chip,
-  Pagination,
   Table,
   TableBody,
   TableCell,
@@ -16,6 +15,8 @@ import {
 import { JobStatus } from "../../Types/apiTypes";
 import { MdEdit } from "react-icons/md";
 import { formatARS } from "../../Utils/utils";
+import TableLoadingContent from "../TableLoadingContent";
+import TablePagination from "../TablePagination";
 interface JobsProps {
   jobs: Jobs[];
   isLoading: boolean;
@@ -47,11 +48,18 @@ const JobsTable: React.FC<JobsProps> = ({
 
   const [page, setPage] = React.useState<number>(1);
   const rowsPerPage = 5;
-  const pages = Math.ceil(jobs.length / rowsPerPage);
   const paginatedJobs = React.useMemo(() => {
     const start = (page - 1) * rowsPerPage;
     return jobs.slice(start, start + rowsPerPage);
   }, [jobs, page, rowsPerPage]);
+
+  // Los trabajos se paginan en el cliente (vienen embebidos en el auto), así
+  // que si la lista se achica —se filtró o se borró un trabajo— la página
+  // actual puede quedar fuera de rango. Retrocede a la última válida.
+  React.useEffect(() => {
+    const lastPage = Math.max(1, Math.ceil(jobs.length / rowsPerPage));
+    if (page > lastPage) setPage(lastPage);
+  }, [jobs.length, page, rowsPerPage]);
   const columns: TableColumnDef<Jobs>[] = [
     { key: "description",  label: "Descripción", width: 300 },
     { key: "status",       label: "Estado",      width: 120, center: true },
@@ -69,7 +77,7 @@ const JobsTable: React.FC<JobsProps> = ({
         classNames={{
           wrapper: "relative min-h-[250px] bg-foreground-700", // altura mínima definida
           emptyWrapper:
-            "absolute inset-0 flex items-center justify-center z-10 h-full",
+            "absolute inset-0 flex items-center justify-center z-10 h-full bg-foreground-700",
         }}
       >
         <TableHeader>
@@ -91,12 +99,9 @@ const JobsTable: React.FC<JobsProps> = ({
         </TableHeader>
         <TableBody
           isLoading={isLoading}
+          loadingContent={<TableLoadingContent />}
           className="bg-foreground-800 w-full"
-          emptyContent={
-            <div className="fixed">
-              <span>{noRowsLabel}</span>
-            </div>
-          }
+          emptyContent={<span>{noRowsLabel}</span>}
         >
           {paginatedJobs.map((job) => {
             const statusInfo = STATUS_MAP[job.status] ?? {
@@ -159,23 +164,12 @@ const JobsTable: React.FC<JobsProps> = ({
           })}
         </TableBody>
       </Table>
-      {jobs.length > 4 && (
-        <div className="flex justify-end items-center p-3 gap-4">
-          <span>
-            Mostrando {(page - 1) * rowsPerPage + 1} -{" "}
-            {Math.min(page * rowsPerPage, jobs.length)} de {jobs.length}{" "}
-            registros
-          </span>
-          <Pagination
-            showControls
-            showShadow
-            page={page}
-            total={pages}
-            onChange={(page) => setPage(page)}
-            className=""
-          />
-        </div>
-      )}
+      <TablePagination
+        page={page}
+        pageSize={rowsPerPage}
+        total={jobs.length}
+        onPageChange={setPage}
+      />
     </div>
   );
 };

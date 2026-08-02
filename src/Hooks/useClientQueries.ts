@@ -9,11 +9,30 @@ import { ClientQueryParams, UpdateClientBody } from "../Types/apiTypes";
  * el acceso "crudo" al store vive en `useClientStore`.
  */
 export const useClientQueries = () => {
-  const { list, client, error, loadingStates, fetchList, fetchByName, update } =
-    useClientStore();
+  const {
+    list,
+    listLoaded,
+    client,
+    clientLoaded,
+    error,
+    loadingStates,
+    fetchList,
+    fetchByName,
+    update,
+    clearOwners,
+    clearClient,
+  } = useClientStore();
   const { showToast } = useToasts();
   const [loading, setLoading] = useState<boolean>(false);
   const [refreshing, setRefreshing] = useState<boolean>(false);
+
+  /**
+   * Estado de carga del listado, listo para pasarle a la tabla. Incluye
+   * `!listLoaded` porque el efecto que dispara el fetch corre *después* del
+   * primer paint: sin eso habría un frame con la lista vacía y `loading` en
+   * `false`, que la tabla pinta como estado vacío (flash).
+   */
+  const listLoading = loading || refreshing || !listLoaded;
 
   const getClients = useCallback(
     async (params: ClientQueryParams) => {
@@ -88,13 +107,18 @@ export const useClientQueries = () => {
   return {
     loading,
     refreshing,
+    listLoading,
     list,
+    listLoaded,
     client,
+    clientLoaded,
     error,
     loadingStates,
     getClients,
     getClientByName,
     updateOwner,
+    clearOwners,
+    clearClient,
     refresh,
   };
 };

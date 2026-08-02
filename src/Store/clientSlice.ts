@@ -15,7 +15,9 @@ const emptyList = (): ClientState["list"] => ({
 
 const initialState: ClientState = {
   list: emptyList(),
+  listLoaded: false,
   client: undefined,
+  clientLoaded: false,
   loadingStates: {
     fetching_all: false,
     creating: false,
@@ -32,9 +34,11 @@ const clientSlice = createSlice({
   reducers: {
     cleanOwnerState: (state) => {
       state.client = undefined;
+      state.clientLoaded = false;
     },
     cleanOwners: (state) => {
       state.list = emptyList();
+      state.listLoaded = false;
     },
     cleanError: (state) => {
       state.error = null;
@@ -46,12 +50,16 @@ const clientSlice = createSlice({
         state.loadingStates.fetching_all = true;
         state.error = null;
       })
+      // `listLoaded` pasa a `true` tanto al resolver como al fallar: en ambos
+      // casos la carga terminó y la tabla debe dejar de mostrar el spinner.
       .addCase(fetchClients.rejected, (state, action) => {
         state.loadingStates.fetching_all = false;
+        state.listLoaded = true;
         state.error = action.payload ?? null;
       })
       .addCase(fetchClients.fulfilled, (state, action) => {
         state.loadingStates.fetching_all = false;
+        state.listLoaded = true;
         state.list = action.payload;
       })
       .addCase(fetchClientByName.pending, (state) => {
@@ -60,10 +68,12 @@ const clientSlice = createSlice({
       })
       .addCase(fetchClientByName.rejected, (state, action) => {
         state.loadingStates.fetching = false;
+        state.clientLoaded = true;
         state.error = action.payload ?? null;
       })
       .addCase(fetchClientByName.fulfilled, (state, action) => {
         state.loadingStates.fetching = false;
+        state.clientLoaded = true;
         state.client = action.payload?.result;
       })
       .addCase(updateClient.pending, (state) => {

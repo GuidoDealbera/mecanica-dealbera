@@ -17,7 +17,9 @@ const emptyList = (): CarState["list"] => ({
 
 const initialState: CarState = {
   list: emptyList(),
+  listLoaded: false,
   car: undefined,
+  carLoaded: false,
   loadingStates: {
     fetching_all: false,
     fetching: false,
@@ -34,9 +36,11 @@ const carSlice = createSlice({
   reducers: {
     cleanCarsState: (state) => {
       state.list = emptyList();
+      state.listLoaded = false;
     },
     cleanCarState: (state) => {
       state.car = undefined;
+      state.carLoaded = false;
     },
     cleanError: (state) => {
       state.error = null;
@@ -49,12 +53,16 @@ const carSlice = createSlice({
         state.loadingStates.fetching_all = true;
         state.error = null;
       })
+      // `listLoaded` pasa a `true` tanto al resolver como al fallar: en ambos
+      // casos la carga terminó y la tabla debe dejar de mostrar el spinner.
       .addCase(fetchCars.rejected, (state, action) => {
         state.loadingStates.fetching_all = false;
+        state.listLoaded = true;
         state.error = action.payload ?? null;
       })
       .addCase(fetchCars.fulfilled, (state, action) => {
         state.loadingStates.fetching_all = false;
+        state.listLoaded = true;
         state.list = action.payload;
       })
       .addCase(fetchCarByLicence.pending, (state) => {
@@ -63,10 +71,12 @@ const carSlice = createSlice({
       })
       .addCase(fetchCarByLicence.rejected, (state, action) => {
         state.loadingStates.fetching = false;
+        state.carLoaded = true;
         state.error = action.payload ?? null;
       })
       .addCase(fetchCarByLicence.fulfilled, (state, action) => {
         state.loadingStates.fetching = false;
+        state.carLoaded = true;
         state.car = action.payload;
       })
       //POST's

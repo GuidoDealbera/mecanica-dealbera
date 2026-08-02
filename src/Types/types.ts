@@ -57,7 +57,20 @@ export interface Jobs {
 // `pageSize` para paginar en la vista.
 export interface ClientState {
   list: Paginated<Clients>;
+  /**
+   * `false` mientras el listado nunca se resolvió (el estado "idle" que no se
+   * puede deducir de `loadingStates.fetching_all`, porque ahí `false` significa
+   * tanto "todavía no se pidió" como "ya terminó"). Lo resetean los reducers
+   * que vacían `list`, así ambos no pueden desincronizarse.
+   */
+  listLoaded: boolean;
   client: Clients | undefined;
+  /**
+   * Ídem `listLoaded` pero para el detalle. Acá es imprescindible para poder
+   * distinguir "todavía no cargó" de "cargó y no existe": `client` queda en
+   * `undefined` en los dos casos.
+   */
+  clientLoaded: boolean;
   loadingStates: {
     fetching_all: boolean;
     fetching: boolean;
@@ -70,7 +83,11 @@ export interface ClientState {
 
 export interface CarState {
   list: Paginated<Cars>;
+  /** Ver `ClientState["listLoaded"]`. */
+  listLoaded: boolean;
   car: Cars | undefined;
+  /** Ver `ClientState["clientLoaded"]`. */
+  carLoaded: boolean;
   loadingStates: {
     fetching_all: boolean;
     fetching: boolean;

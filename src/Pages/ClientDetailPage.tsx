@@ -50,7 +50,14 @@ const ClientDetailPage: React.FC = () => {
   const { fullname } = useParams<{ fullname: string }>();
   const navigate = useNavigate();
   const { showToast } = useToasts();
-  const { client, getClientByName, updateOwner, loading } = useClientQueries();
+  const {
+    client,
+    clientLoaded,
+    getClientByName,
+    updateOwner,
+    loading,
+    clearClient,
+  } = useClientQueries();
   const [isEditing, setIsEditing] = React.useState(false);
 
   const decodedName = fullname ? decodeURIComponent(fullname) : "";
@@ -65,6 +72,15 @@ const ClientDetailPage: React.FC = () => {
   React.useEffect(() => {
     if (decodedName) getClientByName(decodedName);
   }, [decodedName, getClientByName]);
+
+  // Limpieza al desmontar: sin esto `clientLoaded` queda en `true` con el
+  // cliente anterior en el store, y al abrir otra ficha se vería la vieja
+  // hasta que llegue la respuesta.
+  React.useEffect(() => {
+    return () => {
+      clearClient();
+    };
+  }, [clearClient]);
 
   React.useEffect(() => {
     if (client) {
@@ -92,7 +108,11 @@ const ClientDetailPage: React.FC = () => {
     }
   };
 
-  if (loading && !client) {
+  // Hasta que la consulta se resuelve por primera vez no se puede saber si el
+  // cliente existe (`client` es `undefined` tanto si no cargó como si no
+  // existe). Sin esto el primer render —anterior al efecto que dispara el
+  // fetch— pinta "Cliente no encontrado" por un frame.
+  if (!clientLoaded) {
     return (
       <div className="w-full h-full flex justify-center items-center">
         <Spinner size="lg" color="primary" />

@@ -3,7 +3,9 @@ import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch } from "../Store/store";
 import {
   selectClientsList,
+  selectClientsListLoaded,
   selectClient,
+  selectClientLoaded,
   selectClientError,
   selectClientLoadingStates,
 } from "../Store/selectors";
@@ -13,6 +15,7 @@ import {
   updateClient as updateClientThunk,
 } from "../Store/clientAsync.methods";
 import { ClientQueryParams, UpdateClientBody } from "../Types/apiTypes";
+import { cleanOwnerState, cleanOwners } from "../Store/clientSlice";
 
 /**
  * Hook de datos "puro" del slice de clientes: expone el estado del store y
@@ -25,7 +28,9 @@ export const useClientStore = () => {
   const dispatch = useDispatch<AppDispatch>();
 
   const list = useSelector(selectClientsList);
+  const listLoaded = useSelector(selectClientsListLoaded);
   const client = useSelector(selectClient);
+  const clientLoaded = useSelector(selectClientLoaded);
   const error = useSelector(selectClientError);
   const loadingStates = useSelector(selectClientLoadingStates);
 
@@ -44,15 +49,27 @@ export const useClientStore = () => {
     [dispatch],
   );
 
+  const clearOwners = useCallback(() => dispatch(cleanOwners()), [dispatch])
+
+  const clearClient = useCallback(
+    () => dispatch(cleanOwnerState()),
+    [dispatch],
+  );
+
   return {
     // Estado
     list,
+    listLoaded,
     client,
+    clientLoaded,
     error,
     loadingStates,
     // Acciones (devuelven la promesa desenvuelta)
     fetchList,
     fetchByName,
     update,
+    // Limpieza de estado
+    clearOwners,
+    clearClient,
   };
 };
