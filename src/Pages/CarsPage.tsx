@@ -1,7 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useCarQueries } from "../Hooks/useCarQueries";
 import CarsTable from "../Components/Tables/CarsTable";
-import { Button, useDisclosure } from "@heroui/react";
+import {
+  Autocomplete,
+  AutocompleteItem,
+  Button,
+  Input,
+  useDisclosure,
+} from "@heroui/react";
 import { HiOutlineRefresh } from "react-icons/hi";
 import { IoIosAddCircleOutline } from "react-icons/io";
 import { IoCarSportSharp, IoSearch } from "react-icons/io5";
@@ -9,6 +15,8 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import DeleteCarDialog from "../Components/DeleteCarDialog";
 import FilterByLicence from "../Components/SearchBars/FilterLicence";
 import EmptyState from "../Components/EmptyState";
+import { useDebounce } from "../Hooks/useDebounce";
+import { BRANDS_OPTIONS } from "../Utils/utils";
 import { CarQueryParams } from "../Types/apiTypes";
 import { Cars } from "../Types/types";
 
@@ -25,6 +33,13 @@ const CarsPage: React.FC = () => {
     by: null,
     dir: "asc",
   });
+  // Filtros avanzados
+  const [brand, setBrand] = useState<string>("");
+  const [yearFrom, setYearFrom] = useState<string>("");
+  const [yearTo, setYearTo] = useState<string>("");
+  // Los años se debouncean para no disparar un fetch por cada tecla.
+  const debouncedYearFrom = useDebounce(yearFrom, 350);
+  const debouncedYearTo = useDebounce(yearTo, 350);
 
   const {
     list,
@@ -43,10 +58,13 @@ const CarsPage: React.FC = () => {
       page,
       pageSize: PAGE_SIZE,
       search: licenceFilter || undefined,
+      brand: brand || undefined,
+      yearFrom: debouncedYearFrom ? Number(debouncedYearFrom) : undefined,
+      yearTo: debouncedYearTo ? Number(debouncedYearTo) : undefined,
       sortBy: sort.by ?? undefined,
       sortDir: sort.dir,
     }),
-    [page, licenceFilter, sort],
+    [page, licenceFilter, brand, debouncedYearFrom, debouncedYearTo, sort],
   );
 
   useEffect(() => {
@@ -110,11 +128,36 @@ const CarsPage: React.FC = () => {
     setPage(1);
   }, []);
 
-  const emptyContent = licenceFilter ? (
+  const handleBrandChange = useCallback((v: string) => {
+    setBrand(v);
+    setPage(1);
+  }, []);
+
+  const handleYearFromChange = useCallback((v: string) => {
+    setYearFrom(v.replace(/\D/g, "").slice(0, 4));
+    setPage(1);
+  }, []);
+
+  const handleYearToChange = useCallback((v: string) => {
+    setYearTo(v.replace(/\D/g, "").slice(0, 4));
+    setPage(1);
+  }, []);
+
+  const handleClearFilters = useCallback(() => {
+    setBrand("");
+    setYearFrom("");
+    setYearTo("");
+    setPage(1);
+  }, []);
+
+  const hasAdvancedFilters = !!brand || !!yearFrom || !!yearTo;
+  const hasFilters = !!licenceFilter || hasAdvancedFilters;
+
+  const emptyContent = hasFilters ? (
     <EmptyState
       icon={<IoSearch size={28} />}
       title="Sin resultados"
-      description="No hay vehículos que coincidan con la búsqueda."
+      description="No hay vehículos que coincidan con los filtros aplicados."
     />
   ) : (
     <EmptyState
@@ -166,6 +209,49 @@ const CarsPage: React.FC = () => {
         initialValue={licenceFilter}
         onFilterChange={handleLicenceFilterChange}
       />
+
+      {/* Filtros avanzados: marca + rango de año */}
+      <div className="flex flex-wrap items-end gap-3 mb-4">
+        <Autocomplete
+          label="Marca"
+          size="sm"
+          className="max-w-[220px]"
+          selectedKey={brand || null}
+          onSelectionChange={(key) => handleBrandChange((key as string) ?? "")}
+          defaultItems={BRANDS_OPTIONS}
+          allowsCustomValue={false}
+        >
+          {(b) => (
+            <AutocompleteItem key={b.key} textValue={b.key}>
+              {b.label}
+            </AutocompleteItem>
+          )}
+        </Autocomplete>
+        <Input
+          label="Año desde"
+          size="sm"
+          className="max-w-[130px]"
+          inputMode="numeric"
+          placeholder="Ej. 2010"
+          value={yearFrom}
+          onChange={(e) => handleYearFromChange(e.target.value)}
+        />
+        <Input
+          label="Año hasta"
+          size="sm"
+          className="max-w-[130px]"
+          inputMode="numeric"
+          placeholder="Ej. 2024"
+          value={yearTo}
+          onChange={(e) => handleYearToChange(e.target.value)}
+        />
+        {hasAdvancedFilters && (
+          <Button size="sm" variant="flat" onPress={handleClearFilters}>
+            Limpiar filtros
+          </Button>
+        )}
+      </div>
+
       <CarsTable
         cars={list.items}
         isLoading={listLoading}

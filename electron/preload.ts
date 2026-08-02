@@ -70,6 +70,7 @@ contextBridge.exposeInMainWorld("api", {
       await ipcRenderer.invoke("client:get-all", params),
     getByName: async (fullname: string) =>
       await ipcRenderer.invoke("client:find-by-name", fullname),
+    getCities: async () => await ipcRenderer.invoke("client:cities"),
     search: async (query: string) =>
       await ipcRenderer.invoke("client:search", query),
     update: async (dto: UpdateClientDto) =>

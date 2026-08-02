@@ -68,11 +68,20 @@ export interface PaginationParams {
   sortDir?: SortDir;
 }
 
-export type CarQueryParams = PaginationParams;
+export interface CarQueryParams extends PaginationParams {
+  /** Filtra por marca exacta (valor de `CarsBrands`). */
+  brand?: string;
+  /** Año mínimo (inclusive). */
+  yearFrom?: number;
+  /** Año máximo (inclusive). */
+  yearTo?: number;
+}
 
 export interface ClientQueryParams extends PaginationParams {
   /** Si es `true` incluye también los clientes inactivos. */
   includeInactive?: boolean;
+  /** Filtra por ciudad/localidad exacta. */
+  city?: string;
 }
 
 /** Una página de resultados + metadatos para paginar en la vista. */

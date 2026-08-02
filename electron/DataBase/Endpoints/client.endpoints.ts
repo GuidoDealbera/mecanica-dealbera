@@ -69,6 +69,11 @@ handleIpc(
             })
         }
 
+        // Filtro avanzado: ciudad exacta (el valor sale del dropdown de ciudades).
+        if (params?.city) {
+            qb.andWhere('client.city = :city', { city: params.city })
+        }
+
         const sortColumn = params?.sortBy ? CLIENT_SORT_COLUMNS[params.sortBy] : undefined
         qb.orderBy(sortColumn ?? 'client.fullname', params?.sortDir === 'desc' ? 'DESC' : 'ASC')
 
@@ -78,6 +83,20 @@ handleIpc(
         return { items, total, page, pageSize }
     },
 )
+
+// Lista de ciudades/localidades distintas (no vacías), ordenadas. Alimenta el
+// dropdown de filtro por ciudad del listado de clientes.
+handleIpc('client:cities', async (): Promise<string[]> => {
+    const repo = getRepositories().clientRepository
+    const rows = await repo
+        .createQueryBuilder('client')
+        .select('client.city', 'city')
+        .distinct(true)
+        .where("client.city IS NOT NULL AND client.city <> ''")
+        .orderBy('client.city', 'ASC')
+        .getRawMany<{ city: string }>()
+    return rows.map((r) => r.city)
+})
 
 handleIpc('client:find-by-name', async (_, fullname: CreateClientDto['fullname']) => {
     const repo = getRepositories().clientRepository

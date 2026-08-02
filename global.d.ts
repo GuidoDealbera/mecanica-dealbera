@@ -59,6 +59,7 @@ declare global {
         create: (dto: CreateClientDto) => Promise<APIResponse>;
         getAll: (params: ClientQueryParams) => Promise<Paginated<Client>>;
         getByName: (fullname: string) => Promise<APIResponse<Client>>;
+        getCities: () => Promise<string[]>;
         search: (query: string) => Promise<APIResponse<Client[]>>;
         update: (dto: UpdateClientBody) => Promise<APIResponse<Client>>;
         toggleActive: (id: string) => Promise<APIResponse>;

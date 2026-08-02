@@ -1,5 +1,5 @@
 import React from "react";
-import { Button } from "@heroui/react";
+import { Autocomplete, AutocompleteItem, Button } from "@heroui/react";
 import { useClientQueries } from "../Hooks/useClientQueries";
 import { HiOutlineRefresh } from "react-icons/hi";
 import ClientTable from "../Components/Tables/ClientsTable";
@@ -22,7 +22,17 @@ const ClientPage: React.FC = () => {
     useClientQueries();
   const { showToast } = useToasts();
   const [showInactive, setShowInactive] = React.useState(false);
+  const [city, setCity] = React.useState<string>("");
+  const [cities, setCities] = React.useState<string[]>([]);
   const [page, setPage] = React.useState(1);
+
+  // Ciudades distintas para el dropdown de filtro (se cargan una vez).
+  React.useEffect(() => {
+    window.api.clients
+      .getCities()
+      .then(setCities)
+      .catch(() => {});
+  }, []);
   const [sort, setSort] = React.useState<{
     by: string | null;
     dir: "asc" | "desc";
@@ -56,10 +66,11 @@ const ClientPage: React.FC = () => {
       pageSize: PAGE_SIZE,
       search: nameFilter || undefined,
       includeInactive: showInactive,
+      city: city || undefined,
       sortBy: sort.by ?? undefined,
       sortDir: sort.dir,
     }),
-    [page, nameFilter, showInactive, sort],
+    [page, nameFilter, showInactive, city, sort],
   );
 
   React.useEffect(() => {
@@ -95,6 +106,16 @@ const ClientPage: React.FC = () => {
     setShowInactive((v) => !v);
     setPage(1);
   }, []);
+
+  const handleCityChange = React.useCallback((v: string) => {
+    setCity(v);
+    setPage(1);
+  }, []);
+
+  const cityOptions = React.useMemo(
+    () => cities.map((c) => ({ key: c, label: c })),
+    [cities],
+  );
 
   // Ciclo de orden por columna: asc → desc → sin orden.
   const handleSortChange = React.useCallback((columnKey: string) => {
@@ -166,11 +187,11 @@ const ClientPage: React.FC = () => {
     }
   };
 
-  const emptyContent = nameFilter ? (
+  const emptyContent = nameFilter || city ? (
     <EmptyState
       icon={<IoSearch size={28} />}
       title="Sin resultados"
-      description="No hay clientes que coincidan con la búsqueda."
+      description="No hay clientes que coincidan con los filtros aplicados."
     />
   ) : (
     <EmptyState
@@ -217,6 +238,32 @@ const ClientPage: React.FC = () => {
         initialValue={nameFilter}
         onFilterChange={handleNameFilterChange}
       />
+
+      {/* Filtro avanzado: ciudad */}
+      {cityOptions.length > 0 && (
+        <div className="flex flex-wrap items-end gap-3 mb-4">
+          <Autocomplete
+            label="Ciudad"
+            size="sm"
+            className="max-w-[220px]"
+            selectedKey={city || null}
+            onSelectionChange={(key) => handleCityChange((key as string) ?? "")}
+            defaultItems={cityOptions}
+            allowsCustomValue={false}
+          >
+            {(c) => (
+              <AutocompleteItem key={c.key} textValue={c.key}>
+                {c.label}
+              </AutocompleteItem>
+            )}
+          </Autocomplete>
+          {city && (
+            <Button size="sm" variant="flat" onPress={() => handleCityChange("")}>
+              Limpiar
+            </Button>
+          )}
+        </div>
+      )}
 
       <ClientTable
         clients={list.items}

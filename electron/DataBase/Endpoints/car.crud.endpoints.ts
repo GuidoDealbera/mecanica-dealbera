@@ -102,6 +102,19 @@ handleIpc(
       });
     }
 
+    // Filtros avanzados: marca (exacta) y rango de año.
+    if (params?.brand) {
+      qb.andWhere("car.brand = :brand", { brand: params.brand });
+    }
+    const yearFrom = Number(params?.yearFrom);
+    if (Number.isFinite(yearFrom) && yearFrom > 0) {
+      qb.andWhere("car.year >= :yearFrom", { yearFrom });
+    }
+    const yearTo = Number(params?.yearTo);
+    if (Number.isFinite(yearTo) && yearTo > 0) {
+      qb.andWhere("car.year <= :yearTo", { yearTo });
+    }
+
     const sortColumn = params?.sortBy ? CAR_SORT_COLUMNS[params.sortBy] : undefined;
     qb.orderBy(sortColumn ?? "car.licensePlate", params?.sortDir === "desc" ? "DESC" : "ASC");
 

@@ -8,6 +8,8 @@ import {
   DropdownItem,
   DropdownMenu,
   DropdownTrigger,
+  Select,
+  SelectItem,
   Table,
   TableBody,
   TableCell,
@@ -18,6 +20,7 @@ import {
 } from "@heroui/react";
 import { JobStatus } from "../../Types/apiTypes";
 import { MdEdit, MdKeyboardArrowDown, MdStickyNote2 } from "react-icons/md";
+import { HiArrowUp } from "react-icons/hi";
 import { formatARS } from "../../Utils/utils";
 import TableLoadingContent from "../TableLoadingContent";
 import TablePagination from "../TablePagination";
@@ -46,6 +49,20 @@ const STATUS_MAP: Record<
   [JobStatus.PENDING]: {label: "Sin comenzar", color: "default", textColor: "text-default"}
 };
 
+// Orden de "avance" de los estados, para ordenar la columna Estado.
+const STATUS_ORDER: Record<JobStatus, number> = {
+  [JobStatus.PENDING]: 0,
+  [JobStatus.IN_PROGRESS]: 1,
+  [JobStatus.COMPLETED]: 2,
+  [JobStatus.DELIVERED]: 3,
+};
+
+// Opciones del filtro por estado (incluye "Todos").
+const STATUS_FILTER_OPTIONS: { key: JobStatus | "all"; label: string }[] = [
+  { key: "all", label: "Todos" },
+  ...Object.values(JobStatus).map((s) => ({ key: s, label: STATUS_MAP[s].label })),
+];
+
 const JobsTable: React.FC<JobsProps> = ({
   jobs: jobsProp,
   isLoading,
@@ -54,34 +71,93 @@ const JobsTable: React.FC<JobsProps> = ({
   onQuickStatusChange,
   isUpdating,
 }) => {
-  const jobs = React.useMemo(() => jobsProp ?? [], [jobsProp])
+  const jobs = React.useMemo(() => jobsProp ?? [], [jobsProp]);
 
   const [page, setPage] = React.useState<number>(1);
+  const [statusFilter, setStatusFilter] = React.useState<JobStatus | "all">(
+    "all",
+  );
+  const [sort, setSort] = React.useState<{
+    by: string | null;
+    dir: "asc" | "desc";
+  }>({ by: null, dir: "asc" });
   const rowsPerPage = 5;
+
+  // Filtro por estado + orden por columna (client-side, antes de paginar).
+  const processedJobs = React.useMemo(() => {
+    let result =
+      statusFilter === "all"
+        ? jobs
+        : jobs.filter((j) => j.status === statusFilter);
+    if (sort.by) {
+      const dir = sort.dir === "asc" ? 1 : -1;
+      result = [...result].sort((a, b) => {
+        if (sort.by === "price") return (a.price - b.price) * dir;
+        if (sort.by === "status")
+          return (
+            ((STATUS_ORDER[a.status] ?? 0) - (STATUS_ORDER[b.status] ?? 0)) * dir
+          );
+        return 0;
+      });
+    }
+    return result;
+  }, [jobs, statusFilter, sort]);
+
   const paginatedJobs = React.useMemo(() => {
     const start = (page - 1) * rowsPerPage;
-    return jobs.slice(start, start + rowsPerPage);
-  }, [jobs, page, rowsPerPage]);
+    return processedJobs.slice(start, start + rowsPerPage);
+  }, [processedJobs, page, rowsPerPage]);
 
-  // Los trabajos se paginan en el cliente (vienen embebidos en el auto), así
-  // que si la lista se achica —se filtró o se borró un trabajo— la página
+  // Si la lista visible se achica (se filtró o se borró un trabajo), la página
   // actual puede quedar fuera de rango. Retrocede a la última válida.
   React.useEffect(() => {
-    const lastPage = Math.max(1, Math.ceil(jobs.length / rowsPerPage));
+    const lastPage = Math.max(1, Math.ceil(processedJobs.length / rowsPerPage));
     if (page > lastPage) setPage(lastPage);
-  }, [jobs.length, page, rowsPerPage]);
+  }, [processedJobs.length, page, rowsPerPage]);
+
+  const handleStatusFilter = (value: JobStatus | "all") => {
+    setStatusFilter(value);
+    setPage(1);
+  };
+
+  // Ciclo de orden por columna: asc → desc → sin orden.
+  const handleSort = (columnKey: string) => {
+    setSort((prev) => {
+      if (prev.by !== columnKey) return { by: columnKey, dir: "asc" };
+      if (prev.dir === "asc") return { by: columnKey, dir: "desc" };
+      return { by: null, dir: "asc" };
+    });
+    setPage(1);
+  };
+
   const columns: TableColumnDef<Jobs>[] = [
     { key: "description",  label: "Descripción", width: 300 },
-    { key: "status",       label: "Estado",      width: 120, center: true },
+    { key: "status",       label: "Estado",      width: 120, center: true, sortable: true },
     { key: "isThirdParty", label: "Terceros",    width: 100, center: true },
     { key: "parts",        label: "Repuestos",   width: 150, center: true },
-    { key: "price",        label: "Precio",      width: 120, center: true },
+    { key: "price",        label: "Precio",      width: 120, center: true, sortable: true },
     ...(onEditJob
       ? [{ key: "actions" as const, label: "Acciones", center: true, width: 100 }]
       : []),
   ];
   return (
     <div className="bg-foreground-700 rounded-lg flex flex-col gap-4">
+      <div className="flex items-center gap-3 px-3 pt-3">
+        <Select
+          label="Filtrar por estado"
+          size="sm"
+          className="max-w-[220px]"
+          selectedKeys={[statusFilter]}
+          onSelectionChange={(keys) => {
+            const v = Array.from(keys)[0] as JobStatus | "all" | undefined;
+            if (v) handleStatusFilter(v);
+          }}
+        >
+          {STATUS_FILTER_OPTIONS.map((o) => (
+            <SelectItem key={o.key}>{o.label}</SelectItem>
+          ))}
+        </Select>
+      </div>
       <Table
         aria-label="Tabla de trabajos"
         classNames={{
@@ -103,7 +179,32 @@ const JobsTable: React.FC<JobsProps> = ({
                 maxWidth: col.width,
               }}
             >
-              {col.label}
+              {col.sortable ? (
+                <div className="flex justify-center items-center gap-1">
+                  {col.label}
+                  <Tooltip content="Ordenar" placement="bottom" showArrow>
+                    <Button
+                      onPress={() => handleSort(col.key)}
+                      isIconOnly
+                      size="sm"
+                      className="bg-transparent"
+                    >
+                      <HiArrowUp
+                        size={18}
+                        className={`transition-all duration-200 ${
+                          sort.by === col.key ? "text-white" : "text-white/30"
+                        } ${
+                          sort.by === col.key && sort.dir === "desc"
+                            ? "rotate-180"
+                            : ""
+                        }`}
+                      />
+                    </Button>
+                  </Tooltip>
+                </div>
+              ) : (
+                col.label
+              )}
             </TableColumn>
           ))}
         </TableHeader>
@@ -238,7 +339,7 @@ const JobsTable: React.FC<JobsProps> = ({
       <TablePagination
         page={page}
         pageSize={rowsPerPage}
-        total={jobs.length}
+        total={processedJobs.length}
         onPageChange={setPage}
       />
     </div>
