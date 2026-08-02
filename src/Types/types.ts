@@ -48,6 +48,7 @@ export interface Jobs {
     name: string;
     price: number;
   }[];
+  notes?: string;
   createdAt?: string;
   updatedAt?: string;
 }

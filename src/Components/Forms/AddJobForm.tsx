@@ -19,6 +19,7 @@ const INITIAL_VALUES: Partial<Jobs> = {
   status: JobStatus.PENDING,
   description: "",
   parts: [],
+  notes: "",
 };
 
 interface AddJobFormProps {
@@ -214,6 +215,25 @@ const AddJobForm: React.FC<AddJobFormProps> = ({
               )}
             />
           </div>
+        </div>
+
+        {/* ── Notas internas (opcional) ── */}
+        <div className="mt-4 p-4 rounded-lg shadow shadow-primary bg-foreground-700">
+          <Controller
+            control={control}
+            name="notes"
+            render={({ field }) => (
+              <Textarea
+                {...field}
+                value={field.value ?? ""}
+                isDisabled={isLoading || !license}
+                label="Notas internas (opcional)"
+                description="Solo para uso del taller. No se incluyen en el presupuesto ni se muestran al cliente."
+                fullWidth
+                minRows={2}
+              />
+            )}
+          />
         </div>
 
         <Button

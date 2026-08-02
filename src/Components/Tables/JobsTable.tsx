@@ -13,7 +13,7 @@ import {
   Tooltip,
 } from "@heroui/react";
 import { JobStatus } from "../../Types/apiTypes";
-import { MdEdit } from "react-icons/md";
+import { MdEdit, MdStickyNote2 } from "react-icons/md";
 import { formatARS } from "../../Utils/utils";
 import TableLoadingContent from "../TableLoadingContent";
 import TablePagination from "../TablePagination";
@@ -112,11 +112,26 @@ const JobsTable: React.FC<JobsProps> = ({
             
             return (
               <TableRow key={job.id} className="text-white">
-                <TableCell
-                  className="max-w-[300px] truncate"
-                  title={job.description}
-                >
-                  {job.description}
+                <TableCell className="max-w-[300px]" title={job.description}>
+                  <div className="flex items-center gap-1.5">
+                    {job.notes && job.notes.trim() !== "" && (
+                      <Tooltip
+                        content={
+                          <span className="block max-w-xs whitespace-pre-wrap py-1">
+                            {job.notes}
+                          </span>
+                        }
+                        color="foreground"
+                        placement="top"
+                        showArrow
+                      >
+                        <span className="flex-shrink-0 text-warning-500">
+                          <MdStickyNote2 size={16} />
+                        </span>
+                      </Tooltip>
+                    )}
+                    <span className="min-w-0 truncate">{job.description}</span>
+                  </div>
                 </TableCell>
                 <TableCell className="text-center">
                   <Chip color={statusInfo.color} variant="flat" className={statusInfo.textColor}>

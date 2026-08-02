@@ -19,6 +19,7 @@ function toPlainJob(job: Job) {
     isThirdParty: job.isThirdParty,
     status: job.status,
     parts: job.parts ?? [],
+    notes: job.notes ?? "",
     createdAt: job.createdAt,
     updatedAt: job.updatedAt,
   };
@@ -44,6 +45,7 @@ handleIpc(
       isThirdParty: jobDto.isThirdParty,
       status: jobDto.status,
       parts: jobDto.parts,
+      notes: jobDto.notes,
       car,
     });
     const saved = await jobRepository.save(job);
@@ -104,6 +106,7 @@ handleIpc(
     if (updateJobDto.status !== undefined) job.status = updateJobDto.status;
     if (updateJobDto.price !== undefined) job.price = updateJobDto.price;
     if (updateJobDto.parts !== undefined) job.parts = updateJobDto.parts;
+    if (updateJobDto.notes !== undefined) job.notes = updateJobDto.notes;
 
     const saved = await jobRepository.save(job);
     invalidateDashboardStatsCache();

@@ -68,6 +68,10 @@ export class JobsDto {
     name: string;
     price: number;
   }[];
+
+  @IsOptional()
+  @IsString()
+  notes?: string;
 }
 
 export class UpdateCarDto {
@@ -96,6 +100,10 @@ export class UpdateJobDto {
     name: string;
     price: number;
   }[];
+
+  @IsOptional()
+  @IsString()
+  notes?: string;
 }
 
 // El tipo de trabajo ahora vive en la entidad `Job` (electron/DataBase/Entities/job.entity.ts).

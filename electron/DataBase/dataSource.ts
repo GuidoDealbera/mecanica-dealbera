@@ -9,6 +9,7 @@ import { InitialSchema1700000000000 } from "./Migrations/1700000000000-InitialSc
 import { AddPartsToExistingJobs1700000002000 } from "./Migrations/AddPartsToExistingJobs1700000002000";
 import { AddOwnerIndex1700000003000 } from "./Migrations/AddOwnerIndex1700000003000";
 import { NormalizeJobs1700000004000 } from "./Migrations/NormalizeJobs1700000004000";
+import { AddNotesToJob1700000005000 } from "./Migrations/AddNotesToJob1700000005000";
 
 export const AppDataSource = new DataSource({
     type: 'sqlite',
@@ -21,7 +22,8 @@ export const AppDataSource = new DataSource({
         InitialSchema1700000000000,
         AddPartsToExistingJobs1700000002000,
         AddOwnerIndex1700000003000,
-        NormalizeJobs1700000004000
+        NormalizeJobs1700000004000,
+        AddNotesToJob1700000005000
     ],
     subscribers: []
 })

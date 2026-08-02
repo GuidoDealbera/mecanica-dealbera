@@ -37,6 +37,11 @@ export class Job {
   @Column("simple-json", { nullable: true })
   parts!: { name: string; price: number }[];
 
+  // Notas internas del taller. Uso interno: no se muestran al cliente ni se
+  // incluyen en el presupuesto/factura.
+  @Column("text", { nullable: true })
+  notes?: string;
+
   @CreateDateColumn({ type: "datetime" })
   createdAt!: Date;
 

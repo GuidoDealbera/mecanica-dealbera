@@ -19,7 +19,7 @@ import { useToasts } from "../../Hooks/useToasts";
 import { MdEdit } from "react-icons/md";
 import { formatThousands, parseNumber } from "../../Utils/utils";
 import PartsEditor from "../../Components/Parts/PartsEditor";
-import { Input } from "@heroui/react";
+import { Input, Textarea } from "@heroui/react";
 
 interface JobsProps {
   jobs: CarJobs[];
@@ -40,12 +40,14 @@ const Jobs: React.FC<JobsProps> = ({ jobs, isLoading, license }) => {
   const [editParts, setEditParts] = React.useState<
     { name: string; price: number }[]
   >([]);
+  const [editNotes, setEditNotes] = React.useState<string>("");
 
   const handleOpenEdit = React.useCallback((job: CarJobs) => {
     setEditingJob(job);
     setEditStatus(job.status);
     setEditPrice(job.price);
     setEditParts(job.parts ?? []);
+    setEditNotes(job.notes ?? "");
   }, []);
 
   const handleCloseEdit = React.useCallback(() => {
@@ -57,11 +59,13 @@ const Jobs: React.FC<JobsProps> = ({ jobs, isLoading, license }) => {
 
     const partsChanged =
       JSON.stringify(editParts) !== JSON.stringify(editingJob.parts ?? []);
+    const notesChanged = editNotes !== (editingJob.notes ?? "");
 
     const hasChanges =
       editStatus !== editingJob.status ||
       editPrice !== editingJob.price ||
-      partsChanged;
+      partsChanged ||
+      notesChanged;
 
     if (!hasChanges) {
       showToast("No hay cambios para guardar", "warning", "Editar trabajo");
@@ -73,6 +77,7 @@ const Jobs: React.FC<JobsProps> = ({ jobs, isLoading, license }) => {
     if (editStatus !== editingJob.status) body.status = editStatus;
     if (editPrice !== editingJob.price) body.price = editPrice;
     if (partsChanged) body.parts = editParts;
+    if (notesChanged) body.notes = editNotes;
 
     const response = await updateJob(license, editingJob.id, body);
     if (response?.status === "success") {
@@ -84,12 +89,16 @@ const Jobs: React.FC<JobsProps> = ({ jobs, isLoading, license }) => {
   const partsChanged = editingJob
     ? JSON.stringify(editParts) !== JSON.stringify(editingJob.parts ?? [])
     : false;
+  const notesChanged = editingJob
+    ? editNotes !== (editingJob.notes ?? "")
+    : false;
   const canSave =
     editingJob !== null &&
     isPriceValid &&
     (editStatus !== editingJob.status ||
       editPrice !== editingJob.price ||
-      partsChanged);
+      partsChanged ||
+      notesChanged);
 
   return (
     <div className="w-full min-h-full shadow shadow-primary bg-foreground-800 rounded-md p-3">
@@ -207,6 +216,16 @@ const Jobs: React.FC<JobsProps> = ({ jobs, isLoading, license }) => {
                     !isPriceValid ? "El precio debe ser mayor a 0" : undefined
                   }
                   onChange={(e) => setEditPrice(parseNumber(e.target.value))}
+                />
+
+                {/* Notas internas */}
+                <Textarea
+                  label="Notas internas"
+                  description="Uso interno del taller. No se incluyen en el presupuesto."
+                  value={editNotes}
+                  onChange={(e) => setEditNotes(e.target.value)}
+                  minRows={2}
+                  isDisabled={updating}
                 />
               </>
             )}

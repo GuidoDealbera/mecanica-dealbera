@@ -22,6 +22,7 @@ export interface UpdateJobBody {
     name: string;
     price: number;
   }[];
+  notes?: string;
 }
 
 export interface CreateCarBody {
@@ -107,4 +108,5 @@ export interface CreateCarJob {
     name: string;
     price: number;
   }[];
+  notes?: string;
 }
