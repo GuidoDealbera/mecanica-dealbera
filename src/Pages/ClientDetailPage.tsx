@@ -21,13 +21,18 @@ import {
   MdCancel,
   MdPerson,
   MdChevronRight,
+  MdBuild,
+  MdPendingActions,
+  MdAttachMoney,
+  MdHistory,
 } from "react-icons/md";
 import { IoCarSportSharp } from "react-icons/io5";
 import LicenceTable from "../Components/Licenses/LicenceTable";
 import { Client } from "../Types/types";
+import { JobStatus } from "../Types/apiTypes";
 import { useToasts } from "../Hooks/useToasts";
 import { useForm, Controller } from "react-hook-form";
-import { handleCapitalizedChange } from "../Utils/utils";
+import { formatARS, formatDate, handleCapitalizedChange } from "../Utils/utils";
 
 // Campo de solo lectura reutilizable
 const InfoRow: React.FC<{
@@ -43,6 +48,22 @@ const InfoRow: React.FC<{
         {value || "---"}
       </p>
     </div>
+  </div>
+);
+
+// Tarjeta de estadística para el resumen de actividad
+const StatTile: React.FC<{
+  icon: React.ReactNode;
+  label: string;
+  value: string | number;
+  accent?: string;
+}> = ({ icon, label, value, accent = "text-white" }) => (
+  <div className="flex flex-col gap-1 p-3 rounded-xl bg-foreground-700 border border-foreground-600">
+    <div className="flex items-center gap-1.5 text-foreground-400">
+      {icon}
+      <span className="text-xs">{label}</span>
+    </div>
+    <span className={`text-xl font-bold break-words ${accent}`}>{value}</span>
   </div>
 );
 
@@ -95,7 +116,38 @@ const ClientDetailPage: React.FC = () => {
 
   // Los vehículos vienen en la propia relación del cliente (client:find-by-name
   // carga `cars` y `cars.jobs`), así que no hace falta traer todos los autos.
-  const clientCars = client?.cars ?? [];
+  const clientCars = React.useMemo(() => client?.cars ?? [], [client]);
+
+  // Resumen de actividad: se calcula sobre los trabajos de todos los vehículos
+  // del cliente. "Facturado" suma solo los trabajos completados/entregados.
+  const activity = React.useMemo(() => {
+    const jobs = clientCars.flatMap((car) => car.jobs ?? []);
+    const activeJobs = jobs.filter(
+      (j) =>
+        j.status === JobStatus.PENDING ||
+        j.status === JobStatus.IN_PROGRESS,
+    ).length;
+    const billed = jobs
+      .filter(
+        (j) =>
+          j.status === JobStatus.COMPLETED ||
+          j.status === JobStatus.DELIVERED,
+      )
+      .reduce((sum, j) => sum + (j.price ?? 0), 0);
+    const lastJobDate = jobs.reduce<string | null>((latest, j) => {
+      const d = j.updatedAt || j.createdAt;
+      if (!d) return latest;
+      if (!latest) return d;
+      return new Date(d) > new Date(latest) ? d : latest;
+    }, null);
+    return {
+      vehicles: clientCars.length,
+      totalJobs: jobs.length,
+      activeJobs,
+      billed,
+      lastJobDate,
+    };
+  }, [clientCars]);
 
   const handleSave = async (data: Partial<Client>) => {
     if (!client) return;
@@ -159,6 +211,38 @@ const ClientDetailPage: React.FC = () => {
             {isEditing ? "Cancelar" : "Editar"}
           </Button>
         </div>
+      </div>
+
+      {/* ── Resumen de actividad ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-5">
+        <StatTile
+          icon={<IoCarSportSharp size={14} />}
+          label="Vehículos"
+          value={activity.vehicles}
+          accent="text-primary-300"
+        />
+        <StatTile
+          icon={<MdBuild size={14} />}
+          label="Trabajos"
+          value={activity.totalJobs}
+        />
+        <StatTile
+          icon={<MdPendingActions size={14} />}
+          label="Activos"
+          value={activity.activeJobs}
+          accent="text-warning-300"
+        />
+        <StatTile
+          icon={<MdAttachMoney size={14} />}
+          label="Facturado"
+          value={formatARS(activity.billed)}
+          accent="text-success-300"
+        />
+        <StatTile
+          icon={<MdHistory size={14} />}
+          label="Último trabajo"
+          value={activity.lastJobDate ? formatDate(activity.lastJobDate) : "—"}
+        />
       </div>
 
       <div className="grid grid-cols-12 gap-4">
