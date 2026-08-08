@@ -152,7 +152,7 @@ Estados posibles: `pendiente` · `en progreso` · `a testear` · `hecho`
   - `ShortcutsModal`: modal de ayuda (HeroUI `Modal` + `Kbd`) con las secciones Navegación y Acciones; se abre con `?` y desde el menú del usuario ("Atajos de teclado"). Reemplaza el listener inline de `Ctrl+K` que vivía suelto en `Header`.
 - Verificado: `tsc` + `npm run lint` + 48 tests OK.
 
-28. **[a testear]** Modo claro/oscuro con toggle persistido
+28. **[hecho]** Modo claro/oscuro con toggle persistido
 
 - Archivos: `hero.ts`, `index.html`, `src/Theme/{themeContext.ts,ThemeProvider.tsx,useChartTheme.ts}` (nuevos), `src/Store/Providers.tsx`, `src/Components/Header.tsx`, y ~28 archivos de UI (superficies/colores → tokens semánticos).
 - Enfoque elegido por el usuario: theme global centralizado + claro/oscuro completo (refactor de todos los colores hardcodeados).
@@ -164,7 +164,23 @@ Estados posibles: `pendiente` · `en progreso` · `a testear` · `hecho`
   - **Gráficos (recharts) theme-aware**: hook `useChartTheme` para el chrome (grilla, ejes, tooltip, leyenda) en dashboard y modal de KM; los colores de datos quedan fijos.
 - Verificado: `tsc` + `npm run lint` + 48 tests + `vite build` OK.
 
-29. **[pendiente]** Presupuesto PDF mejorado con número correlativo
+29. **[a testear]** Presupuesto PDF mejorado con número correlativo
+   - Archivos: `electron/DataBase/Entities/document.entity.ts` (nuevo), `electron/DataBase/Migrations/CreateDocumentTable1700000006000.ts` (nueva), `electron/DataBase/Endpoints/document.endpoints.ts` (nuevo), `electron/DataBase/dataSource.ts`, `electron/{main,preload}.ts`, `global.d.ts`, `src/Types/apiTypes.ts`, `src/Hooks/useBudgetPdf.ts`, `src/Components/BudgetButton.tsx`.
+   - Cambios:
+     - **Antes** el "N°" del PDF era pseudo-aleatorio (`car.id` + timestamp): no era correlativo y cambiaba en cada impresión. Ahora el número lo **asigna la base de datos**.
+     - Entidad **`Document`** = registro de cada emisión, con **numeración correlativa por tipo** (presupuesto y factura llevan series independientes) + *snapshot* de patente/titular/total. Sin FK a `car` **a propósito**: un documento emitido debe conservar lo que decía y no puede borrarse en cascada (abriría huecos en el correlativo).
+     - Endpoint `document:issue`: calcula `MAX(number)+1` del tipo e inserta **en una transacción**; la tabla tiene índice **único `(type, number)`** como garantía final. `document:discard` borra el registro sólo si es el último de su tipo (se usa si la generación del PDF falla, para no dejar huecos). `document:list` queda disponible para el historial.
+     - Formato del número centralizado en `formatDocumentNumber` (`PRE-000123` / `FAC-000123`), usado por el backend y el PDF.
+     - PDF: el número va en el encabezado y en el pie, y **encabeza el nombre del archivo** (`PRE-000123_Presupuesto_...pdf`) para que queden ordenados. Los totales se calculan antes de emitir (son parte del registro). Se agregó nota de **validez de 15 días** sólo en presupuestos. El toast confirma el número emitido.
+     - De paso se quitó un `as any` (se tipó `lastAutoTable` de `jspdf-autotable`).
+     - **Rediseño visual del documento** (pedido del usuario: consistencia total con el sistema):
+       - `src/Utils/pdfTheme.ts` (nuevo): la paleta del PDF se **deriva de `semanticColors.light` de HeroUI**, el mismo theme que usa la app (variante clara porque se imprime sobre papel). Antes el PDF tenía paleta propia de Tailwind (`#2563eb`, slate) que no coincidía con ningún color de la interfaz. Incluye el mapa de chips por estado (mismos colores semánticos que `STATUS_MAP` de la tabla de trabajos) y la escala tipográfica/medidas.
+       - `src/Utils/budgetPdf.ts` (nuevo): el render se extrajo del hook a un **módulo puro** (recibe datos, devuelve el `jsPDF`), así es testeable en Node; el hook quedó fino (emitir número → render → descargar). Diseño alineado: bandas de encabezado/pie y header de tabla en `primary-800`, título de sección como "pill" `primary-700` (igual que los `h5` de la app), tarjetas con borde `default-200`, zebra `default-100`/`default-50` (igual que las tablas), chips de estado con fondo tenue + texto saturado (look "flat" de HeroUI) y bloque de total en color de marca.
+       - **Tipografía**: la patente se dibuja con **FE-FONT**, la misma fuente que usa la app, embebida en el PDF. Para eso `vite.config.mts` declara `assetsInclude: ["**/*.TTF"]` (la extensión en mayúsculas no entra en los defaults de Vite) y fuerza el inline de los `.ttf` con `assetsInlineLimit`, de modo que la fuente viaje en base64 en el bundle (en producción, con Electron sobre `file://`, leer el asset en runtime no sería confiable). El resto del documento usa Helvetica: Nunito Sans/Michroma se sirven desde Google Fonts y no están como archivo en el repo.
+       - Robustez: si la fuente no se puede usar, el documento cae a la tipografía estándar. `addFont` no valida el contenido (falla más tarde al medir texto), así que se prueba a usarla al registrarla — lo detectó un test.
+       - Tests nuevos (`budgetPdf.test.ts`, 10 casos): totales, filtro por tipo de documento, render con/sin trabajos, paginación, registro de la fuente y fallback con fuente inválida. `pdfPreview.test.ts` genera PDFs de muestra para revisar el diseño a ojo (sólo corre con `PDF_PREVIEW_DIR`).
+   - Verificado: `tsc` + `npm run lint` + 48 tests + `vite build`. Además se probó la **migración contra una copia de la DB real**: corre sobre datos existentes, genera el esquema/índice, las series salen `PRE-000001..3` y `FAC-000001..2`, el índice único rechaza duplicados y el `down()` revierte.
+   - Fix incidental: en `AddPartsToExistingJobs1700000002000.ts` la corrida de Prettier había desalineado un `eslint-disable-next-line` (rompía `npm run lint`); se reubicó.
 30. **[pendiente]** Historial cruzado de cliente
 
 ## Sprint 7 — Features grandes (alta complejidad)

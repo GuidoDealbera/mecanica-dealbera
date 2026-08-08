@@ -11,7 +11,7 @@ import {
   TableRow,
   Tooltip,
 } from "@heroui/react";
-import { IoMdEye } from "react-icons/io";
+import { IoIosAddCircle, IoMdEye } from "react-icons/io";
 import { MdDelete } from "react-icons/md";
 import LicenceTable from "../Licenses/LicenceTable";
 import { HiArrowUp } from "react-icons/hi";
@@ -186,6 +186,11 @@ const CarsTable: React.FC<CarsTableProps> = ({
                 }}
               >
                 <div className="flex justify-center gap-2">
+                  <Tooltip content="Agregar trabajo" color="success" showArrow>
+                    <Button isIconOnly size="sm" className="bg-transparent" onPress={() => navigate("/cars/add-job", { state: { license: car.licensePlate } })}>
+                      <IoIosAddCircle size={25} className="text-success-600" />
+                    </Button>
+                  </Tooltip>
                   <Tooltip content="Detalle" color="primary" showArrow>
                     <Button
                       isIconOnly

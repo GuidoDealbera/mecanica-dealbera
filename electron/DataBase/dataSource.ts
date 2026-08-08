@@ -5,16 +5,18 @@ import { logError, logInfo } from "../logger";
 import { Car } from "./Entities/car.entity";
 import { Client } from "./Entities/client.entity";
 import { Job } from "./Entities/job.entity";
+import { Document } from "./Entities/document.entity";
 import { InitialSchema1700000000000 } from "./Migrations/1700000000000-InitialSchema";
 import { AddPartsToExistingJobs1700000002000 } from "./Migrations/AddPartsToExistingJobs1700000002000";
 import { AddOwnerIndex1700000003000 } from "./Migrations/AddOwnerIndex1700000003000";
 import { NormalizeJobs1700000004000 } from "./Migrations/NormalizeJobs1700000004000";
 import { AddNotesToJob1700000005000 } from "./Migrations/AddNotesToJob1700000005000";
+import { CreateDocumentTable1700000006000 } from "./Migrations/CreateDocumentTable1700000006000";
 
 export const AppDataSource = new DataSource({
   type: "sqlite",
   database: getDBPath(),
-  entities: [Car, Client, Job],
+  entities: [Car, Client, Job, Document],
   synchronize: false,
   logging: process.env.NODE_ENV === "development",
   migrationsRun: true,
@@ -24,6 +26,7 @@ export const AppDataSource = new DataSource({
     AddOwnerIndex1700000003000,
     NormalizeJobs1700000004000,
     AddNotesToJob1700000005000,
+    CreateDocumentTable1700000006000,
   ],
   subscribers: [],
 });
@@ -67,5 +70,6 @@ export const getRepositories = () => {
     clientRepository: AppDataSource.getRepository(Client),
     carRepository: AppDataSource.getRepository(Car),
     jobRepository: AppDataSource.getRepository(Job),
+    documentRepository: AppDataSource.getRepository(Document),
   };
 };

@@ -10,6 +10,7 @@ import {
 import { MdPictureAsPdf } from "react-icons/md";
 import { IoChevronDown } from "react-icons/io5";
 import { Cars, Jobs } from "../Types/types";
+import { DocumentType } from "../Types/apiTypes";
 import { useBudgetPDF } from "../Hooks/useBudgetPdf";
 import { useToasts } from "../Hooks/useToasts";
 import { HiDownload } from "react-icons/hi";
@@ -33,14 +34,15 @@ const BudgetButton: React.FC<BudgetButtonProps> = ({
   const handleGenerate = React.useCallback(
     async (onlyCompleted: boolean) => {
       try {
-        await generatePDF(car, jobs, {
+        const issued = await generatePDF(car, jobs, {
           title: onlyCompleted
             ? "Factura de Trabajos"
             : "Presupuesto de Trabajo",
           onlyCompleted,
+          type: onlyCompleted ? DocumentType.INVOICE : DocumentType.BUDGET,
         });
         showToast(
-          "Descargado con éxito",
+          `Descargado con éxito — N° ${issued.formatted}`,
           "success",
           onlyCompleted ? "Factura" : "Presupuesto"
         );

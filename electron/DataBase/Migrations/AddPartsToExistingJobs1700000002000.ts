@@ -66,8 +66,8 @@ export class AddPartsToExistingJobs1700000002000 implements MigrationInterface {
         });
         continue;
       }
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const updatedJobs: JobWithoutParts[] = jobs.map(
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         ({ parts: _, ...rest }) => rest
       );
 

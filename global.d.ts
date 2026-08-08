@@ -9,6 +9,9 @@ import {
   CarQueryParams,
   ClientQueryParams,
   CreateCarJob,
+  DocumentType,
+  IssueDocumentBody,
+  IssuedDocument,
   Paginated,
   UpdateClientBody,
 } from "./src/Types/apiTypes";
@@ -104,6 +107,13 @@ declare global {
       };
       dashboard: {
         getStats: () => Promise<APIResponse<DashboardStats>>;
+      };
+      documents: {
+        issue: (
+          body: IssueDocumentBody
+        ) => Promise<APIResponse<IssuedDocument>>;
+        discard: (id: string) => Promise<APIResponse>;
+        list: (type: DocumentType, limit?: number) => Promise<IssuedDocument[]>;
       };
       backup: {
         export: () => Promise<APIResponse>;

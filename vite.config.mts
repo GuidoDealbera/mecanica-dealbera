@@ -5,6 +5,18 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
+  // La fuente del proyecto es `FE-FONT.TTF` (extensión en mayúsculas), que no
+  // entra en la lista de assets por defecto de Vite (contempla `.ttf`).
+  assetsInclude: ["**/*.TTF"],
+  build: {
+    // La fuente de patentes (FE-FONT) se embebe como data URI en vez de
+    // emitirse como archivo: el PDF la necesita en base64 para registrarla en
+    // jsPDF, y en producción (Electron sobre file://) no se puede leer el
+    // asset en runtime de forma confiable. Pesa ~17 KB. El resto de los
+    // assets mantiene el comportamiento por defecto de Vite.
+    assetsInlineLimit: (filePath: string) =>
+      filePath.toLowerCase().endsWith(".ttf") ? true : undefined,
+  },
   plugins: [
     react(),
     tailwindcss(),

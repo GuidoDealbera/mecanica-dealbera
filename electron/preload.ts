@@ -5,6 +5,8 @@ import {
   CarQueryParams,
   ClientQueryParams,
   CreateCarJob,
+  DocumentType,
+  IssueDocumentBody,
 } from "../src/Types/apiTypes";
 import { UpdateInfo, UpdateProgress } from "../global";
 
@@ -85,6 +87,14 @@ contextBridge.exposeInMainWorld("api", {
   },
   dashboard: {
     getStats: async () => await ipcRenderer.invoke("dashboard:get-stats"),
+  },
+  documents: {
+    issue: async (body: IssueDocumentBody) =>
+      await ipcRenderer.invoke("document:issue", body),
+    discard: async (id: string) =>
+      await ipcRenderer.invoke("document:discard", id),
+    list: async (type: DocumentType, limit?: number) =>
+      await ipcRenderer.invoke("document:list", type, limit),
   },
   backup: {
     export: async () => await ipcRenderer.invoke("backup:export"),

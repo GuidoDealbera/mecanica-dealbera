@@ -1,346 +1,101 @@
 import { useCallback, useState } from "react";
 import { Cars, Jobs } from "../Types/types";
-import { JobStatus, STATUS_LABELS } from "../Types/apiTypes";
-import jsPDF from "jspdf";
-import autotable from "jspdf-autotable";
-import { formatARS, formatLicence } from "../Utils/utils";
+import { DocumentType, type IssuedDocument } from "../Types/apiTypes";
+import {
+  computeTotals,
+  filterJobsForDocument,
+  renderBudgetDocument,
+} from "../Utils/budgetPdf";
+import { getPlateFontBase64 } from "../Utils/plateFont";
 
 export interface BudgetOptions {
   onlyCompleted?: boolean;
   title?: string;
+  /**
+   * Tipo de documento a emitir (define la serie del correlativo). Si no se
+   * pasa, se deduce: sólo-completados = factura, resto = presupuesto.
+   */
+  type?: DocumentType;
 }
 
-type RGB = [number, number, number];
-
-const C = {
-  primaryDark: [37, 99, 235] as RGB,
-  primaryLight: [219, 234, 254] as RGB,
-  white: [255, 255, 255] as RGB,
-  black: [15, 23, 42] as RGB,
-  gray: [100, 116, 139] as RGB,
-  grayLight: [248, 250, 252] as RGB,
-  grayBorder: [226, 232, 240] as RGB,
-  success: [34, 197, 94] as RGB,
-  infoBlue: [190, 210, 255] as RGB,
-  purple: [139, 92, 246] as RGB,
-};
-
+/**
+ * Orquesta la emisión de un documento: pide el número correlativo a la DB,
+ * delega el dibujo en `renderBudgetDocument` (módulo puro) y lo descarga.
+ */
 export const useBudgetPDF = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  /**
+   * Emite el documento (asigna su número correlativo en la DB) y descarga el
+   * PDF. Devuelve el documento emitido para que el consumidor pueda mostrar el
+   * número. Si algo falla, descarta el número y lanza el error.
+   */
   const generatePDF = useCallback(
-    async (car: Cars, jobs: Jobs[], options: BudgetOptions = {}) => {
+    async (
+      car: Cars,
+      jobs: Jobs[],
+      options: BudgetOptions = {}
+    ): Promise<IssuedDocument> => {
       setIsGenerating(true);
       setError(null);
 
+      let issuedId: string | null = null;
       try {
         const { title = "Presupuesto de Trabajo", onlyCompleted = false } =
           options;
+        const docType =
+          options.type ??
+          (onlyCompleted ? DocumentType.INVOICE : DocumentType.BUDGET);
 
-        const filteredJobs = onlyCompleted
-          ? jobs.filter(
-              (j) =>
-                j.status === JobStatus.COMPLETED ||
-                j.status === JobStatus.DELIVERED
-            )
-          : jobs;
+        const filteredJobs = filterJobsForDocument(jobs, onlyCompleted);
+        // Los totales se calculan antes de emitir: el total forma parte del
+        // registro del documento (snapshot de lo que se entregó).
+        const totals = computeTotals(filteredJobs);
 
-        const doc = new jsPDF({
-          orientation: "portrait",
-          unit: "mm",
-          format: "a4",
+        // El número lo asigna la DB (transaccional, por tipo de documento), no
+        // el frontend: así es correlativo y queda registrado qué se emitió.
+        const issued = await window.api.documents.issue({
+          type: docType,
+          licensePlate: car.licensePlate,
+          clientName: car.owner?.fullname ?? "",
+          total: totals.total,
+        });
+        if (issued.status !== "success") {
+          throw new Error(issued.message);
+        }
+        issuedId = issued.result.id;
+        const docNumber = issued.result.formatted;
+
+        const doc = renderBudgetDocument({
+          car,
+          jobs: filteredJobs,
+          totals,
+          docNumber,
+          docType,
+          title,
+          onlyCompleted,
+          plateFontBase64: getPlateFontBase64(),
         });
 
-        const pageW = doc.internal.pageSize.getWidth();
-        const pageH = doc.internal.pageSize.getHeight();
-        const margin = 18;
-
-        // ─── ENCABEZADO ────────────────────────────────────────────────
-        const HEADER_HEIGHT = 28;
-        doc.setFillColor(...C.primaryDark);
-        doc.rect(0, 0, pageW, HEADER_HEIGHT, "F");
-
-        doc.setTextColor(...C.white);
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(18);
-        doc.text("MECÁNICA DEALBERA", margin, 11);
-
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(8);
-        doc.setTextColor(...C.infoBlue);
-        doc.text("Servicio técnico automotriz", margin, 19);
-
-        doc.setTextColor(...C.white);
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(12);
-        doc.text(title.toUpperCase(), pageW - margin, 11, { align: "right" });
-
-        const today = new Date().toLocaleDateString("es-AR", {
-          day: "2-digit",
-          month: "long",
-          year: "numeric",
-        });
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(8);
-        doc.setTextColor(...C.infoBlue);
-        doc.text(`Fecha: ${today}`, pageW - margin, 19, { align: "right" });
-
-        const docNum = `N° ${car.id.slice(0, 6).toUpperCase()}-${Date.now()
-          .toString()
-          .slice(-5)}`;
-        doc.text(docNum, pageW - margin, 25, { align: "right" });
-
-        // ─── PATENTE DESTACADA ─────────────────────────────────────────
-        let y = HEADER_HEIGHT + 10;
-        doc.setFillColor(...C.primaryLight);
-        doc.roundedRect(margin, y - 7, pageW - margin * 2, 28, 4, 4, "F");
-
-        doc.setFontSize(9);
-        doc.setFont("helvetica", "normal");
-        doc.setTextColor(...C.gray);
-        doc.text("Patente del vehículo", pageW / 2, y - 2, { align: "center" });
-
-        doc.setTextColor(...C.primaryDark);
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(26);
-        doc.text(formatLicence(car.licensePlate), pageW / 2, y + 10, {
-          align: "center",
-        });
-
-        // ─── DATOS DEL VEHÍCULO Y TITULAR ─────────────────────────────
-        y += 36;
-        const colW = (pageW - margin * 2 - 6) / 2;
-
-        const drawInfoBox = (
-          boxX: number,
-          boxY: number,
-          boxTitle: string,
-          rows: [string, string][]
-        ) => {
-          doc.setFillColor(...C.grayLight);
-          doc.setDrawColor(...C.grayBorder);
-          doc.setLineWidth(0.3);
-          doc.roundedRect(boxX, boxY, colW, 46, 3, 3, "FD");
-
-          doc.setFont("helvetica", "bold");
-          doc.setFontSize(9);
-          doc.setTextColor(...C.primaryDark);
-          doc.text(boxTitle, boxX + 4, boxY + 7);
-
-          rows.forEach(([label, value], i) => {
-            doc.setFont("helvetica", "bold");
-            doc.setFontSize(9);
-            doc.setTextColor(...C.gray);
-            doc.text(label, boxX + 4, boxY + 16 + i * 8);
-
-            doc.setFont("helvetica", "normal");
-            doc.setTextColor(...C.black);
-            const maxW = colW - 28;
-            const textW = doc.getTextWidth(value);
-            const safeValue =
-              textW > maxW
-                ? value.slice(
-                    0,
-                    Math.max(1, Math.floor(value.length * (maxW / textW)) - 1)
-                  ) + "…"
-                : value;
-            doc.text(safeValue, boxX + 28, boxY + 16 + i * 8);
-          });
-        };
-
-        drawInfoBox(margin, y, "DATOS DEL VEHÍCULO", [
-          ["Marca:", car.brand ?? "---"],
-          ["Modelo:", car.model ?? "---"],
-          ["Año:", String(car.year ?? "---")],
-          [
-            "Kilometraje:",
-            `${(car.kilometers ?? 0).toLocaleString("es-AR")} km`,
-          ],
-        ]);
-
-        drawInfoBox(margin + colW + 6, y, "DATOS DEL TITULAR", [
-          ["Nombre:", car.owner?.fullname ?? "---"],
-          ["Teléfono:", car.owner?.phone ?? "---"],
-          ["Dirección:", car.owner?.address ?? "---"],
-          ["Localidad:", car.owner?.city ?? "---"],
-        ]);
-
-        // ─── TABLA DE TRABAJOS ─────────────────────────────────────────
-        y += 56;
-
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(11);
-        doc.setTextColor(...C.primaryDark);
-        doc.text("DETALLE DE TRABAJOS", margin, y);
-        y += 5;
-
-        if (filteredJobs.length === 0) {
-          doc.setFont("helvetica", "italic");
-          doc.setFontSize(9);
-          doc.setTextColor(...C.gray);
-          doc.text(
-            onlyCompleted
-              ? "No hay trabajos completados o entregados para este vehículo."
-              : "No hay trabajos registrados para este vehículo.",
-            margin,
-            y + 10
-          );
-          y += 22;
-        } else {
-          autotable(doc, {
-            startY: y,
-            margin: { left: margin, right: margin },
-            head: [
-              [
-                "Descripción",
-                "Estado",
-                "Terceros",
-                "Repuestos",
-                "Mano de obra",
-              ],
-            ],
-            body: filteredJobs.map((job) => {
-              const partsTotal = (job.parts ?? []).reduce(
-                (acc, p) => acc + p.price,
-                0
-              );
-              return [
-                job.description ?? "",
-                STATUS_LABELS[job.status] ?? job.status,
-                job.isThirdParty ? "Sí" : "No",
-                partsTotal > 0 ? formatARS(partsTotal) : "---",
-                formatARS(job.price ?? 0),
-              ];
-            }),
-            headStyles: {
-              fillColor: C.primaryDark,
-              textColor: C.white,
-              fontStyle: "bold",
-              fontSize: 9,
-              cellPadding: 4,
-            },
-            bodyStyles: {
-              fontSize: 9,
-              cellPadding: 3,
-              textColor: C.black,
-            },
-            alternateRowStyles: {
-              fillColor: C.grayLight,
-            },
-            columnStyles: {
-              0: { cellWidth: "auto" },
-              1: { cellWidth: 28, halign: "center" },
-              2: { cellWidth: 20, halign: "center" },
-              3: { cellWidth: 30, halign: "right" },
-              4: { cellWidth: 30, halign: "right" },
-            },
-            didDrawPage: (data) => {
-              if (data.cursor) y = data.cursor.y;
-            },
-          });
-
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          y =
-            (doc as any).lastAutoTable?.finalY ??
-            y + filteredJobs.length * 10 + 20;
-        }
-
-        // ─── TOTALES ───────────────────────────────────────────────────
-        y += 8;
-        const laborTotal = filteredJobs.reduce(
-          (acc, j) => acc + (j.price ?? 0),
-          0
-        );
-        const partsGrandTotal = filteredJobs.reduce(
-          (acc, j) => acc + (j.parts ?? []).reduce((s, p) => s + p.price, 0),
-          0
-        );
-        const total = laborTotal + partsGrandTotal;
-        const thirdPartyTotal = filteredJobs
-          .filter((j) => j.isThirdParty)
-          .reduce((acc, j) => acc + (j.price ?? 0), 0);
-        const ownTotal = laborTotal - thirdPartyTotal;
-
-        const boxW = 90;
-        const boxX = pageW - margin - boxW;
-        const hasThirdParty = thirdPartyTotal > 0;
-        const hasParts = partsGrandTotal > 0;
-
-        const subtotalRows: [string, number][] = [];
-        if (hasThirdParty) {
-          subtotalRows.push(["Mano de obra propia:", ownTotal]);
-          subtotalRows.push(["Mano de obra terceros:", thirdPartyTotal]);
-        }
-        if (hasParts) {
-          subtotalRows.push(["Repuestos:", partsGrandTotal]);
-        }
-
-        if (subtotalRows.length > 0) {
-          const subtotalH = subtotalRows.length * 9 + 8;
-          doc.setFillColor(...C.grayLight);
-          doc.setDrawColor(...C.grayBorder);
-          doc.setLineWidth(0.3);
-          doc.roundedRect(boxX, y, boxW, subtotalH, 3, 3, "FD");
-
-          doc.setFont("helvetica", "normal");
-          doc.setFontSize(9);
-          subtotalRows.forEach(([label, value], i) => {
-            doc.setTextColor(...C.gray);
-            doc.text(label, boxX + 4, y + 8 + i * 9);
-            doc.setTextColor(...C.black);
-            doc.text(formatARS(value), pageW - margin - 4, y + 8 + i * 9, {
-              align: "right",
-            });
-          });
-
-          y += subtotalH + 2;
-        }
-
-        // Bloque total principal
-        doc.setFillColor(...C.primaryDark);
-        doc.roundedRect(boxX, y, boxW, 16, 3, 3, "F");
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(11);
-        doc.setTextColor(...C.white);
-        doc.text("TOTAL:", boxX + 5, y + 11);
-        doc.text(formatARS(total), pageW - margin - 4, y + 11, {
-          align: "right",
-        });
-
-        // ─── PIE DE PÁGINA (todas las páginas) ─────────────────────────
-        const totalPages = doc.getNumberOfPages();
-        for (let i = 1; i <= totalPages; i++) {
-          doc.setPage(i);
-          doc.setFillColor(...C.primaryDark);
-          doc.rect(0, pageH - 11, pageW, 11, "F");
-
-          doc.setFont("helvetica", "normal");
-          doc.setFontSize(7);
-          doc.setTextColor(...C.infoBlue);
-          doc.text(
-            "Mecánica Dealbera — Servicio técnico automotriz",
-            margin,
-            pageH - 4
-          );
-          doc.text(`Generado el ${today}`, pageW - margin, pageH - 4, {
-            align: "right",
-          });
-          doc.text(`Página ${i} de ${totalPages}`, pageW / 2, pageH - 4, {
-            align: "center",
-          });
-        }
-
-        // ─── GUARDAR ───────────────────────────────────────────────────
+        // El nombre del archivo arranca con el número correlativo para que los
+        // documentos queden ordenados en el explorador.
         const safeName = title
           .replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ ]/g, "_")
           .replace(/\s+/g, "_");
-        const filename = `${safeName}_${car.licensePlate}_${new Date()
-          .toISOString()
-          .slice(0, 10)}.pdf`;
+        doc.save(`${docNumber}_${safeName}_${car.licensePlate}.pdf`);
 
-        doc.save(filename);
+        return issued.result;
       } catch (err) {
+        // Si algo falló después de tomar el número, se descarta el documento
+        // para no dejar un hueco en el correlativo.
+        if (issuedId) {
+          try {
+            await window.api.documents.discard(issuedId);
+          } catch {
+            /* no se pudo descartar: se deja el registro y se sigue */
+          }
+        }
         const msg =
           err instanceof Error
             ? err.message

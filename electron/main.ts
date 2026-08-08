@@ -4,6 +4,7 @@ import "./DataBase/Endpoints/car.jobs.endpoints";
 import "./DataBase/Endpoints/car.search.endpoints";
 import "./DataBase/Endpoints/client.endpoints";
 import "./DataBase/Endpoints/dashboard.endpoints";
+import "./DataBase/Endpoints/document.endpoints";
 import "./DataBase/Endpoints/backup.endpoints";
 import {
   app,

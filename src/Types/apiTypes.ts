@@ -108,6 +108,55 @@ export interface UpdateCar {
   kilometers?: number;
 }
 
+/**
+ * Tipo de documento emitido. Cada tipo lleva su propia numeración correlativa.
+ */
+export enum DocumentType {
+  BUDGET = "budget",
+  INVOICE = "invoice",
+}
+
+/** Prefijo del número según el tipo de documento (ej. PRE-000123). */
+export const DOCUMENT_PREFIX: Record<DocumentType, string> = {
+  [DocumentType.BUDGET]: "PRE",
+  [DocumentType.INVOICE]: "FAC",
+};
+
+/** Cantidad de dígitos del correlativo (PRE-000123). */
+const DOCUMENT_NUMBER_PAD = 6;
+
+/**
+ * Formatea el número correlativo de un documento. Única fuente de verdad del
+ * formato: la usan el backend (al emitir) y el PDF.
+ */
+export const formatDocumentNumber = (
+  type: DocumentType,
+  number: number
+): string =>
+  `${DOCUMENT_PREFIX[type]}-${String(number).padStart(DOCUMENT_NUMBER_PAD, "0")}`;
+
+/** Datos que se guardan al emitir un documento (snapshot del momento). */
+export interface IssueDocumentBody {
+  type: DocumentType;
+  licensePlate: string;
+  clientName: string;
+  total: number;
+}
+
+/** Documento ya emitido, con su número correlativo asignado. */
+export interface IssuedDocument {
+  id: string;
+  type: DocumentType;
+  /** Correlativo dentro del tipo (1, 2, 3...). */
+  number: number;
+  /** Número formateado para mostrar/imprimir (ej. "PRE-000123"). */
+  formatted: string;
+  licensePlate: string;
+  clientName: string;
+  total: number;
+  createdAt: string;
+}
+
 export interface CreateCarJob {
   price: number | "";
   description: string;
