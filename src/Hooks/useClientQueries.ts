@@ -45,7 +45,7 @@ export const useClientQueries = () => {
         setLoading(false);
       }
     },
-    [fetchList],
+    [fetchList]
   );
 
   const getClientByName = useCallback(
@@ -59,7 +59,7 @@ export const useClientQueries = () => {
         setLoading(false);
       }
     },
-    [fetchByName],
+    [fetchByName]
   );
 
   const refresh = useCallback(
@@ -75,7 +75,7 @@ export const useClientQueries = () => {
         setRefreshing(false);
       }
     },
-    [fetchList, showToast],
+    [fetchList, showToast]
   );
 
   const updateOwner = useCallback(
@@ -87,21 +87,21 @@ export const useClientQueries = () => {
           showToast(
             "Cliente actualizado correctamente",
             "success",
-            "Actualizar Cliente",
+            "Actualizar Cliente"
           );
       } catch (error) {
         if (isOnly)
           showToast(
             "Error al actualizar cliente",
             "danger",
-            "Actualizar Cliente",
+            "Actualizar Cliente"
           );
         throw error;
       } finally {
         setLoading(false);
       }
     },
-    [update, showToast],
+    [update, showToast]
   );
 
   return {

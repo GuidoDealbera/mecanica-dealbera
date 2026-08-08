@@ -24,7 +24,7 @@ const AddJobPage: React.FC = () => {
       pageSize: PICKER_PAGE_SIZE,
       search: debouncedSearch.trim() || undefined,
     }),
-    [page, debouncedSearch],
+    [page, debouncedSearch]
   );
 
   React.useEffect(() => {
@@ -91,7 +91,11 @@ const AddJobPage: React.FC = () => {
         </div>
       )}
 
-      <AddJobForm license={selectedLicense} onSubmit={handleSubmit} isLoading={loading} />
+      <AddJobForm
+        license={selectedLicense}
+        onSubmit={handleSubmit}
+        isLoading={loading}
+      />
     </div>
   );
 };

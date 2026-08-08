@@ -12,7 +12,10 @@ export const useFormGuard = ({ isDirty, onConfirm }: FormGuardProps) => {
   const { isOpen, onClose, onOpen } = useDisclosure();
 
   const blocker = useBlocker((tx) => {
-    if (!isDirty || (tx.nextLocation.state as { bypassGuard?: boolean } | null)?.bypassGuard) {
+    if (
+      !isDirty ||
+      (tx.nextLocation.state as { bypassGuard?: boolean } | null)?.bypassGuard
+    ) {
       return false;
     }
     setNextLocation(tx.nextLocation.pathname);

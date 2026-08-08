@@ -42,17 +42,17 @@ const BudgetButton: React.FC<BudgetButtonProps> = ({
         showToast(
           "Descargado con éxito",
           "success",
-          onlyCompleted ? "Factura" : "Presupuesto",
+          onlyCompleted ? "Factura" : "Presupuesto"
         );
       } catch (err) {
         showToast(
           err instanceof Error ? err.message : "Error al generar el PDF",
           "danger",
-          "Generar PDF",
+          "Generar PDF"
         );
       }
     },
-    [car, jobs, generatePDF, showToast],
+    [car, jobs, generatePDF, showToast]
   );
 
   if (compact) {

@@ -1,10 +1,10 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
 export class InitialSchema1700000000000 implements MigrationInterface {
-    name = "InitialSchema1700000000000"
+  name = "InitialSchema1700000000000";
 
-    public async up(qr: QueryRunner): Promise<void> {
-        await qr.query(`
+  public async up(qr: QueryRunner): Promise<void> {
+    await qr.query(`
             CREATE TABLE IF NOT EXISTS "client" (
                 "id"        VARCHAR       PRIMARY KEY NOT NULL,
                 "fullname"  VARCHAR       NOT NULL UNIQUE,
@@ -15,9 +15,9 @@ export class InitialSchema1700000000000 implements MigrationInterface {
                 "isActive"  BOOLEAN       NOT NULL DEFAULT 1,
                 "createdAt" DATETIME      NOT NULL DEFAULT (datetime('now'))
             )
-        `)
+        `);
 
-        await qr.query(`
+    await qr.query(`
             CREATE TABLE IF NOT EXISTS "car" (
                 "id"           VARCHAR  PRIMARY KEY NOT NULL,
                 "licensePlate" VARCHAR(7) NOT NULL UNIQUE,
@@ -34,10 +34,10 @@ export class InitialSchema1700000000000 implements MigrationInterface {
                     REFERENCES "client" ("id") ON DELETE SET NULL ON UPDATE NO ACTION
             )
         `);
-    }
+  }
 
-    public async down(qr: QueryRunner): Promise<void> {
-        await qr.query(`DROP TABLE IF EXISTS "car"`)
-        await qr.query(`DROP TABLE IF EXISTS "client"`)
-    }
+  public async down(qr: QueryRunner): Promise<void> {
+    await qr.query(`DROP TABLE IF EXISTS "car"`);
+    await qr.query(`DROP TABLE IF EXISTS "client"`);
+  }
 }

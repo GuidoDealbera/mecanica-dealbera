@@ -25,39 +25,36 @@ function toPlainJob(job: Job) {
   };
 }
 
-handleIpc(
-  "car:add-job",
-  async (_, license: string, jobDto: CreateCarJob) => {
-    const { carRepository, jobRepository } = getRepositories();
-    const car = await carRepository.findOne({
-      where: { licensePlate: license },
-    });
-    if (!car) {
-      return {
-        status: "failed",
-        message: "Vehículo no registrado",
-      };
-    }
-
-    const job = jobRepository.create({
-      price: jobDto.price as number,
-      description: jobDto.description,
-      isThirdParty: jobDto.isThirdParty,
-      status: jobDto.status,
-      parts: jobDto.parts,
-      notes: jobDto.notes,
-      car,
-    });
-    const saved = await jobRepository.save(job);
-    invalidateDashboardStatsCache();
-
+handleIpc("car:add-job", async (_, license: string, jobDto: CreateCarJob) => {
+  const { carRepository, jobRepository } = getRepositories();
+  const car = await carRepository.findOne({
+    where: { licensePlate: license },
+  });
+  if (!car) {
     return {
-      status: "success",
-      message: "Trabajo registrado exitosamente",
-      result: toPlainJob(saved),
+      status: "failed",
+      message: "Vehículo no registrado",
     };
-  },
-);
+  }
+
+  const job = jobRepository.create({
+    price: jobDto.price as number,
+    description: jobDto.description,
+    isThirdParty: jobDto.isThirdParty,
+    status: jobDto.status,
+    parts: jobDto.parts,
+    notes: jobDto.notes,
+    car,
+  });
+  const saved = await jobRepository.save(job);
+  invalidateDashboardStatsCache();
+
+  return {
+    status: "success",
+    message: "Trabajo registrado exitosamente",
+    result: toPlainJob(saved),
+  };
+});
 
 // Cantidad de trabajos activos (pendientes o en progreso) en todo el taller.
 // Alimenta el badge de la barra de navegación: es un COUNT liviano sobre la
@@ -116,5 +113,5 @@ handleIpc(
       message: "Trabajo actualizado correctamente",
       result: toPlainJob(saved),
     };
-  },
+  }
 );

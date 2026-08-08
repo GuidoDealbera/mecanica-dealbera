@@ -58,7 +58,12 @@ const DeleteCarDialog: React.FC<DeleteCarDialogProps> = ({
                 <span className="text-foreground-700 font-semibold">
                   {car.brand} {car.model}
                 </span>
-                <Chip size="sm" variant="flat" color="primary" className="text-primary">
+                <Chip
+                  size="sm"
+                  variant="flat"
+                  color="primary"
+                  className="text-primary"
+                >
                   {car.year}
                 </Chip>
               </div>

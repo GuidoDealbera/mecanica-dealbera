@@ -108,7 +108,7 @@ export const CarsBrands = {
 export type CarBrand = (typeof CarsBrands)[keyof typeof CarsBrands];
 
 export const BRANDS = Object.values(CarsBrands).sort((a, b) =>
-  a.localeCompare(b),
+  a.localeCompare(b)
 );
 
 export const BRANDS_OPTIONS = BRANDS.map((brand) => ({
@@ -136,7 +136,7 @@ export const capitalizeWords = (text: string): string => {
 };
 
 export const handleCapitalizedChange = (
-  fieldOnChange: (value: string) => void,
+  fieldOnChange: (value: string) => void
 ) => {
   return (e: React.ChangeEvent<HTMLInputElement>) => {
     const capitalizedValue = capitalizeWords(e.target.value);
@@ -237,7 +237,7 @@ export const toWhatsappNumber = (phone: string | null | undefined): string => {
 /** Arma el link de wa.me con un mensaje opcional pre-cargado. */
 export const buildWhatsappUrl = (
   phone: string | null | undefined,
-  message?: string,
+  message?: string
 ): string => {
   const number = toWhatsappNumber(phone);
   if (!number) return "";
@@ -251,7 +251,7 @@ export const buildWhatsappUrl = (
  */
 export function toCsv<T extends object>(
   headers: Partial<Record<keyof T, string>>,
-  rows: T[],
+  rows: T[]
 ): string {
   const BOM = "\ufeff";
   const keys = Object.keys(headers) as (keyof T)[];
@@ -265,7 +265,7 @@ export function toCsv<T extends object>(
           ? `"${str.replace(/"/g, '""')}"`
           : str;
       })
-      .join(";"),
+      .join(";")
   );
   return BOM + [headerRow, ...dataRows].join("\n");
 }

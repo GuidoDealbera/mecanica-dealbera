@@ -59,16 +59,16 @@ const CarsList: React.FC<CarsListProps> = ({
   }
 
   return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 p-3">
-        {cars.map((car) => (
-          <CarCard
-            key={car.id}
-            {...car}
-            isSelected={car.licensePlate === selectedLicense}
-            onSelect={onSelect}
-          />
-        ))}
-      </div>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 p-3">
+      {cars.map((car) => (
+        <CarCard
+          key={car.id}
+          {...car}
+          isSelected={car.licensePlate === selectedLicense}
+          onSelect={onSelect}
+        />
+      ))}
+    </div>
   );
 };
 

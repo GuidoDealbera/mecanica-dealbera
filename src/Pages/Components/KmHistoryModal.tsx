@@ -39,9 +39,7 @@ const KmHistoryModal: React.FC<KmHistoryModalProps> = ({
   const chartData = React.useMemo(
     () =>
       [...(kmHistory ?? [])]
-        .sort(
-          (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
-        )
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
         .map((r) => ({
           date: new Date(r.date).toLocaleDateString("es-AR", {
             day: "2-digit",
@@ -50,7 +48,7 @@ const KmHistoryModal: React.FC<KmHistoryModalProps> = ({
           }),
           km: r.km,
         })),
-    [kmHistory],
+    [kmHistory]
   );
 
   const hasData = chartData.length > 0;

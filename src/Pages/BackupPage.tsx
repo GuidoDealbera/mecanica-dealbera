@@ -1,6 +1,14 @@
 import React from "react";
 import { Button, Card, CardBody, CardHeader, Divider } from "@heroui/react";
-import { MdBackup, MdUploadFile, MdInfo, MdTableChart, MdFolderOpen, MdSchedule, MdBugReport } from "react-icons/md";
+import {
+  MdBackup,
+  MdUploadFile,
+  MdInfo,
+  MdTableChart,
+  MdFolderOpen,
+  MdSchedule,
+  MdBugReport,
+} from "react-icons/md";
 import { useToasts } from "../Hooks/useToasts";
 
 const BackupPage: React.FC = () => {
@@ -56,7 +64,7 @@ const BackupPage: React.FC = () => {
         showToast(
           res.message + " Reiniciá la app para ver los cambios.",
           "success",
-          "Importar base de datos",
+          "Importar base de datos"
         );
       } else {
         showToast(res.message, "danger", "Importar base de datos");
@@ -137,9 +145,13 @@ const BackupPage: React.FC = () => {
               correctamente en Excel con acentos y caracteres especiales.
             </p>
             <div className="flex items-start gap-2 bg-content1 rounded-lg p-3">
-              <MdInfo size={16} className="text-success-400 flex-shrink-0 mt-0.5" />
+              <MdInfo
+                size={16}
+                className="text-success-400 flex-shrink-0 mt-0.5"
+              />
               <p className="text-foreground-400 text-xs">
-                Separador ";" — compatible con Excel en configuración regional en español.
+                Separador ";" — compatible con Excel en configuración regional
+                en español.
               </p>
             </div>
             <Button
@@ -182,7 +194,10 @@ const BackupPage: React.FC = () => {
                     key={name}
                     className="flex items-center gap-2 text-xs text-foreground-400 bg-content1 rounded px-2 py-1"
                   >
-                    <MdBackup size={12} className="text-secondary-400 flex-shrink-0" />
+                    <MdBackup
+                      size={12}
+                      className="text-secondary-400 flex-shrink-0"
+                    />
                     <span className="truncate">{name}</span>
                   </div>
                 ))}
@@ -260,8 +275,7 @@ const BackupPage: React.FC = () => {
           <CardBody className="pt-0 flex flex-col gap-3">
             <p className="text-foreground-300 text-sm text-justify">
               Abre la carpeta donde se guardan los archivos de log de la
-              aplicación. Útil para diagnosticar errores o reportar
-              problemas.
+              aplicación. Útil para diagnosticar errores o reportar problemas.
             </p>
             <Button
               color="default"

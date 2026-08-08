@@ -64,12 +64,12 @@ export class NormalizeJobs1700000004000 implements MigrationInterface {
       )
     `);
     await qr.query(
-      `CREATE INDEX IF NOT EXISTS "IDX_job_car" ON "job" ("carId")`,
+      `CREATE INDEX IF NOT EXISTS "IDX_job_car" ON "job" ("carId")`
     );
 
     // Transferir los trabajos existentes desde el JSON a filas.
     const cars: CarJobsRow[] = await qr.query(
-      `SELECT id, jobs FROM car WHERE jobs IS NOT NULL`,
+      `SELECT id, jobs FROM car WHERE jobs IS NOT NULL`
     );
 
     for (const car of cars) {
@@ -102,7 +102,7 @@ export class NormalizeJobs1700000004000 implements MigrationInterface {
             createdAt,
             toIso(job.updatedAt, createdAt),
             car.id,
-          ],
+          ]
         );
       }
     }
@@ -115,7 +115,7 @@ export class NormalizeJobs1700000004000 implements MigrationInterface {
     await qr.query(`ALTER TABLE "car" ADD COLUMN "jobs" TEXT`);
 
     const jobs: JobRow[] = await qr.query(
-      `SELECT * FROM "job" ORDER BY "createdAt" ASC`,
+      `SELECT * FROM "job" ORDER BY "createdAt" ASC`
     );
 
     const byCar = new Map<string, JsonJob[]>();

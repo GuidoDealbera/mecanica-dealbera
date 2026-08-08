@@ -42,7 +42,7 @@ const AddCarForm: React.FC<AddCarFormProps> = ({
       },
       year: undefined,
     }),
-    [],
+    []
   );
   const [selectedOwner, setSelectedOwner] = React.useState<
     Clients | undefined
@@ -70,11 +70,11 @@ const AddCarForm: React.FC<AddCarFormProps> = ({
   const filterClient = React.useCallback(
     (fullname: string | null) => {
       const filtered = clientResults.find(
-        (client) => client.fullname === fullname,
+        (client) => client.fullname === fullname
       );
       setSelectedOwner(filtered);
     },
-    [clientResults],
+    [clientResults]
   );
 
   const clientsNames = React.useMemo(
@@ -83,7 +83,7 @@ const AddCarForm: React.FC<AddCarFormProps> = ({
         key: client.fullname,
         label: client.fullname,
       })),
-    [clientResults],
+    [clientResults]
   );
 
   const shouldEnableSubmit = isEditing ? isDirty && isValid : isValid;

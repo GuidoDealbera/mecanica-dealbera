@@ -34,7 +34,7 @@ const Jobs: React.FC<JobsProps> = ({ jobs, isLoading, license }) => {
 
   const [editingJob, setEditingJob] = React.useState<CarJobs | null>(null);
   const [editStatus, setEditStatus] = React.useState<JobStatus>(
-    JobStatus.PENDING,
+    JobStatus.PENDING
   );
   const [editPrice, setEditPrice] = React.useState<number>(0);
   const [editParts, setEditParts] = React.useState<
@@ -61,7 +61,7 @@ const Jobs: React.FC<JobsProps> = ({ jobs, isLoading, license }) => {
       if (!license || status === job.status) return;
       await updateJob(license, job.id, { status });
     },
-    [license, updateJob],
+    [license, updateJob]
   );
 
   const handleSaveEdit = async () => {

@@ -1,7 +1,15 @@
 import React from "react";
 import {
-  Modal, ModalContent, ModalHeader, ModalBody, ModalFooter,
-  Button, Divider, Input, Autocomplete, AutocompleteItem,
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  Button,
+  Divider,
+  Input,
+  Autocomplete,
+  AutocompleteItem,
 } from "@heroui/react";
 import { MdPerson, MdPersonAdd, MdWarning } from "react-icons/md";
 import { useForm, Controller } from "react-hook-form";
@@ -49,7 +57,9 @@ const ReassignOwnerModal: React.FC<ReassignOwnerModalProps> = ({
   // Búsqueda de clientes existentes (server-side, as-you-type).
   const [query, setQuery] = React.useState("");
   const [results, setResults] = React.useState<Clients[]>([]);
-  const [selectedClient, setSelectedClient] = React.useState<Clients | undefined>();
+  const [selectedClient, setSelectedClient] = React.useState<
+    Clients | undefined
+  >();
   const debouncedQuery = useDebounce(query, 250);
 
   const {
@@ -59,7 +69,13 @@ const ReassignOwnerModal: React.FC<ReassignOwnerModalProps> = ({
     formState: { isValid },
   } = useForm<NewOwnerForm>({
     mode: "onChange",
-    defaultValues: { fullname: "", phone: "", address: "", city: "", email: "" },
+    defaultValues: {
+      fullname: "",
+      phone: "",
+      address: "",
+      city: "",
+      email: "",
+    },
   });
 
   // Limpiar estado al abrir/cerrar
@@ -86,7 +102,8 @@ const ReassignOwnerModal: React.FC<ReassignOwnerModalProps> = ({
     window.api.clients
       .search(q)
       .then((res) => {
-        if (!cancelled && res.status === "success") setResults(res.result ?? []);
+        if (!cancelled && res.status === "success")
+          setResults(res.result ?? []);
       })
       .catch(() => {
         if (!cancelled) setResults([]);
@@ -101,7 +118,12 @@ const ReassignOwnerModal: React.FC<ReassignOwnerModalProps> = ({
       results
         // Excluir al titular actual para evitar confusión
         .filter((c) => c.fullname !== currentOwnerName)
-        .map((c) => ({ key: c.fullname, label: c.fullname, phone: c.phone, city: c.city })),
+        .map((c) => ({
+          key: c.fullname,
+          label: c.fullname,
+          phone: c.phone,
+          city: c.city,
+        })),
     [results, currentOwnerName]
   );
 
@@ -121,7 +143,11 @@ const ReassignOwnerModal: React.FC<ReassignOwnerModalProps> = ({
         showToast(res.message, "danger", "Cambio de titular");
       }
     } catch {
-      showToast("Error inesperado al cambiar el titular", "danger", "Cambio de titular");
+      showToast(
+        "Error inesperado al cambiar el titular",
+        "danger",
+        "Cambio de titular"
+      );
     } finally {
       setLoading(false);
     }
@@ -148,7 +174,11 @@ const ReassignOwnerModal: React.FC<ReassignOwnerModalProps> = ({
         showToast(res.message, "danger", "Cambio de titular");
       }
     } catch {
-      showToast("Error inesperado al cambiar el titular", "danger", "Cambio de titular");
+      showToast(
+        "Error inesperado al cambiar el titular",
+        "danger",
+        "Cambio de titular"
+      );
     } finally {
       setLoading(false);
     }
@@ -177,11 +207,15 @@ const ReassignOwnerModal: React.FC<ReassignOwnerModalProps> = ({
         <ModalBody className="pt-4 pb-2 flex flex-col gap-4">
           {/* Aviso sobre el titular actual */}
           <div className="flex items-start gap-2 p-3 rounded-lg bg-warning-900/30 border border-warning-700/50">
-            <MdWarning size={16} className="text-warning-400 flex-shrink-0 mt-0.5" />
+            <MdWarning
+              size={16}
+              className="text-warning-400 flex-shrink-0 mt-0.5"
+            />
             <p className="text-warning-300 text-sm">
               Titular actual:{" "}
-              <span className="font-semibold">{currentOwnerName}</span>. Si no tiene
-              otros vehículos, seguirá en el sistema sin vehículos asignados.
+              <span className="font-semibold">{currentOwnerName}</span>. Si no
+              tiene otros vehículos, seguirá en el sistema sin vehículos
+              asignados.
             </p>
           </div>
 
@@ -239,13 +273,19 @@ const ReassignOwnerModal: React.FC<ReassignOwnerModalProps> = ({
               {/* Preview del cliente seleccionado */}
               {selectedClient && (
                 <div className="flex flex-col gap-1 p-3 rounded-lg bg-content2 border border-divider">
-                  <p className="text-foreground font-semibold text-sm">{selectedClient.fullname}</p>
-                  <p className="text-foreground-400 text-xs">{selectedClient.phone}</p>
+                  <p className="text-foreground font-semibold text-sm">
+                    {selectedClient.fullname}
+                  </p>
+                  <p className="text-foreground-400 text-xs">
+                    {selectedClient.phone}
+                  </p>
                   <p className="text-foreground-400 text-xs">
                     {selectedClient.address} · {selectedClient.city}
                   </p>
                   {selectedClient.email && (
-                    <p className="text-foreground-400 text-xs">{selectedClient.email}</p>
+                    <p className="text-foreground-400 text-xs">
+                      {selectedClient.email}
+                    </p>
                   )}
                 </div>
               )}

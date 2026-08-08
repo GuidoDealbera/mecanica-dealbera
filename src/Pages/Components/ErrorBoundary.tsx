@@ -12,7 +12,10 @@ interface ErrorBoundaryProps {
   onBack?: () => void;
 }
 
-class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+class ErrorBoundary extends React.Component<
+  ErrorBoundaryProps,
+  ErrorBoundaryState
+> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false, error: null };
@@ -51,7 +54,6 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
     return (
       <div className="w-full min-h-full flex items-center justify-center p-6">
         <div className="max-w-md w-full bg-content1 rounded-2xl shadow-xl shadow-black/30 border border-divider p-8 flex flex-col items-center gap-6 text-foreground">
-
           {/* Ícono */}
           <div className="p-4 rounded-full bg-danger-900/40 border border-danger-700/50">
             <MdErrorOutline size={40} className="text-danger-400" />
@@ -63,8 +65,8 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
               Algo salió mal
             </h2>
             <p className="text-foreground-400 text-sm leading-relaxed">
-              Ocurrió un error inesperado al renderizar esta sección.
-              Podés intentar recargar o volver a la pantalla anterior.
+              Ocurrió un error inesperado al renderizar esta sección. Podés
+              intentar recargar o volver a la pantalla anterior.
             </p>
           </div>
 

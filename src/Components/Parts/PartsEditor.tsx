@@ -24,7 +24,7 @@ const PartsEditor: React.FC<PartsEditorProps> = ({
 }) => {
   const [partName, setPartName] = React.useState("");
   const [partPrice, setPartPrice] = React.useState<number | undefined>(
-    undefined,
+    undefined
   );
   const [partNameError, setPartNameError] = React.useState("");
   const [partPriceError, setPartPriceError] = React.useState("");
@@ -193,9 +193,7 @@ const PartsEditor: React.FC<PartsEditorProps> = ({
             compact ? "bg-default-200" : "bg-primary-900"
           }`}
         >
-          <span
-            className={`text-sm ${compact ? "" : "text-primary-100"}`}
-          >
+          <span className={`text-sm ${compact ? "" : "text-primary-100"}`}>
             Total repuestos{" "}
             <Chip
               color="primary"

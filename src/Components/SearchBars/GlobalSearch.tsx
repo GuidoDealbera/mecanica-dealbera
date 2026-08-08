@@ -34,7 +34,10 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<SearchResult>({ cars: [], clients: [] });
+  const [results, setResults] = useState<SearchResult>({
+    cars: [],
+    clients: [],
+  });
   const [loading, setLoading] = useState(false);
   const debouncedQuery = useDebounce(query, 280);
 
@@ -124,7 +127,10 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose }) => {
             placeholder="Buscar por patente, modelo, cliente, teléfono..."
             className="flex-1 bg-transparent text-foreground placeholder-foreground-500 outline-none text-base"
           />
-          <button onClick={onClose} className="text-foreground-500 hover:text-foreground">
+          <button
+            onClick={onClose}
+            className="text-foreground-500 hover:text-foreground"
+          >
             <IoClose size={18} />
           </button>
         </div>
@@ -153,7 +159,9 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose }) => {
                     <p className="text-foreground font-medium text-sm">
                       {car.brand} {car.model} {car.year}
                     </p>
-                    <p className="text-foreground-400 text-xs">{car.ownerName}</p>
+                    <p className="text-foreground-400 text-xs">
+                      {car.ownerName}
+                    </p>
                   </div>
                 </div>
               ))}
@@ -180,7 +188,9 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose }) => {
                     <p className="text-foreground font-medium text-sm flex items-center gap-2">
                       {client.fullname}
                       {!client.isActive && (
-                        <span className="text-xs text-danger-400">(Inactivo)</span>
+                        <span className="text-xs text-danger-400">
+                          (Inactivo)
+                        </span>
                       )}
                     </p>
                     <p className="text-foreground-400 text-xs">

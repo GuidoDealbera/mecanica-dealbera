@@ -52,13 +52,13 @@ const CarsTable: React.FC<CarsTableProps> = ({
   const navigate = useNavigate();
 
   const columns: TableColumnDef<Cars>[] = [
-    { key: "licensePlate", label: "Patente",     width: 180, sortable: true },
-    { key: "brand",        label: "Marca",       width: 150, center: true },
-    { key: "model",        label: "Modelo",      width: 200 },
-    { key: "year",         label: "Año",         width: 100, sortable: true },
-    { key: "kilometers",   label: "Kilometraje", width: 170, sortable: true },
-    { key: "owner",        label: "Dueño",       width: 200, sortable: true },
-    { key: "actions",      label: "Acciones",    width: 100, center: true },
+    { key: "licensePlate", label: "Patente", width: 180, sortable: true },
+    { key: "brand", label: "Marca", width: 150, center: true },
+    { key: "model", label: "Modelo", width: 200 },
+    { key: "year", label: "Año", width: 100, sortable: true },
+    { key: "kilometers", label: "Kilometraje", width: 170, sortable: true },
+    { key: "owner", label: "Dueño", width: 200, sortable: true },
+    { key: "actions", label: "Acciones", width: 100, center: true },
   ];
   return (
     <div className="text-foreground rounded-lg flex flex-col gap-4 border border-divider overflow-hidden">
@@ -100,9 +100,7 @@ const CarsTable: React.FC<CarsTableProps> = ({
                       <HiArrowUp
                         size={20}
                         className={`transition-all duration-200 ${
-                          sortBy === column.key
-                            ? "text-white"
-                            : "text-white/30"
+                          sortBy === column.key ? "text-white" : "text-white/30"
                         } ${
                           sortBy === column.key && sortDir === "desc"
                             ? "rotate-180"

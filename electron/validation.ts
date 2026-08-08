@@ -3,8 +3,7 @@ import { ClassConstructor, plainToInstance } from "class-transformer";
 import { validate, ValidationError } from "class-validator";
 
 export type ValidationResult<T> =
-  | { ok: true; dto: T }
-  | { ok: false; message: string; errors: string[] };
+  { ok: true; dto: T } | { ok: false; message: string; errors: string[] };
 
 /**
  * Aplana los mensajes de error de class-validator, incluyendo los de
@@ -34,7 +33,7 @@ function collectMessages(errors: ValidationError[]): string[] {
  */
 export async function validateDto<T extends object>(
   cls: ClassConstructor<T>,
-  plain: unknown,
+  plain: unknown
 ): Promise<ValidationResult<T>> {
   const dto = plainToInstance(cls, plain);
   const errors = await validate(dto, {

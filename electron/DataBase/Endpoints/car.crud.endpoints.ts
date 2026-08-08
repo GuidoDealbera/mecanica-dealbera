@@ -65,7 +65,9 @@ handleIpc("car:create", async (_event, payload: CreateCarDto) => {
     const newCar = qr.manager.create(Car, {
       ...createCarDto,
       owner: savedOwner,
-      kmHistory: [{ km: createCarDto.kilometers, date: new Date().toISOString() }],
+      kmHistory: [
+        { km: createCarDto.kilometers, date: new Date().toISOString() },
+      ],
     });
     await qr.manager.save(Car, newCar);
 
@@ -115,14 +117,19 @@ handleIpc(
       qb.andWhere("car.year <= :yearTo", { yearTo });
     }
 
-    const sortColumn = params?.sortBy ? CAR_SORT_COLUMNS[params.sortBy] : undefined;
-    qb.orderBy(sortColumn ?? "car.licensePlate", params?.sortDir === "desc" ? "DESC" : "ASC");
+    const sortColumn = params?.sortBy
+      ? CAR_SORT_COLUMNS[params.sortBy]
+      : undefined;
+    qb.orderBy(
+      sortColumn ?? "car.licensePlate",
+      params?.sortDir === "desc" ? "DESC" : "ASC"
+    );
 
     qb.skip(skip).take(take);
 
     const [items, total] = await qb.getManyAndCount();
     return { items, total, page, pageSize };
-  },
+  }
 );
 
 handleIpc(
@@ -146,7 +153,7 @@ handleIpc(
       message: "Vehículo encontrado",
       result: car,
     };
-  },
+  }
 );
 
 handleIpc("car:update", async (_, id: string, kilometers: number) => {
@@ -169,10 +176,10 @@ handleIpc("car:update", async (_, id: string, kilometers: number) => {
       message: "No se pueden bajar los kilómetros de un vehículo",
     };
   }
-  const history = Array.isArray(car.kmHistory) ? [...car.kmHistory] : []
-  history.push({km: kilometers, date: new Date().toISOString()})
-  car.kmHistory = history
-  car.kilometers = kilometers
+  const history = Array.isArray(car.kmHistory) ? [...car.kmHistory] : [];
+  history.push({ km: kilometers, date: new Date().toISOString() });
+  car.kmHistory = history;
+  car.kilometers = kilometers;
 
   const savedCar = await carRepo.save(car);
   invalidateDashboardStatsCache();
@@ -183,42 +190,39 @@ handleIpc("car:update", async (_, id: string, kilometers: number) => {
   };
 });
 
-handleIpc(
-  "car:delete",
-  async (_, license: CreateCarDto["licensePlate"]) => {
-    const qr = AppDataSource.createQueryRunner()
-    await qr.connect()
-    await qr.startTransaction()
-    try {
-      const car = await qr.manager.findOne(Car, {
-        where: {licensePlate: license},
-        relations: ['owner']
-      })
+handleIpc("car:delete", async (_, license: CreateCarDto["licensePlate"]) => {
+  const qr = AppDataSource.createQueryRunner();
+  await qr.connect();
+  await qr.startTransaction();
+  try {
+    const car = await qr.manager.findOne(Car, {
+      where: { licensePlate: license },
+      relations: ["owner"],
+    });
 
-      if(!car){
-        await qr.rollbackTransaction()
-        return {status: 'failed', message: 'Vehículo no encontrado'}
-      }
-      const owner = car.owner
-      await qr.manager.remove(car)
-      if(owner){
-        const remaining = await qr.manager.count(Car, {
-          where: {owner: {id: owner.id}},
-        })
-        if(remaining === 0) await qr.manager.remove(owner)
-      }
-    await qr.commitTransaction()
-    invalidateDashboardStatsCache()
-    return {status: 'success', message: "Vehículo eliminado correctamente"}
-    } catch (error) {
-      await qr.rollbackTransaction()
-      logError("car:delete", error)
-      return {status: 'failed', message: "Error al eliminar el vehículo"}
-    } finally {
-      await qr.release()
+    if (!car) {
+      await qr.rollbackTransaction();
+      return { status: "failed", message: "Vehículo no encontrado" };
     }
-  },
-);
+    const owner = car.owner;
+    await qr.manager.remove(car);
+    if (owner) {
+      const remaining = await qr.manager.count(Car, {
+        where: { owner: { id: owner.id } },
+      });
+      if (remaining === 0) await qr.manager.remove(owner);
+    }
+    await qr.commitTransaction();
+    invalidateDashboardStatsCache();
+    return { status: "success", message: "Vehículo eliminado correctamente" };
+  } catch (error) {
+    await qr.rollbackTransaction();
+    logError("car:delete", error);
+    return { status: "failed", message: "Error al eliminar el vehículo" };
+  } finally {
+    await qr.release();
+  }
+});
 
 handleIpc(
   "car:reassign-owner",
@@ -251,11 +255,17 @@ handleIpc(
         });
         if (!newOwner) {
           await qr.rollbackTransaction();
-          return { status: "failed", message: "El cliente seleccionado no existe" };
+          return {
+            status: "failed",
+            message: "El cliente seleccionado no existe",
+          };
         }
         if (newOwner.id === car.owner?.id) {
           await qr.rollbackTransaction();
-          return { status: "failed", message: "El cliente ya es el titular de este vehículo" };
+          return {
+            status: "failed",
+            message: "El cliente ya es el titular de este vehículo",
+          };
         }
       } else {
         // Verificar duplicado de nombre
@@ -264,7 +274,10 @@ handleIpc(
         });
         if (existingByName) {
           await qr.rollbackTransaction();
-          return { status: "failed", message: `Ya existe un cliente llamado "${payload.newOwner.fullname}"` };
+          return {
+            status: "failed",
+            message: `Ya existe un cliente llamado "${payload.newOwner.fullname}"`,
+          };
         }
         // Verificar duplicado de teléfono
         const existingByPhone = await qr.manager.findOne(Client, {
@@ -277,7 +290,10 @@ handleIpc(
             message: `El teléfono ya está registrado a nombre de ${existingByPhone.fullname}`,
           };
         }
-        newOwner = qr.manager.create(Client, { ...payload.newOwner, isActive: true });
+        newOwner = qr.manager.create(Client, {
+          ...payload.newOwner,
+          isActive: true,
+        });
         await qr.manager.save(Client, newOwner);
       }
 
@@ -294,7 +310,10 @@ handleIpc(
     } catch (error) {
       await qr.rollbackTransaction();
       logError("car:reassign-owner", error);
-      return { status: "failed", message: "Error al reasignar el titular del vehículo" };
+      return {
+        status: "failed",
+        message: "Error al reasignar el titular del vehículo",
+      };
     } finally {
       await qr.release();
     }

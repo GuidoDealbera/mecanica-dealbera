@@ -1,6 +1,12 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
 import { clientService } from "../Services/client.service";
-import { APIResponse, AppError, ClientQueryParams, Paginated, UpdateClientBody } from "../Types/apiTypes";
+import {
+  APIResponse,
+  AppError,
+  ClientQueryParams,
+  Paginated,
+  UpdateClientBody,
+} from "../Types/apiTypes";
 import { Clients } from "../Types/types";
 
 const toAppError = (error: unknown): AppError => ({
@@ -11,43 +17,38 @@ const toAppError = (error: unknown): AppError => ({
 // hace en la capa de presentación (componentes) con formatDate().
 // `fetchClients` recibe los parámetros de paginación/orden/búsqueda y devuelve
 // una página de resultados (`Paginated<Clients>`), no el dataset completo.
-export const fetchClients = createAsyncThunk<Paginated<Clients>, ClientQueryParams, { rejectValue: AppError }>(
-  "clients/fetchClients",
-  async (params, { rejectWithValue }) => {
-    try {
-      return await clientService.getAll(params);
-    } catch (error) {
-      return rejectWithValue(toAppError(error));
-    }
-  },
-);
+export const fetchClients = createAsyncThunk<
+  Paginated<Clients>,
+  ClientQueryParams,
+  { rejectValue: AppError }
+>("clients/fetchClients", async (params, { rejectWithValue }) => {
+  try {
+    return await clientService.getAll(params);
+  } catch (error) {
+    return rejectWithValue(toAppError(error));
+  }
+});
 
 export const fetchClientByName = createAsyncThunk<
   APIResponse<Clients>,
   string,
   { rejectValue: AppError }
->(
-  "clients/fetchClientByName",
-  async (fullname, { rejectWithValue }) => {
-    try {
-      return await clientService.getOne(fullname);
-    } catch (error) {
-      return rejectWithValue(toAppError(error));
-    }
-  },
-);
+>("clients/fetchClientByName", async (fullname, { rejectWithValue }) => {
+  try {
+    return await clientService.getOne(fullname);
+  } catch (error) {
+    return rejectWithValue(toAppError(error));
+  }
+});
 
 export const updateClient = createAsyncThunk<
   APIResponse<Clients>,
   UpdateClientBody,
   { rejectValue: AppError }
->(
-  "clients/updateClient",
-  async (body, { rejectWithValue }) => {
-    try {
-      return await clientService.update(body);
-    } catch (error) {
-      return rejectWithValue(toAppError(error));
-    }
-  },
-);
+>("clients/updateClient", async (body, { rejectWithValue }) => {
+  try {
+    return await clientService.update(body);
+  } catch (error) {
+    return rejectWithValue(toAppError(error));
+  }
+});

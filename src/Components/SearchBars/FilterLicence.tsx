@@ -8,7 +8,10 @@ interface Props {
   initialValue?: string;
 }
 
-const FilterByLicence: React.FC<Props> = ({ onFilterChange, initialValue = "" }) => {
+const FilterByLicence: React.FC<Props> = ({
+  onFilterChange,
+  initialValue = "",
+}) => {
   const [value, setValue] = React.useState<string>(initialValue);
   const [error, setError] = React.useState<string | null>(null);
   const [isValid, setIsValid] = React.useState<boolean>(false);
@@ -25,7 +28,9 @@ const FilterByLicence: React.FC<Props> = ({ onFilterChange, initialValue = "" })
         setIsValid(false);
         return;
       }
-      const isValidLicence = /^([A-Z]{2}\d{3}[A-Z]{2}|[A-Z]{3}\d{3})$/.test(newValue);
+      const isValidLicence = /^([A-Z]{2}\d{3}[A-Z]{2}|[A-Z]{3}\d{3})$/.test(
+        newValue
+      );
       const isPartial = newValue.length < 6;
       if (isValidLicence || isPartial) {
         setIsValid(isValidLicence);
@@ -35,7 +40,7 @@ const FilterByLicence: React.FC<Props> = ({ onFilterChange, initialValue = "" })
         setError("Formato de patente incorrecto");
       }
     },
-    [],
+    []
   );
 
   const handleClear = React.useCallback(() => {

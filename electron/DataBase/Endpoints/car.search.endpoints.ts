@@ -40,9 +40,9 @@ handleIpc("car:service-alerts", async () => {
         ? Math.floor(
             (Date.now() -
               new Date(
-                (lastJob.updatedAt || lastJob.createdAt) as Date,
+                (lastJob.updatedAt || lastJob.createdAt) as Date
               ).getTime()) /
-              86400000,
+              86400000
           )
         : null;
 
@@ -57,7 +57,7 @@ handleIpc("car:service-alerts", async () => {
         daysSinceLastJob: daysSince,
         lastJobDate: lastJob
           ? new Date(
-              (lastJob.updatedAt || lastJob.createdAt) as Date,
+              (lastJob.updatedAt || lastJob.createdAt) as Date
             ).toISOString()
           : null,
       };

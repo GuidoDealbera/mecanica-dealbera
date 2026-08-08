@@ -40,13 +40,34 @@ const STATUS_MAP: Record<
   {
     label: string;
     color: "warning" | "success" | "primary" | "secondary" | "default";
-    textColor: 'text-warning' | 'text-success' | 'text-primary' | 'text-secondary' | 'text-default';
+    textColor:
+      | "text-warning"
+      | "text-success"
+      | "text-primary"
+      | "text-secondary"
+      | "text-default";
   }
 > = {
-  [JobStatus.IN_PROGRESS]: { label: "En progreso", color: "primary", textColor: "text-primary" },
-  [JobStatus.COMPLETED]: { label: "Completado", color: "success", textColor: "text-success" },
-  [JobStatus.DELIVERED]: { label: "Entregado", color: "secondary", textColor: "text-secondary" },
-  [JobStatus.PENDING]: {label: "Sin comenzar", color: "default", textColor: "text-default"}
+  [JobStatus.IN_PROGRESS]: {
+    label: "En progreso",
+    color: "primary",
+    textColor: "text-primary",
+  },
+  [JobStatus.COMPLETED]: {
+    label: "Completado",
+    color: "success",
+    textColor: "text-success",
+  },
+  [JobStatus.DELIVERED]: {
+    label: "Entregado",
+    color: "secondary",
+    textColor: "text-secondary",
+  },
+  [JobStatus.PENDING]: {
+    label: "Sin comenzar",
+    color: "default",
+    textColor: "text-default",
+  },
 };
 
 // Orden de "avance" de los estados, para ordenar la columna Estado.
@@ -60,7 +81,10 @@ const STATUS_ORDER: Record<JobStatus, number> = {
 // Opciones del filtro por estado (incluye "Todos").
 const STATUS_FILTER_OPTIONS: { key: JobStatus | "all"; label: string }[] = [
   { key: "all", label: "Todos" },
-  ...Object.values(JobStatus).map((s) => ({ key: s, label: STATUS_MAP[s].label })),
+  ...Object.values(JobStatus).map((s) => ({
+    key: s,
+    label: STATUS_MAP[s].label,
+  })),
 ];
 
 const JobsTable: React.FC<JobsProps> = ({
@@ -75,7 +99,7 @@ const JobsTable: React.FC<JobsProps> = ({
 
   const [page, setPage] = React.useState<number>(1);
   const [statusFilter, setStatusFilter] = React.useState<JobStatus | "all">(
-    "all",
+    "all"
   );
   const [sort, setSort] = React.useState<{
     by: string | null;
@@ -95,7 +119,8 @@ const JobsTable: React.FC<JobsProps> = ({
         if (sort.by === "price") return (a.price - b.price) * dir;
         if (sort.by === "status")
           return (
-            ((STATUS_ORDER[a.status] ?? 0) - (STATUS_ORDER[b.status] ?? 0)) * dir
+            ((STATUS_ORDER[a.status] ?? 0) - (STATUS_ORDER[b.status] ?? 0)) *
+            dir
           );
         return 0;
       });
@@ -131,13 +156,26 @@ const JobsTable: React.FC<JobsProps> = ({
   };
 
   const columns: TableColumnDef<Jobs>[] = [
-    { key: "description",  label: "Descripción", width: 300 },
-    { key: "status",       label: "Estado",      width: 120, center: true, sortable: true },
-    { key: "isThirdParty", label: "Terceros",    width: 100, center: true },
-    { key: "parts",        label: "Repuestos",   width: 150, center: true },
-    { key: "price",        label: "Precio",      width: 120, center: true, sortable: true },
+    { key: "description", label: "Descripción", width: 300 },
+    {
+      key: "status",
+      label: "Estado",
+      width: 120,
+      center: true,
+      sortable: true,
+    },
+    { key: "isThirdParty", label: "Terceros", width: 100, center: true },
+    { key: "parts", label: "Repuestos", width: 150, center: true },
+    { key: "price", label: "Precio", width: 120, center: true, sortable: true },
     ...(onEditJob
-      ? [{ key: "actions" as const, label: "Acciones", center: true, width: 100 }]
+      ? [
+          {
+            key: "actions" as const,
+            label: "Acciones",
+            center: true,
+            width: 100,
+          },
+        ]
       : []),
   ];
   return (
@@ -220,9 +258,9 @@ const JobsTable: React.FC<JobsProps> = ({
             const statusInfo = STATUS_MAP[job.status] ?? {
               label: job.status,
               color: "default" as const,
-              textColor: "text-default" as const
+              textColor: "text-default" as const,
             };
-            
+
             return (
               <TableRow key={job.id} className="text-foreground">
                 <TableCell className="max-w-[300px]" title={job.description}>
@@ -270,7 +308,8 @@ const JobsTable: React.FC<JobsProps> = ({
                         disabledKeys={[job.status]}
                         onAction={(key) => {
                           const next = key as JobStatus;
-                          if (next !== job.status) onQuickStatusChange(job, next);
+                          if (next !== job.status)
+                            onQuickStatusChange(job, next);
                         }}
                       >
                         {Object.values(JobStatus).map((s) => {
@@ -301,14 +340,20 @@ const JobsTable: React.FC<JobsProps> = ({
                   <Chip
                     color={job.isThirdParty ? "secondary" : "default"}
                     variant="flat"
-                    className={job.isThirdParty ? "text-secondary" : "text-default"}
+                    className={
+                      job.isThirdParty ? "text-secondary" : "text-default"
+                    }
                   >
                     {job.isThirdParty ? "Sí" : "No"}
                   </Chip>
                 </TableCell>
                 <TableCell className="text-center">
                   {(job.parts?.length ?? 0) > 0 ? (
-                    <Chip color="primary" variant="flat" className="text-primary">
+                    <Chip
+                      color="primary"
+                      variant="flat"
+                      className="text-primary"
+                    >
                       {job.parts!.length}{" "}
                       {job.parts!.length === 1 ? "repuesto" : "repuestos"}
                     </Chip>
@@ -320,7 +365,7 @@ const JobsTable: React.FC<JobsProps> = ({
                   {formatARS(job.price)}
                 </TableCell>
                 <TableCell className="text-center">
-                {onEditJob && (
+                  {onEditJob && (
                     <Tooltip content="Editar trabajo" color="primary" showArrow>
                       <Button
                         isIconOnly
@@ -331,7 +376,7 @@ const JobsTable: React.FC<JobsProps> = ({
                         <MdEdit size={20} className="text-primary-600" />
                       </Button>
                     </Tooltip>
-                )}
+                  )}
                 </TableCell>
               </TableRow>
             );

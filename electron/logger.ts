@@ -25,7 +25,7 @@ function serializeError(error: unknown): Record<string, unknown> {
 export function logError(
   scope: string,
   error: unknown,
-  context: LogContext = {},
+  context: LogContext = {}
 ): void {
   log.error({ scope, ...context, error: serializeError(error) });
 }
@@ -36,7 +36,7 @@ export function logError(
 export function logInfo(
   scope: string,
   message?: string,
-  context: LogContext = {},
+  context: LogContext = {}
 ): void {
   log.info({ scope, ...(message ? { message } : {}), ...context });
 }
@@ -47,7 +47,7 @@ export function logInfo(
 export function logWarn(
   scope: string,
   message: string,
-  context: LogContext = {},
+  context: LogContext = {}
 ): void {
   log.warn({ scope, message, ...context });
 }

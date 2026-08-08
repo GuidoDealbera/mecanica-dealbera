@@ -133,10 +133,9 @@ describe("toCsv", () => {
   const BOM = String.fromCharCode(0xfeff);
 
   it("genera encabezados y filas separadas por ';'", () => {
-    const csv = toCsv(
-      { name: "Nombre", age: "Edad" },
-      [{ name: "Juan", age: 30 }],
-    );
+    const csv = toCsv({ name: "Nombre", age: "Edad" }, [
+      { name: "Juan", age: 30 },
+    ]);
     const lines = csv.replace(BOM, "").split("\n");
     expect(lines[0]).toBe("Nombre;Edad");
     expect(lines[1]).toBe("Juan;30");
@@ -211,7 +210,7 @@ describe("buildWhatsappUrl", () => {
 
   it("agrega el mensaje pre-cargado codificado", () => {
     expect(buildWhatsappUrl("3814556677", "a b")).toBe(
-      "https://wa.me/5493814556677?text=a%20b",
+      "https://wa.me/5493814556677?text=a%20b"
     );
   });
 

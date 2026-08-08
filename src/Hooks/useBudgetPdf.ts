@@ -1,8 +1,8 @@
 import { useCallback, useState } from "react";
 import { Cars, Jobs } from "../Types/types";
 import { JobStatus, STATUS_LABELS } from "../Types/apiTypes";
-import jsPDF from 'jspdf'
-import autotable from 'jspdf-autotable'
+import jsPDF from "jspdf";
+import autotable from "jspdf-autotable";
 import { formatARS, formatLicence } from "../Utils/utils";
 
 export interface BudgetOptions {
@@ -13,18 +13,17 @@ export interface BudgetOptions {
 type RGB = [number, number, number];
 
 const C = {
-  primaryDark:  [37, 99, 235]   as RGB,
+  primaryDark: [37, 99, 235] as RGB,
   primaryLight: [219, 234, 254] as RGB,
-  white:        [255, 255, 255] as RGB,
-  black:        [15, 23, 42]    as RGB,
-  gray:         [100, 116, 139] as RGB,
-  grayLight:    [248, 250, 252] as RGB,
-  grayBorder:   [226, 232, 240] as RGB,
-  success:      [34, 197, 94]   as RGB,
-  infoBlue:     [190, 210, 255] as RGB,
-  purple:       [139, 92, 246]  as RGB,
+  white: [255, 255, 255] as RGB,
+  black: [15, 23, 42] as RGB,
+  gray: [100, 116, 139] as RGB,
+  grayLight: [248, 250, 252] as RGB,
+  grayBorder: [226, 232, 240] as RGB,
+  success: [34, 197, 94] as RGB,
+  infoBlue: [190, 210, 255] as RGB,
+  purple: [139, 92, 246] as RGB,
 };
-
 
 export const useBudgetPDF = () => {
   const [isGenerating, setIsGenerating] = useState(false);
@@ -36,10 +35,8 @@ export const useBudgetPDF = () => {
       setError(null);
 
       try {
-        const {
-          title = "Presupuesto de Trabajo",
-          onlyCompleted = false,
-        } = options;
+        const { title = "Presupuesto de Trabajo", onlyCompleted = false } =
+          options;
 
         const filteredJobs = onlyCompleted
           ? jobs.filter(
@@ -145,10 +142,7 @@ export const useBudgetPDF = () => {
               textW > maxW
                 ? value.slice(
                     0,
-                    Math.max(
-                      1,
-                      Math.floor(value.length * (maxW / textW)) - 1
-                    )
+                    Math.max(1, Math.floor(value.length * (maxW / textW)) - 1)
                   ) + "…"
                 : value;
             doc.text(safeValue, boxX + 28, boxY + 16 + i * 8);
@@ -197,11 +191,19 @@ export const useBudgetPDF = () => {
           autotable(doc, {
             startY: y,
             margin: { left: margin, right: margin },
-            head: [["Descripción", "Estado", "Terceros", "Repuestos", "Mano de obra"]],
+            head: [
+              [
+                "Descripción",
+                "Estado",
+                "Terceros",
+                "Repuestos",
+                "Mano de obra",
+              ],
+            ],
             body: filteredJobs.map((job) => {
               const partsTotal = (job.parts ?? []).reduce(
                 (acc, p) => acc + p.price,
-                0,
+                0
               );
               return [
                 job.description ?? "",
@@ -239,19 +241,20 @@ export const useBudgetPDF = () => {
           });
 
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          y = (doc as any).lastAutoTable?.finalY ?? y + filteredJobs.length * 10 + 20;
+          y =
+            (doc as any).lastAutoTable?.finalY ??
+            y + filteredJobs.length * 10 + 20;
         }
 
         // ─── TOTALES ───────────────────────────────────────────────────
         y += 8;
         const laborTotal = filteredJobs.reduce(
           (acc, j) => acc + (j.price ?? 0),
-          0,
+          0
         );
         const partsGrandTotal = filteredJobs.reduce(
-          (acc, j) =>
-            acc + (j.parts ?? []).reduce((s, p) => s + p.price, 0),
-          0,
+          (acc, j) => acc + (j.parts ?? []).reduce((s, p) => s + p.price, 0),
+          0
         );
         const total = laborTotal + partsGrandTotal;
         const thirdPartyTotal = filteredJobs
@@ -329,7 +332,9 @@ export const useBudgetPDF = () => {
         }
 
         // ─── GUARDAR ───────────────────────────────────────────────────
-        const safeName = title.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ ]/g, "_").replace(/\s+/g, "_");
+        const safeName = title
+          .replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ ]/g, "_")
+          .replace(/\s+/g, "_");
         const filename = `${safeName}_${car.licensePlate}_${new Date()
           .toISOString()
           .slice(0, 10)}.pdf`;

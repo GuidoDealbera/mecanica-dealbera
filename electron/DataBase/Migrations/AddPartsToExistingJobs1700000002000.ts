@@ -22,7 +22,7 @@ export class AddPartsToExistingJobs1700000002000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     // Traemos todos los autos que tienen jobs
     const cars: CarRow[] = await queryRunner.query(
-      `SELECT id, jobs FROM car WHERE jobs IS NOT NULL`,
+      `SELECT id, jobs FROM car WHERE jobs IS NOT NULL`
     );
 
     for (const car of cars) {
@@ -51,28 +51,30 @@ export class AddPartsToExistingJobs1700000002000 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    const cars = await queryRunner.query(
-        `SELECT id, jobs FROM car WHERE jobs IS NOT NULL`
-    ) as CarRow[];
+    const cars = (await queryRunner.query(
+      `SELECT id, jobs FROM car WHERE jobs IS NOT NULL`
+    )) as CarRow[];
 
     for (const car of cars) {
-        let jobs: JobRow[];
-        try {
-          jobs = JSON.parse(car.jobs);
-        } catch (error) {
-          logError("migration:AddPartsToExistingJobs:down", error, {
-            reason: "jobs corruptos, se omite auto",
-            carId: car.id,
-          });
-          continue;
-        }
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const updatedJobs: JobWithoutParts[] = jobs.map(({ parts: _, ...rest }) => rest);
+      let jobs: JobRow[];
+      try {
+        jobs = JSON.parse(car.jobs);
+      } catch (error) {
+        logError("migration:AddPartsToExistingJobs:down", error, {
+          reason: "jobs corruptos, se omite auto",
+          carId: car.id,
+        });
+        continue;
+      }
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const updatedJobs: JobWithoutParts[] = jobs.map(
+        ({ parts: _, ...rest }) => rest
+      );
 
-        await queryRunner.query(`UPDATE car SET jobs = ? WHERE id = ?`, [
-            JSON.stringify(updatedJobs),
-            car.id,
-        ]);
+      await queryRunner.query(`UPDATE car SET jobs = ? WHERE id = ?`, [
+        JSON.stringify(updatedJobs),
+        car.id,
+      ]);
     }
-}
+  }
 }

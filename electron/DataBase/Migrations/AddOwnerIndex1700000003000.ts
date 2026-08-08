@@ -12,15 +12,15 @@ import { MigrationInterface, QueryRunner } from "typeorm";
  * `UNIQUE` ya crea un índice automáticamente en SQLite.
  */
 export class AddOwnerIndex1700000003000 implements MigrationInterface {
-    name = "AddOwnerIndex1700000003000"
+  name = "AddOwnerIndex1700000003000";
 
-    public async up(qr: QueryRunner): Promise<void> {
-        await qr.query(
-            `CREATE INDEX IF NOT EXISTS "IDX_car_owner" ON "car" ("ownerId")`,
-        )
-    }
+  public async up(qr: QueryRunner): Promise<void> {
+    await qr.query(
+      `CREATE INDEX IF NOT EXISTS "IDX_car_owner" ON "car" ("ownerId")`
+    );
+  }
 
-    public async down(qr: QueryRunner): Promise<void> {
-        await qr.query(`DROP INDEX IF EXISTS "IDX_car_owner"`)
-    }
+  public async down(qr: QueryRunner): Promise<void> {
+    await qr.query(`DROP INDEX IF EXISTS "IDX_car_owner"`);
+  }
 }

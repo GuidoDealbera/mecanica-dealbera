@@ -12,7 +12,7 @@ function getBackupDir(): string {
 
 function toCsv<T extends object>(
   headers: Partial<Record<keyof T, string>>,
-  rows: T[],
+  rows: T[]
 ): string {
   const BOM = "﻿";
   const keys = Object.keys(headers) as (keyof T)[];
@@ -26,7 +26,7 @@ function toCsv<T extends object>(
           ? `"${str.replace(/"/g, '""')}"`
           : str;
       })
-      .join(";"),
+      .join(";")
   );
   return BOM + [headerRow, ...dataRows].join("\n");
 }
@@ -36,21 +36,35 @@ handleIpc("data:export-csv", async () => {
   const cars = await carRepository.find({ relations: ["owner", "jobs"] });
 
   type CarRow = {
-    patente: string; marca: string; modelo: string; anio: string;
-    kilometraje: string; titular: string; telefono: string;
-    direccion: string; localidad: string; email: string;
-    trabajos: string; ultimoService: string;
+    patente: string;
+    marca: string;
+    modelo: string;
+    anio: string;
+    kilometraje: string;
+    titular: string;
+    telefono: string;
+    direccion: string;
+    localidad: string;
+    email: string;
+    trabajos: string;
+    ultimoService: string;
   };
 
   const rows: CarRow[] = cars.map((car) => {
     const jobCount = Array.isArray(car.jobs) ? car.jobs.length : 0;
-    const lastJob = Array.isArray(car.jobs) && car.jobs.length > 0
-      ? car.jobs.reduce((a, b) =>
-          new Date((b.updatedAt ?? b.createdAt) as Date) > new Date((a.updatedAt ?? a.createdAt) as Date) ? b : a,
-        )
-      : null;
+    const lastJob =
+      Array.isArray(car.jobs) && car.jobs.length > 0
+        ? car.jobs.reduce((a, b) =>
+            new Date((b.updatedAt ?? b.createdAt) as Date) >
+            new Date((a.updatedAt ?? a.createdAt) as Date)
+              ? b
+              : a
+          )
+        : null;
     const lastDate = lastJob
-      ? new Date((lastJob.updatedAt ?? lastJob.createdAt) as Date).toLocaleDateString("es-AR")
+      ? new Date(
+          (lastJob.updatedAt ?? lastJob.createdAt) as Date
+        ).toLocaleDateString("es-AR")
       : "---";
 
     return {
@@ -71,12 +85,20 @@ handleIpc("data:export-csv", async () => {
 
   const csv = toCsv<CarRow>(
     {
-      patente: "Patente", marca: "Marca", modelo: "Modelo", anio: "Año",
-      kilometraje: "Kilometraje", titular: "Titular", telefono: "Teléfono",
-      direccion: "Dirección", localidad: "Localidad", email: "Email",
-      trabajos: "Trabajos", ultimoService: "Último service",
+      patente: "Patente",
+      marca: "Marca",
+      modelo: "Modelo",
+      anio: "Año",
+      kilometraje: "Kilometraje",
+      titular: "Titular",
+      telefono: "Teléfono",
+      direccion: "Dirección",
+      localidad: "Localidad",
+      email: "Email",
+      trabajos: "Trabajos",
+      ultimoService: "Último service",
     },
-    rows,
+    rows
   );
 
   const today = new Date().toISOString().slice(0, 10);
@@ -91,7 +113,10 @@ handleIpc("data:export-csv", async () => {
   fs.writeFileSync(filePath, csv, "utf8");
   shell.showItemInFolder(filePath);
 
-  return { status: "success", message: `${cars.length} vehículos exportados correctamente` };
+  return {
+    status: "success",
+    message: `${cars.length} vehículos exportados correctamente`,
+  };
 });
 
 handleIpc("backup:open-folder", () => {
@@ -132,7 +157,10 @@ handleIpc("backup:export", async () => {
   fs.copyFileSync(sourcePath, filePath);
   shell.showItemInFolder(filePath);
 
-  return { status: "success", message: "Base de datos exportada correctamente" };
+  return {
+    status: "success",
+    message: "Base de datos exportada correctamente",
+  };
 });
 
 handleIpc("backup:import", async () => {
@@ -171,7 +199,10 @@ handleIpc("backup:import", async () => {
     }
 
     if (fs.existsSync(destPath)) {
-      preImportBackupPath = destPath.replace(".db", `_pre_import_${Date.now()}.db`);
+      preImportBackupPath = destPath.replace(
+        ".db",
+        `_pre_import_${Date.now()}.db`
+      );
       fs.copyFileSync(destPath, preImportBackupPath);
     }
 
@@ -190,7 +221,10 @@ handleIpc("backup:import", async () => {
       if (preImportBackupPath && fs.existsSync(preImportBackupPath)) {
         try {
           fs.copyFileSync(preImportBackupPath, destPath);
-          logInfo("backup:import", "DB restaurada desde backup previo al import");
+          logInfo(
+            "backup:import",
+            "DB restaurada desde backup previo al import"
+          );
         } catch (restoreError) {
           logError("backup:import:restore", restoreError);
         }

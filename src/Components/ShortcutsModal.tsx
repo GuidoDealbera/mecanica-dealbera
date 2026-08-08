@@ -39,9 +39,7 @@ const ShortcutRow: React.FC<{ shortcut: Shortcut }> = ({ shortcut }) => (
     <div className="flex items-center gap-1.5 flex-shrink-0">
       {shortcut.keys.map((key, i) => (
         <React.Fragment key={key}>
-          {i > 0 && (
-            <span className="text-foreground-500 text-xs">luego</span>
-          )}
+          {i > 0 && <span className="text-foreground-500 text-xs">luego</span>}
           <Kbd className="bg-content2 text-foreground">{key}</Kbd>
         </React.Fragment>
       ))}
@@ -82,7 +80,10 @@ const ShortcutsModal: React.FC<ShortcutsModalProps> = ({ isOpen, onClose }) => {
             </h3>
             <div className="divide-y divide-divider">
               {ACTION_SHORTCUTS.map((s) => (
-                <ShortcutRow key={`${s.label}-${s.keys.join("")}`} shortcut={s} />
+                <ShortcutRow
+                  key={`${s.label}-${s.keys.join("")}`}
+                  shortcut={s}
+                />
               ))}
             </div>
           </section>

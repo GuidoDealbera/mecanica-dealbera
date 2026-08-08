@@ -8,7 +8,10 @@ interface FilterNameProps {
   initialValue?: string;
 }
 
-const FilterName: React.FC<FilterNameProps> = ({ onFilterChange, initialValue = "" }) => {
+const FilterName: React.FC<FilterNameProps> = ({
+  onFilterChange,
+  initialValue = "",
+}) => {
   const [value, setValue] = React.useState<string>(initialValue);
   const debouncedValue = useDebounce(value, 250);
   const isFirstRender = React.useRef(true);
@@ -17,7 +20,7 @@ const FilterName: React.FC<FilterNameProps> = ({ onFilterChange, initialValue = 
     (e: React.ChangeEvent<HTMLInputElement>) => {
       setValue(e.target.value);
     },
-    [],
+    []
   );
 
   const handleClear = React.useCallback(() => {
@@ -37,7 +40,9 @@ const FilterName: React.FC<FilterNameProps> = ({ onFilterChange, initialValue = 
 
   return (
     <div className="relative p-1 mt-4 w-fit mb-4">
-      <h4 className="text-foreground text-lg">Buscar cliente por nombre o apellido</h4>
+      <h4 className="text-foreground text-lg">
+        Buscar cliente por nombre o apellido
+      </h4>
       <Input
         fullWidth
         value={value}

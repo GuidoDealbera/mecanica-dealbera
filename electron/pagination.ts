@@ -17,7 +17,7 @@ export function resolvePage(params?: Partial<PaginationParams>): {
   const page = Math.max(1, Math.trunc(Number(params?.page) || 1));
   const pageSize = Math.min(
     MAX_PAGE_SIZE,
-    Math.max(1, Math.trunc(Number(params?.pageSize) || DEFAULT_PAGE_SIZE)),
+    Math.max(1, Math.trunc(Number(params?.pageSize) || DEFAULT_PAGE_SIZE))
   );
   return { page, pageSize, skip: (page - 1) * pageSize, take: pageSize };
 }

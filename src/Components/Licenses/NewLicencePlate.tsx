@@ -1,5 +1,5 @@
 import { formatLicence } from "../../Utils/utils";
-import newLicense from '../../assets/images/newLicence.png'
+import newLicense from "../../assets/images/newLicence.png";
 
 interface Props {
   licence: string;

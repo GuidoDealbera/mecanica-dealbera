@@ -15,7 +15,15 @@ import {
 } from "@heroui/react";
 import { IoMdArrowBack } from "react-icons/io";
 import { IoSearch } from "react-icons/io5";
-import { MdWarning, MdBackup, MdSystemUpdate, MdInstallDesktop, MdKeyboard, MdLightMode, MdDarkMode } from "react-icons/md";
+import {
+  MdWarning,
+  MdBackup,
+  MdSystemUpdate,
+  MdInstallDesktop,
+  MdKeyboard,
+  MdLightMode,
+  MdDarkMode,
+} from "react-icons/md";
 import { useLocation, useNavigate } from "react-router-dom";
 import avatarImg from "../assets/images/avatar.png";
 import GlobalSearch from "./SearchBars/GlobalSearch";
@@ -111,7 +119,7 @@ const Header = () => {
         showToast(
           "La aplicación ya está en su última versión",
           "success",
-          "Actualización de sistema",
+          "Actualización de sistema"
         );
       }
     });
@@ -131,7 +139,7 @@ const Header = () => {
       showToast(
         "Hubo un error al actualizar el sistema",
         "danger",
-        "Actualización de sistema",
+        "Actualización de sistema"
       );
     });
   }, [showToast]);
@@ -144,45 +152,40 @@ const Header = () => {
   };
 
   const updateMenuLabel = () => {
-    if(checking) return "Buscando actualizaciones..."
-    if(updateError) return "Error al buscar actualizaciones"
-    if(downloaded) return `Instalar v${updateVersion} y reiniciar`
-    if(updateAvailable) return `Actualizar a v${updateVersion}`
-    return "Buscar actualizaciones"
-  }
+    if (checking) return "Buscando actualizaciones...";
+    if (updateError) return "Error al buscar actualizaciones";
+    if (downloaded) return `Instalar v${updateVersion} y reiniciar`;
+    if (updateAvailable) return `Actualizar a v${updateVersion}`;
+    return "Buscar actualizaciones";
+  };
 
   const updateMenuIcon = () => {
-    if(checking) return <Spinner size="sm"/>
-    if(downloaded) return <MdInstallDesktop size={16}/>
-    return <MdSystemUpdate size={16} className={updateError ? "text-danger" : ""}/>
-  }
+    if (checking) return <Spinner size="sm" />;
+    if (downloaded) return <MdInstallDesktop size={16} />;
+    return (
+      <MdSystemUpdate size={16} className={updateError ? "text-danger" : ""} />
+    );
+  };
 
   const handleUpdateAction = () => {
-    if(checking) return
-    if(downloaded){
-      window.updater.installUpdate()
-      return
+    if (checking) return;
+    if (downloaded) {
+      window.updater.installUpdate();
+      return;
     }
-    if(updateAvailable){
-      setModalOpen(true)
-      return
+    if (updateAvailable) {
+      setModalOpen(true);
+      return;
     }
-    handleManualCheck()
-  }
+    handleManualCheck();
+  };
 
   return (
     <>
-      <Navbar
-        className="bg-content1 shadow shadow-primary-700"
-        maxWidth="full"
-      >
+      <Navbar className="bg-content1 shadow shadow-primary-700" maxWidth="full">
         <NavbarContent>
           {!isHome && (
-            <Tooltip
-              content="Atrás"
-              color="primary"
-              showArrow
-            >
+            <Tooltip content="Atrás" color="primary" showArrow>
               <Button
                 isIconOnly
                 size="sm"
@@ -332,7 +335,9 @@ const Header = () => {
           <Dropdown placement="bottom-end">
             <DropdownTrigger>
               <div className="cursor-pointer relative flex items-center">
-                <span className={`absolute top-0 -right-2.5 w-2.5 h-2.5 ${updateAvailable ? "bg-warning" : downloaded ? "bg-success" : "bg-transparent"} rounded-full z-10`}/>
+                <span
+                  className={`absolute top-0 -right-2.5 w-2.5 h-2.5 ${updateAvailable ? "bg-warning" : downloaded ? "bg-success" : "bg-transparent"} rounded-full z-10`}
+                />
                 <User
                   name="Horacio Dealbera"
                   avatarProps={{ src: avatarImg }}
@@ -352,12 +357,20 @@ const Header = () => {
                   updateError
                     ? "Hacé click para reintentar"
                     : updateAvailable && !downloaded
-                    ? "Hay una nueva versión disponible"
-                    : downloaded
-                    ? "La actualización está lista. Hacé click para instalar"
-                    : "Verificar si hay una nueva versión del sistema"
+                      ? "Hay una nueva versión disponible"
+                      : downloaded
+                        ? "La actualización está lista. Hacé click para instalar"
+                        : "Verificar si hay una nueva versión del sistema"
                 }
-                color={downloaded ? "success" : updateAvailable ? "warning" : updateError ? "danger" : "default"}
+                color={
+                  downloaded
+                    ? "success"
+                    : updateAvailable
+                      ? "warning"
+                      : updateError
+                        ? "danger"
+                        : "default"
+                }
                 onPress={handleUpdateAction}
               >
                 {updateMenuLabel()}

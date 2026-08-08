@@ -20,7 +20,7 @@ export const carService = {
   },
   updateCar: async (
     carId: string,
-    kilometers: number,
+    kilometers: number
   ): Promise<APIResponse<Car>> => {
     return await window.api.cars.update(carId, kilometers);
   },
@@ -30,11 +30,14 @@ export const carService = {
   updateJob: async (
     licence: string,
     jobId: string,
-    body: UpdateJobBody,
+    body: UpdateJobBody
   ): Promise<APIResponse<Jobs>> => {
     return await window.api.cars.updateJob(licence, jobId, body);
   },
-  addJob: async (licence: string, job: CreateCarJob): Promise<APIResponse<Jobs>> => {
+  addJob: async (
+    licence: string,
+    job: CreateCarJob
+  ): Promise<APIResponse<Jobs>> => {
     return await window.api.cars.addJob(licence, job);
   },
 };

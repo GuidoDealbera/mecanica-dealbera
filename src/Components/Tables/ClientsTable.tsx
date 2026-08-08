@@ -57,15 +57,22 @@ const ClientTable: React.FC<ClientTableProps> = ({
   const showActions = !!onToggleActive || !!onDelete;
 
   const columns: TableColumnDef<Clients>[] = [
-    { key: "fullname", label: "Nombre",    width: 200, sortable: true },
-    { key: "phone",    label: "Teléfono",  width: 150, center: true },
-    { key: "email",    label: "Correo",    width: 200, center: true },
-    { key: "address",  label: "Dirección", width: 150 },
-    { key: "city",     label: "Ciudad",    width: 150, center: true },
-    { key: "cars",     label: "Vehículos", width: 150, center: true },
-    { key: "isActive", label: "Estado",    width: 100, center: true },
+    { key: "fullname", label: "Nombre", width: 200, sortable: true },
+    { key: "phone", label: "Teléfono", width: 150, center: true },
+    { key: "email", label: "Correo", width: 200, center: true },
+    { key: "address", label: "Dirección", width: 150 },
+    { key: "city", label: "Ciudad", width: 150, center: true },
+    { key: "cars", label: "Vehículos", width: 150, center: true },
+    { key: "isActive", label: "Estado", width: 100, center: true },
     ...(showActions
-      ? [{ key: "actions" as const, label: "Acciones", width: 120, center: true }]
+      ? [
+          {
+            key: "actions" as const,
+            label: "Acciones",
+            width: 120,
+            center: true,
+          },
+        ]
       : []),
   ];
 
@@ -187,10 +194,7 @@ const ClientTable: React.FC<ClientTableProps> = ({
               <TableCell
                 className={`${i !== clients.length - 1 ? "border-b-2" : ""} border-r-2 border-divider text-center`}
               >
-                <Chip
-                  size="sm"
-                  color={client.isActive ? "success" : "danger"}
-                >
+                <Chip size="sm" color={client.isActive ? "success" : "danger"}>
                   {client.isActive ? "Activo" : "Inactivo"}
                 </Chip>
               </TableCell>
@@ -207,7 +211,7 @@ const ClientTable: React.FC<ClientTableProps> = ({
                         className="bg-transparent"
                         onPress={() =>
                           navigate(
-                            `/clients/${encodeURIComponent(client.fullname)}`,
+                            `/clients/${encodeURIComponent(client.fullname)}`
                           )
                         }
                       >
@@ -228,7 +232,7 @@ const ClientTable: React.FC<ClientTableProps> = ({
                             onToggleActive(
                               client.id,
                               client.fullname,
-                              client.isActive,
+                              client.isActive
                             )
                           }
                         >

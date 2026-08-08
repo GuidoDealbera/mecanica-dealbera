@@ -51,9 +51,7 @@ const CarCard: React.FC<CarCardProps> = ({
         </div>
       </CardHeader>
 
-      <Divider
-        className={isSelected ? "bg-primary-500" : "bg-content3"}
-      />
+      <Divider className={isSelected ? "bg-primary-500" : "bg-content3"} />
 
       <CardBody className="pt-3 pb-3 flex flex-col gap-3">
         {/* Marca y modelo */}

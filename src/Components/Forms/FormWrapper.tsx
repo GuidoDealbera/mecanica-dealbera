@@ -1,20 +1,20 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { UseFormReturn } from 'react-hook-form'
-import CustomDialog from '../CustomDialog'
-import { useFormGuard } from '../../Hooks/useFormGuard'
+import { UseFormReturn } from "react-hook-form";
+import CustomDialog from "../CustomDialog";
+import { useFormGuard } from "../../Hooks/useFormGuard";
 
 type FormWrapperProps = {
-  children: React.ReactNode
-  form: UseFormReturn<any>
-}
+  children: React.ReactNode;
+  form: UseFormReturn<any>;
+};
 
 const FormWrapper: React.FC<FormWrapperProps> = ({ children, form }) => {
   const { isOpen, confirmNavigation, cancelNavigation } = useFormGuard({
     isDirty: form.formState.isDirty,
     onConfirm: () => {
-      form.reset()
+      form.reset();
     },
-  })
+  });
 
   return (
     <>
@@ -24,11 +24,11 @@ const FormWrapper: React.FC<FormWrapperProps> = ({ children, form }) => {
         isOpen={isOpen}
         onClose={cancelNavigation}
         onConfirm={confirmNavigation}
-        title='Descartar cambios'
-        content='¿Está seguro que desea descartar los cambios realizados?'
+        title="Descartar cambios"
+        content="¿Está seguro que desea descartar los cambios realizados?"
       />
     </>
-  )
-}
+  );
+};
 
-export default FormWrapper
+export default FormWrapper;

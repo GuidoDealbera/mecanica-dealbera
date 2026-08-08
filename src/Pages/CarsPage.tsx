@@ -64,7 +64,7 @@ const CarsPage: React.FC = () => {
       sortBy: sort.by ?? undefined,
       sortDir: sort.dir,
     }),
-    [page, licenceFilter, brand, debouncedYearFrom, debouncedYearTo, sort],
+    [page, licenceFilter, brand, debouncedYearFrom, debouncedYearTo, sort]
   );
 
   useEffect(() => {
@@ -89,7 +89,9 @@ const CarsPage: React.FC = () => {
 
   const handleOpenDeleteDialog = useCallback(
     (licence: string) => {
-      setCarToDelete(list.items.find((c) => c.licensePlate === licence) ?? null);
+      setCarToDelete(
+        list.items.find((c) => c.licensePlate === licence) ?? null
+      );
       onOpen();
     },
     [onOpen, list.items]
@@ -115,7 +117,7 @@ const CarsPage: React.FC = () => {
       else setSearchParams({}, { replace: true });
       setPage(1);
     },
-    [setSearchParams],
+    [setSearchParams]
   );
 
   // Ciclo de orden por columna: asc → desc → sin orden.

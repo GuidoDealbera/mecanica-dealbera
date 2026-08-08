@@ -70,7 +70,7 @@ const ClientPage: React.FC = () => {
       sortBy: sort.by ?? undefined,
       sortDir: sort.dir,
     }),
-    [page, nameFilter, showInactive, city, sort],
+    [page, nameFilter, showInactive, city, sort]
   );
 
   React.useEffect(() => {
@@ -99,7 +99,7 @@ const ClientPage: React.FC = () => {
       else setSearchParams({}, { replace: true });
       setPage(1);
     },
-    [setSearchParams],
+    [setSearchParams]
   );
 
   const handleToggleShowInactive = React.useCallback(() => {
@@ -114,7 +114,7 @@ const ClientPage: React.FC = () => {
 
   const cityOptions = React.useMemo(
     () => cities.map((c) => ({ key: c, label: c })),
-    [cities],
+    [cities]
   );
 
   // Ciclo de orden por columna: asc → desc → sin orden.
@@ -131,7 +131,7 @@ const ClientPage: React.FC = () => {
     (id: string, name: string, isActive: boolean) => {
       setToggleDialog({ open: true, id, name, isActive });
     },
-    [],
+    []
   );
 
   const handleDelete = React.useCallback(
@@ -139,7 +139,7 @@ const ClientPage: React.FC = () => {
       const carsCount = list.items.find((c) => c.id === id)?.cars?.length ?? 0;
       setDeleteDialog({ open: true, id, name, carsCount });
     },
-    [list.items],
+    [list.items]
   );
 
   // Texto descriptivo del borrado: incluye la cantidad de vehículos que se
@@ -187,24 +187,25 @@ const ClientPage: React.FC = () => {
     }
   };
 
-  const emptyContent = nameFilter || city ? (
-    <EmptyState
-      icon={<IoSearch size={28} />}
-      title="Sin resultados"
-      description="No hay clientes que coincidan con los filtros aplicados."
-    />
-  ) : (
-    <EmptyState
-      icon={<MdPersonOutline size={30} />}
-      title="No hay clientes registrados"
-      description="Los clientes se registran al cargar un vehículo."
-      action={{
-        label: "Registrar vehículo",
-        icon: <IoCarSportSharp size={18} />,
-        onPress: () => navigate("/cars/new"),
-      }}
-    />
-  );
+  const emptyContent =
+    nameFilter || city ? (
+      <EmptyState
+        icon={<IoSearch size={28} />}
+        title="Sin resultados"
+        description="No hay clientes que coincidan con los filtros aplicados."
+      />
+    ) : (
+      <EmptyState
+        icon={<MdPersonOutline size={30} />}
+        title="No hay clientes registrados"
+        description="Los clientes se registran al cargar un vehículo."
+        action={{
+          label: "Registrar vehículo",
+          icon: <IoCarSportSharp size={18} />,
+          onPress: () => navigate("/cars/new"),
+        }}
+      />
+    );
 
   return (
     <div className="w-full h-full shadow shadow-primary bg-content1 rounded-md p-3">
@@ -259,7 +260,11 @@ const ClientPage: React.FC = () => {
             )}
           </Autocomplete>
           {city && (
-            <Button size="sm" variant="flat" onPress={() => handleCityChange("")}>
+            <Button
+              size="sm"
+              variant="flat"
+              onPress={() => handleCityChange("")}
+            >
               Limpiar
             </Button>
           )}

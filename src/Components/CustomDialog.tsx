@@ -45,7 +45,9 @@ const CustomDialog: React.FC<CustomDialogProps> = ({
         <ModalHeader className="text-xl font-bold">{title}</ModalHeader>
         <ModalBody>{content}</ModalBody>
         <ModalFooter>
-          <Button onPress={onCancel || onClose} color="danger">{cancelText}</Button>
+          <Button onPress={onCancel || onClose} color="danger">
+            {cancelText}
+          </Button>
           <Button onPress={onConfirm} isLoading={isLoading} color="primary">
             {confirmText}
           </Button>

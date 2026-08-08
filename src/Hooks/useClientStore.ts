@@ -36,24 +36,24 @@ export const useClientStore = () => {
 
   const fetchList = useCallback(
     (params: ClientQueryParams) => dispatch(fetchClientsThunk(params)).unwrap(),
-    [dispatch],
+    [dispatch]
   );
 
   const fetchByName = useCallback(
     (fullname: string) => dispatch(fetchClientByNameThunk(fullname)).unwrap(),
-    [dispatch],
+    [dispatch]
   );
 
   const update = useCallback(
     (body: UpdateClientBody) => dispatch(updateClientThunk(body)).unwrap(),
-    [dispatch],
+    [dispatch]
   );
 
-  const clearOwners = useCallback(() => dispatch(cleanOwners()), [dispatch])
+  const clearOwners = useCallback(() => dispatch(cleanOwners()), [dispatch]);
 
   const clearClient = useCallback(
     () => dispatch(cleanOwnerState()),
-    [dispatch],
+    [dispatch]
   );
 
   return {

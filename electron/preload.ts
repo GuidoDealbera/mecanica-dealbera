@@ -1,7 +1,11 @@
 import { ipcRenderer, contextBridge } from "electron";
 import { CreateCarDto, UpdateJobDto } from "./DataBase/Types/car.dto";
 import { CreateClientDto, UpdateClientDto } from "./DataBase/Types/client.dto";
-import { CarQueryParams, ClientQueryParams, CreateCarJob } from "../src/Types/apiTypes";
+import {
+  CarQueryParams,
+  ClientQueryParams,
+  CreateCarJob,
+} from "../src/Types/apiTypes";
 import { UpdateInfo, UpdateProgress } from "../global";
 
 // --------- Expose some API to the Renderer process ---------
@@ -9,7 +13,7 @@ contextBridge.exposeInMainWorld("ipcRenderer", {
   on(...args: Parameters<typeof ipcRenderer.on>) {
     const [channel, listener] = args;
     return ipcRenderer.on(channel, (event, ...args) =>
-      listener(event, ...args),
+      listener(event, ...args)
     );
   },
   off(...args: Parameters<typeof ipcRenderer.off>) {
@@ -48,7 +52,7 @@ contextBridge.exposeInMainWorld("api", {
     updateJob: async (
       licence: string,
       jobId: string,
-      updateJobDto: UpdateJobDto,
+      updateJobDto: UpdateJobDto
     ) =>
       await ipcRenderer.invoke("car:update-job", licence, jobId, updateJobDto),
     getServiceAlerts: async () =>
@@ -59,8 +63,8 @@ contextBridge.exposeInMainWorld("api", {
         | { mode: "existing"; existingOwnerFullname: string }
         | {
             mode: "new";
-            newOwner: CreateClientDto
-          },
+            newOwner: CreateClientDto;
+          }
     ) => await ipcRenderer.invoke("car:reassign-owner", licensePlate, payload),
   },
   clients: {
@@ -106,8 +110,7 @@ contextBridge.exposeInMainWorld("updater", {
     ipcRenderer.on("update-not-available", cb),
   onProgress: (cb: (data: UpdateProgress) => void) =>
     ipcRenderer.on("update-progress", (_, data) => cb(data)),
-  onDownloaded: (cb: () => void) =>
-    ipcRenderer.on("update-downloaded", cb),
+  onDownloaded: (cb: () => void) => ipcRenderer.on("update-downloaded", cb),
   onError: (cb: (data: { message: string }) => void) =>
     ipcRenderer.on("update-error", (_, data) => cb(data)),
   startDownload: () => ipcRenderer.send("start-update-download"),

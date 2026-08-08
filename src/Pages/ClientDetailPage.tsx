@@ -124,14 +124,12 @@ const ClientDetailPage: React.FC = () => {
     const jobs = clientCars.flatMap((car) => car.jobs ?? []);
     const activeJobs = jobs.filter(
       (j) =>
-        j.status === JobStatus.PENDING ||
-        j.status === JobStatus.IN_PROGRESS,
+        j.status === JobStatus.PENDING || j.status === JobStatus.IN_PROGRESS
     ).length;
     const billed = jobs
       .filter(
         (j) =>
-          j.status === JobStatus.COMPLETED ||
-          j.status === JobStatus.DELIVERED,
+          j.status === JobStatus.COMPLETED || j.status === JobStatus.DELIVERED
       )
       .reduce((sum, j) => sum + (j.price ?? 0), 0);
     const lastJobDate = jobs.reduce<string | null>((latest, j) => {
@@ -375,7 +373,12 @@ const ClientDetailPage: React.FC = () => {
             <h5 className="font-semibold text-base text-primary-400">
               Vehículos registrados
             </h5>
-            <Chip size="sm" color="primary" variant="flat" className="ml-1 text-primary">
+            <Chip
+              size="sm"
+              color="primary"
+              variant="flat"
+              className="ml-1 text-primary"
+            >
               {clientCars.length}
             </Chip>
           </CardHeader>
@@ -406,15 +409,24 @@ const ClientDetailPage: React.FC = () => {
                         {car.brand} {car.model}
                       </p>
                       <p className="text-foreground-400 text-xs">
-                        {car.year} · {(car.kilometers ?? 0).toLocaleString("es-AR")} km
+                        {car.year} ·{" "}
+                        {(car.kilometers ?? 0).toLocaleString("es-AR")} km
                       </p>
                     </div>
 
-                    <Chip size="sm" color="primary" variant="flat" className="flex-shrink-0 text-foreground">
+                    <Chip
+                      size="sm"
+                      color="primary"
+                      variant="flat"
+                      className="flex-shrink-0 text-foreground"
+                    >
                       {car.jobs?.length ?? 0} trabajos
                     </Chip>
 
-                    <MdChevronRight size={18} className="text-foreground-500 flex-shrink-0" />
+                    <MdChevronRight
+                      size={18}
+                      className="text-foreground-500 flex-shrink-0"
+                    />
                   </button>
                 ))}
               </div>

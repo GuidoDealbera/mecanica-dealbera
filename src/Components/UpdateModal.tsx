@@ -50,8 +50,8 @@ const UpdateModal: React.FC<UpdateModalProps> = ({
           {/* Estado: esperando que el usuario decida */}
           {progress === null && !downloaded && (
             <p className="text-sm text-foreground-500">
-              Podés actualizar ahora o más tarde. La descarga se hace en
-              segundo plano y no interrumpe el uso de la aplicación.
+              Podés actualizar ahora o más tarde. La descarga se hace en segundo
+              plano y no interrumpe el uso de la aplicación.
             </p>
           )}
 
@@ -75,7 +75,10 @@ const UpdateModal: React.FC<UpdateModalProps> = ({
           {/* Estado: descarga completa */}
           {downloaded && (
             <div className="flex items-center gap-2 p-3 bg-success-50 rounded-lg border border-success-200">
-              <MdInstallDesktop size={20} className="text-success-600 shrink-0" />
+              <MdInstallDesktop
+                size={20}
+                className="text-success-600 shrink-0"
+              />
               <p className="text-sm text-success-700">
                 La actualización está lista. Al instalar, la aplicación se
                 cerrará y se volverá a abrir con la nueva versión.

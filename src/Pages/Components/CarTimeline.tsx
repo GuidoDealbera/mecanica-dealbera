@@ -37,7 +37,9 @@ const CarTimeline: React.FC<CarTimelineProps> = ({ car }) => {
       job: j,
     }));
 
-    return [...kmEvents, ...jobEvents].sort((a, b) => b.date.getTime() - a.date.getTime());
+    return [...kmEvents, ...jobEvents].sort(
+      (a, b) => b.date.getTime() - a.date.getTime()
+    );
   }, [car]);
 
   if (events.length === 0) {

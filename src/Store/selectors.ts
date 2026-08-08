@@ -12,7 +12,8 @@ export const selectCarsListLoaded = (state: RootState) => state.cars.listLoaded;
 export const selectCar = (state: RootState) => state.cars.car;
 /** `false` mientras el detalle del auto nunca se resolvió (estado "idle"). */
 export const selectCarLoaded = (state: RootState) => state.cars.carLoaded;
-export const selectCarLoadingStates = (state: RootState) => state.cars.loadingStates;
+export const selectCarLoadingStates = (state: RootState) =>
+  state.cars.loadingStates;
 export const selectCarError = (state: RootState) => state.cars.error;
 
 // ─── Selectores base: clients ─────────────────────────────────────────────────
@@ -28,21 +29,21 @@ export const selectClient = (state: RootState) => state.clients.client;
 /** `false` mientras el detalle del cliente nunca se resolvió (estado "idle"). */
 export const selectClientLoaded = (state: RootState) =>
   state.clients.clientLoaded;
-export const selectClientLoadingStates = (state: RootState) => state.clients.loadingStates;
+export const selectClientLoadingStates = (state: RootState) =>
+  state.clients.loadingStates;
 export const selectClientError = (state: RootState) => state.clients.error;
 
 // ─── Selectores derivados ─────────────────────────────────────────────────────
 
 /** Indica si alguna operación del slice de autos está en curso. */
-export const selectIsCarBusy = createSelector(
-  selectCarLoadingStates,
-  (ls) => Object.values(ls).some(Boolean),
+export const selectIsCarBusy = createSelector(selectCarLoadingStates, (ls) =>
+  Object.values(ls).some(Boolean)
 );
 
 /** Indica si alguna operación del slice de clientes está en curso. */
 export const selectIsClientBusy = createSelector(
   selectClientLoadingStates,
-  (ls) => Object.values(ls).some(Boolean),
+  (ls) => Object.values(ls).some(Boolean)
 );
 
 // Suppress unused-variable warnings for base selectors used only internally

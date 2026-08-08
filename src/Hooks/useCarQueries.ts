@@ -4,7 +4,12 @@ import { useNavigate } from "react-router-dom";
 import { useCarStore } from "./useCarStore";
 import { useToasts } from "./useToasts";
 import { CarActions } from "../Constants/car.constants";
-import { CarQueryParams, CreateCarBody, CreateCarJob, UpdateJobBody } from "../Types/apiTypes";
+import {
+  CarQueryParams,
+  CreateCarBody,
+  CreateCarJob,
+  UpdateJobBody,
+} from "../Types/apiTypes";
 
 /**
  * Capa de presentación sobre `useCarStore`: agrega los efectos de UI (toasts,
@@ -60,7 +65,7 @@ export const useCarQueries = () => {
         showToast(
           response.message,
           response.status === "failed" ? "danger" : "success",
-          CarActions.CREATE,
+          CarActions.CREATE
         );
         if (response.status === "success") {
           navigate("/cars", { state: { bypassGuard: true } });
@@ -73,7 +78,7 @@ export const useCarQueries = () => {
         setLoading(false);
       }
     },
-    [createInStore, navigate, showToast],
+    [createInStore, navigate, showToast]
   );
 
   const getCars = useCallback(
@@ -87,7 +92,7 @@ export const useCarQueries = () => {
         setLoading(false);
       }
     },
-    [fetchList],
+    [fetchList]
   );
 
   const refresh = useCallback(
@@ -98,16 +103,20 @@ export const useCarQueries = () => {
         showToast(
           "Datos actualizados correctamente",
           "success",
-          CarActions.REFRESH,
+          CarActions.REFRESH
         );
       } catch (error) {
-        showToast("Error al actualizar los datos", "danger", CarActions.REFRESH);
+        showToast(
+          "Error al actualizar los datos",
+          "danger",
+          CarActions.REFRESH
+        );
         return error;
       } finally {
         setRefreshing(false);
       }
     },
-    [fetchList, showToast],
+    [fetchList, showToast]
   );
 
   const refreshCar = useCallback(
@@ -118,20 +127,20 @@ export const useCarQueries = () => {
         showToast(
           "Datos actualizados exitosamente",
           "success",
-          CarActions.REFRESH,
+          CarActions.REFRESH
         );
       } catch (error) {
         showToast(
           "Error al actualizar los datos",
           "danger",
-          CarActions.REFRESH,
+          CarActions.REFRESH
         );
         return error;
       } finally {
         setRefreshing(false);
       }
     },
-    [fetchByLicence, showToast],
+    [fetchByLicence, showToast]
   );
 
   const getCarDetail = useCallback(
@@ -146,7 +155,7 @@ export const useCarQueries = () => {
         setLoading(false);
       }
     },
-    [fetchByLicence, showToast],
+    [fetchByLicence, showToast]
   );
 
   const deleteOneCar = useCallback(
@@ -162,7 +171,7 @@ export const useCarQueries = () => {
         setLoading(false);
       }
     },
-    [removeInStore, showToast],
+    [removeInStore, showToast]
   );
 
   const updateCar = useCallback(
@@ -174,7 +183,7 @@ export const useCarQueries = () => {
           showToast(
             response.message,
             response.result ? "success" : "warning",
-            CarActions.UPDATE,
+            CarActions.UPDATE
           );
         }
       } catch (error: any) {
@@ -184,7 +193,7 @@ export const useCarQueries = () => {
         setLoading(false);
       }
     },
-    [updateInStore, showToast],
+    [updateInStore, showToast]
   );
 
   const addCarJob = useCallback(
@@ -192,7 +201,11 @@ export const useCarQueries = () => {
       setLoading(true);
       try {
         const response = await addJobInStore(licence, job);
-        showToast(response.message, response.status === "failed" ? "danger" : "success", CarActions.JOB_CREATE);
+        showToast(
+          response.message,
+          response.status === "failed" ? "danger" : "success",
+          CarActions.JOB_CREATE
+        );
         if (response.status === "success") {
           navigate(`/cars/${licence}`, { state: { bypassGuard: true } });
         }
@@ -204,7 +217,7 @@ export const useCarQueries = () => {
         setLoading(false);
       }
     },
-    [addJobInStore, navigate, showToast],
+    [addJobInStore, navigate, showToast]
   );
 
   const updateJob = useCallback(
@@ -221,7 +234,7 @@ export const useCarQueries = () => {
         setLoading(false);
       }
     },
-    [updateJobInStore, showToast],
+    [updateJobInStore, showToast]
   );
 
   return {

@@ -30,7 +30,9 @@ const DetailCar: React.FC<DetailCarProps> = ({
           <Button
             size="sm"
             color={isEditing ? "danger" : "default"}
-            startContent={isEditing ? <MdCancel size={15} /> : <MdEdit size={15} />}
+            startContent={
+              isEditing ? <MdCancel size={15} /> : <MdEdit size={15} />
+            }
             onPress={onEdit}
           >
             {isEditing ? "Cancelar edición" : "Editar"}

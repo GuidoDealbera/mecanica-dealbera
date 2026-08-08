@@ -1,13 +1,29 @@
 import React from "react";
 import { Button, Card, CardBody, Chip, Spinner } from "@heroui/react";
 import { IoCarSportSharp } from "react-icons/io5";
-import { MdPostAdd, MdWarning, MdPeople, MdBuild, MdBarChart, MdPieChart } from "react-icons/md";
+import {
+  MdPostAdd,
+  MdWarning,
+  MdPeople,
+  MdBuild,
+  MdBarChart,
+  MdPieChart,
+} from "react-icons/md";
 import { FaSackDollar } from "react-icons/fa6";
 import { HiOutlineRefresh } from "react-icons/hi";
 import { useNavigate } from "react-router-dom";
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
-  ResponsiveContainer, PieChart, Pie, Cell, Legend,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as RechartsTooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
 } from "recharts";
 import { DashboardStats } from "../Types/types";
 import LicenceTable from "../Components/Licenses/LicenceTable";
@@ -24,9 +40,7 @@ const StatCard: React.FC<{
 }> = ({ label, value, sub, color = "primary", icon }) => (
   <Card className="bg-content2 shadow shadow-primary">
     <CardBody className="flex flex-row items-center gap-4 p-4">
-      <div
-        className={`p-3 rounded-full text-${color}-400 flex-shrink-0`}
-      >
+      <div className={`p-3 rounded-full text-${color}-400 flex-shrink-0`}>
         {icon}
       </div>
       <div>
@@ -70,14 +84,14 @@ const HomePage: React.FC = () => {
           showToast(
             "Datos actualizados correctamente",
             "success",
-            "Actualizar",
+            "Actualizar"
           );
         }
       } finally {
         setLoading(false);
       }
     },
-    [showToast],
+    [showToast]
   );
 
   React.useEffect(() => {
@@ -162,20 +176,40 @@ const HomePage: React.FC = () => {
                 </p>
                 {hasRevenue ? (
                   <ResponsiveContainer width="100%" height={200}>
-                    <BarChart data={stats.monthlyRevenue} margin={{ top: 4, right: 8, bottom: 0, left: 8 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} />
-                      <XAxis dataKey="month" tick={{ fill: chart.tick, fontSize: 12 }} />
+                    <BarChart
+                      data={stats.monthlyRevenue}
+                      margin={{ top: 4, right: 8, bottom: 0, left: 8 }}
+                    >
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        stroke={chart.grid}
+                      />
+                      <XAxis
+                        dataKey="month"
+                        tick={{ fill: chart.tick, fontSize: 12 }}
+                      />
                       <YAxis
                         tick={{ fill: chart.tick, fontSize: 11 }}
                         tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
                       />
                       <RechartsTooltip
-                        formatter={(v) => [formatARS(Number(v ?? 0)), "Ingresos"]}
-                        contentStyle={{ background: chart.tooltipBg, border: `1px solid ${chart.tooltipBorder}`, borderRadius: 8 }}
+                        formatter={(v) => [
+                          formatARS(Number(v ?? 0)),
+                          "Ingresos",
+                        ]}
+                        contentStyle={{
+                          background: chart.tooltipBg,
+                          border: `1px solid ${chart.tooltipBorder}`,
+                          borderRadius: 8,
+                        }}
                         labelStyle={{ color: chart.tooltipLabel }}
                         itemStyle={{ color: "#60a5fa" }}
                       />
-                      <Bar dataKey="revenue" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                      <Bar
+                        dataKey="revenue"
+                        fill="#3b82f6"
+                        radius={[4, 4, 0, 0]}
+                      />
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (
@@ -216,7 +250,11 @@ const HomePage: React.FC = () => {
                         wrapperStyle={{ fontSize: 11, color: chart.legend }}
                       />
                       <RechartsTooltip
-                        contentStyle={{ background: chart.tooltipBg, border: `1px solid ${chart.tooltipBorder}`, borderRadius: 8 }}
+                        contentStyle={{
+                          background: chart.tooltipBg,
+                          border: `1px solid ${chart.tooltipBorder}`,
+                          borderRadius: 8,
+                        }}
                         labelStyle={{ color: chart.tooltipLabel }}
                       />
                     </PieChart>
@@ -282,7 +320,13 @@ const HomePage: React.FC = () => {
                         {job.brand} {job.model}
                       </p>
                     </div>
-                    <Chip color="primary" variant="flat" className="text-foreground">{formatARS(job.price)}</Chip>
+                    <Chip
+                      color="primary"
+                      variant="flat"
+                      className="text-foreground"
+                    >
+                      {formatARS(job.price)}
+                    </Chip>
                   </div>
                 ))}
               </div>

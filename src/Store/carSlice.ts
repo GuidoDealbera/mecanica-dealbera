@@ -80,19 +80,19 @@ const carSlice = createSlice({
         state.car = action.payload;
       })
       //POST's
-      .addCase(addJob.pending, state => {
-        state.loadingStates.creating = true
-        state.error = null
+      .addCase(addJob.pending, (state) => {
+        state.loadingStates.creating = true;
+        state.error = null;
       })
       .addCase(addJob.rejected, (state, action) => {
-        state.loadingStates.creating = false
-        state.error = action.payload ?? null
+        state.loadingStates.creating = false;
+        state.error = action.payload ?? null;
       })
       .addCase(addJob.fulfilled, (state, action) => {
-        state.loadingStates.creating = false
-        const newJob = action.payload.result
-        if(state.car && newJob){
-          state.car.jobs = [...(state.car.jobs || []), newJob]
+        state.loadingStates.creating = false;
+        const newJob = action.payload.result;
+        if (state.car && newJob) {
+          state.car.jobs = [...(state.car.jobs || []), newJob];
         }
       })
       //PATCH's
@@ -106,8 +106,8 @@ const carSlice = createSlice({
       })
       .addCase(updatedCar.fulfilled, (state, action) => {
         state.loadingStates.updating = false;
-        if(action.payload.result){
-          state.car = action.payload.result
+        if (action.payload.result) {
+          state.car = action.payload.result;
         }
       })
       .addCase(updateJobInCar.pending, (state) => {
@@ -123,7 +123,7 @@ const carSlice = createSlice({
         const updatedJob = action.payload.result;
         if (!state.car?.jobs || !updatedJob) return;
         const jobIndex = state.car.jobs.findIndex(
-          (job) => job.id === updatedJob.id,
+          (job) => job.id === updatedJob.id
         );
         if (jobIndex === -1) return;
         state.car.jobs[jobIndex] = updatedJob;

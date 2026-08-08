@@ -17,7 +17,7 @@ import { logError } from "./logger";
  */
 export function handleIpc<Args extends unknown[], R>(
   channel: string,
-  handler: (event: IpcMainInvokeEvent, ...args: Args) => R | Promise<R>,
+  handler: (event: IpcMainInvokeEvent, ...args: Args) => R | Promise<R>
 ): void {
   ipcMain.handle(channel, async (event, ...args) => {
     try {

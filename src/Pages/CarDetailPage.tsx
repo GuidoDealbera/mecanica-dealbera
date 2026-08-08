@@ -100,15 +100,15 @@ const CarDetailPage: React.FC = () => {
       showToast(
         "Vehículo y titular actualizados correctamente",
         "success",
-        "Actualización",
+        "Actualización"
       );
     } catch {
       showToast("Error al actualizar datos", "danger", "Actualización");
     }
   };
 
-  const jobs = React.useMemo(() => car?.jobs ?? [], [car?.jobs])
-  const kmHistory = React.useMemo(() => car?.kmHistory ?? [], [car?.kmHistory])
+  const jobs = React.useMemo(() => car?.jobs ?? [], [car?.jobs]);
+  const kmHistory = React.useMemo(() => car?.kmHistory ?? [], [car?.kmHistory]);
 
   // ── Loading inicial ────────────────────────────────────────────────────
   // Hasta que la consulta se resuelve por primera vez no se puede saber si el
@@ -196,7 +196,9 @@ const CarDetailPage: React.FC = () => {
             {/* Stats rápidos */}
             <div className="hidden md:flex items-center gap-3">
               <div className="text-center px-4 py-2 bg-content2 rounded-xl border border-divider">
-                <p className="text-2xl font-bold text-foreground">{jobsCount}</p>
+                <p className="text-2xl font-bold text-foreground">
+                  {jobsCount}
+                </p>
                 <p className="text-foreground-400 text-xs">Trabajos</p>
               </div>
               {inProgress > 0 && (
@@ -259,126 +261,126 @@ const CarDetailPage: React.FC = () => {
               <Jobs jobs={jobs} isLoading={isLoading} license={licence} />
             </div>
             <div className="flex flex-col gap-4">
-        {/* Card vehículo */}
-          <Card className="bg-content1 shadow shadow-primary">
-            <CardHeader className="flex items-center justify-between pb-2">
-              <div className="flex items-center gap-2">
-                <IoCarSportSharp size={15} className="text-primary-400" />
-                <h5 className="text-primary-400 font-semibold text-sm">
-                  Vehículo
-                </h5>
-              </div>
-              <Button
-                size="sm"
-                color="primary"
-                startContent={<MdEdit size={13} />}
-                onPress={() => setIsEditing(true)}
-              >
-                Editar
-              </Button>
-            </CardHeader>
-            <Divider className="bg-content3" />
-            <CardBody className="pt-4 flex flex-col gap-4">
-              <div className="grid grid-cols-2 gap-4">
-                <InfoField
-                  icon={<FaTag size={14} />}
-                  label="Marca"
-                  value={car.brand}
-                />
-                <InfoField
-                  icon={<FaCube size={14} />}
-                  label="Modelo"
-                  value={car.model}
-                />
-                <InfoField
-                  icon={<MdBuild size={14} />}
-                  label="Año"
-                  value={car.year}
-                />
-                <InfoField
-                  icon={<MdBuild size={14} />}
-                  label="Kilometraje"
-                  value={`${(car.kilometers ?? 0).toLocaleString("es-AR")} km`}
-                />
-              </div>
-              <Divider className="bg-content3" />
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <p className="text-foreground-400 text-xs">Registrado</p>
-                  <p className="text-foreground-300 text-xs mt-0.5">
-                    {formatDate(car.createdAt)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-foreground-400 text-xs">Actualizado</p>
-                  <p className="text-foreground-300 text-xs mt-0.5">
-                    {formatDate(car.updatedAt)}
-                  </p>
-                </div>
-              </div>
-            </CardBody>
-          </Card>
+              {/* Card vehículo */}
+              <Card className="bg-content1 shadow shadow-primary">
+                <CardHeader className="flex items-center justify-between pb-2">
+                  <div className="flex items-center gap-2">
+                    <IoCarSportSharp size={15} className="text-primary-400" />
+                    <h5 className="text-primary-400 font-semibold text-sm">
+                      Vehículo
+                    </h5>
+                  </div>
+                  <Button
+                    size="sm"
+                    color="primary"
+                    startContent={<MdEdit size={13} />}
+                    onPress={() => setIsEditing(true)}
+                  >
+                    Editar
+                  </Button>
+                </CardHeader>
+                <Divider className="bg-content3" />
+                <CardBody className="pt-4 flex flex-col gap-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <InfoField
+                      icon={<FaTag size={14} />}
+                      label="Marca"
+                      value={car.brand}
+                    />
+                    <InfoField
+                      icon={<FaCube size={14} />}
+                      label="Modelo"
+                      value={car.model}
+                    />
+                    <InfoField
+                      icon={<MdBuild size={14} />}
+                      label="Año"
+                      value={car.year}
+                    />
+                    <InfoField
+                      icon={<MdBuild size={14} />}
+                      label="Kilometraje"
+                      value={`${(car.kilometers ?? 0).toLocaleString("es-AR")} km`}
+                    />
+                  </div>
+                  <Divider className="bg-content3" />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <p className="text-foreground-400 text-xs">Registrado</p>
+                      <p className="text-foreground-300 text-xs mt-0.5">
+                        {formatDate(car.createdAt)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-foreground-400 text-xs">Actualizado</p>
+                      <p className="text-foreground-300 text-xs mt-0.5">
+                        {formatDate(car.updatedAt)}
+                      </p>
+                    </div>
+                  </div>
+                </CardBody>
+              </Card>
 
-          {/* Card titular */}
-          <Card className="bg-content1 shadow shadow-primary">
-            <CardHeader className="flex items-center justify-between pb-2">
-              <div className="flex items-center gap-2">
-                <MdPerson size={15} className="text-primary-400" />
-                <h5 className="text-primary-400 font-semibold text-sm">
-                  Titular
-                </h5>
-              </div>
-              <Button
-                size="sm"
-                color="primary"
-                startContent={<MdPerson size={13}/>}
-                onPress={() => setReassignOpen(true)}
-              >
-                Cambiar titular
-              </Button>
-            </CardHeader>
-            <Divider className="bg-content3" />
-            <CardBody className="pt-4 flex flex-col gap-4">
-              <InfoField
-                icon={<MdPerson size={14} />}
-                label="Nombre"
-                value={car.owner?.fullname}
-              />
-              <InfoField
-                icon={<MdPhone size={14} />}
-                label="Teléfono"
-                value={car.owner?.phone}
-              />
-              <InfoField
-                icon={<MdLocationOn size={14} />}
-                label="Dirección"
-                value={car.owner?.address}
-              />
-              <InfoField
-                icon={<MdLocationCity size={14} />}
-                label="Localidad"
-                value={car.owner?.city}
-              />
-              <InfoField
-                icon={<MdEmail size={14} />}
-                label="Correo"
-                value={car.owner?.email || "---"}
-              />
-              <Button
-                color="success"
-                variant="flat"
-                fullWidth
-                startContent={<FaWhatsapp size={18} />}
-                isDisabled={!whatsappUrl}
-                onPress={() =>
-                  whatsappUrl && window.api.global.openExternal(whatsappUrl)
-                }
-                className="text-success-500 font-semibold mt-1"
-              >
-                {whatsappUrl ? "Enviar WhatsApp" : "Sin teléfono"}
-              </Button>
-            </CardBody>
-          </Card>
+              {/* Card titular */}
+              <Card className="bg-content1 shadow shadow-primary">
+                <CardHeader className="flex items-center justify-between pb-2">
+                  <div className="flex items-center gap-2">
+                    <MdPerson size={15} className="text-primary-400" />
+                    <h5 className="text-primary-400 font-semibold text-sm">
+                      Titular
+                    </h5>
+                  </div>
+                  <Button
+                    size="sm"
+                    color="primary"
+                    startContent={<MdPerson size={13} />}
+                    onPress={() => setReassignOpen(true)}
+                  >
+                    Cambiar titular
+                  </Button>
+                </CardHeader>
+                <Divider className="bg-content3" />
+                <CardBody className="pt-4 flex flex-col gap-4">
+                  <InfoField
+                    icon={<MdPerson size={14} />}
+                    label="Nombre"
+                    value={car.owner?.fullname}
+                  />
+                  <InfoField
+                    icon={<MdPhone size={14} />}
+                    label="Teléfono"
+                    value={car.owner?.phone}
+                  />
+                  <InfoField
+                    icon={<MdLocationOn size={14} />}
+                    label="Dirección"
+                    value={car.owner?.address}
+                  />
+                  <InfoField
+                    icon={<MdLocationCity size={14} />}
+                    label="Localidad"
+                    value={car.owner?.city}
+                  />
+                  <InfoField
+                    icon={<MdEmail size={14} />}
+                    label="Correo"
+                    value={car.owner?.email || "---"}
+                  />
+                  <Button
+                    color="success"
+                    variant="flat"
+                    fullWidth
+                    startContent={<FaWhatsapp size={18} />}
+                    isDisabled={!whatsappUrl}
+                    onPress={() =>
+                      whatsappUrl && window.api.global.openExternal(whatsappUrl)
+                    }
+                    className="text-success-500 font-semibold mt-1"
+                  >
+                    {whatsappUrl ? "Enviar WhatsApp" : "Sin teléfono"}
+                  </Button>
+                </CardBody>
+              </Card>
             </div>
           </div>
         </Tab>

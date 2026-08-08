@@ -20,15 +20,15 @@ const withBoundary = (Page: React.ComponentType) => (
 );
 
 const routes: RouteObject[] = [
-  { path: "/",               element: withBoundary(HomePage) },
-  { path: "/cars",           element: withBoundary(CarsPage) },
-  { path: "/cars/new",       element: withBoundary(AddCarPage) },
-  { path: "/cars/add-job",   element: withBoundary(AddJobPage) },
-  { path: "/cars/:licence",  element: withBoundary(CarDetailPage) },
-  { path: "/clients",        element: withBoundary(ClientPage) },
+  { path: "/", element: withBoundary(HomePage) },
+  { path: "/cars", element: withBoundary(CarsPage) },
+  { path: "/cars/new", element: withBoundary(AddCarPage) },
+  { path: "/cars/add-job", element: withBoundary(AddJobPage) },
+  { path: "/cars/:licence", element: withBoundary(CarDetailPage) },
+  { path: "/clients", element: withBoundary(ClientPage) },
   { path: "/clients/:fullname", element: withBoundary(ClientDetailPage) },
-  { path: "/alerts",         element: withBoundary(ServiceAlertsPage) },
-  { path: "/backup",         element: withBoundary(BackupPage) },
+  { path: "/alerts", element: withBoundary(ServiceAlertsPage) },
+  { path: "/backup", element: withBoundary(BackupPage) },
 ];
 
 const router = createHashRouter([
@@ -38,9 +38,9 @@ const router = createHashRouter([
     children: routes,
   },
   {
-    path: '*',
-    element: <NotFoundPage/>
-  }
+    path: "*",
+    element: <NotFoundPage />,
+  },
 ]);
 
 export default router;

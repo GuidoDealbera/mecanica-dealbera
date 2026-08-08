@@ -5,7 +5,14 @@ import "./DataBase/Endpoints/car.search.endpoints";
 import "./DataBase/Endpoints/client.endpoints";
 import "./DataBase/Endpoints/dashboard.endpoints";
 import "./DataBase/Endpoints/backup.endpoints";
-import { app, BrowserWindow, dialog, Notification, ipcMain, shell } from "electron";
+import {
+  app,
+  BrowserWindow,
+  dialog,
+  Notification,
+  ipcMain,
+  shell,
+} from "electron";
 import { autoUpdater } from "electron-updater";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
@@ -69,14 +76,14 @@ process.on("uncaughtException", (error) => {
   logError("uncaught-exception", error);
   dialog.showErrorBox(
     "Error Inesperado",
-    `Ocurrió un error inesperado:\n\n${error.message}`,
+    `Ocurrió un error inesperado:\n\n${error.message}`
   );
 });
 
 let win: BrowserWindow | null;
 let splash: BrowserWindow | null;
 
-const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000
+const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000;
 
 function setupAutoUpdater() {
   if (process.env.NODE_ENV === "development") return;
@@ -93,31 +100,35 @@ function setupAutoUpdater() {
   });
 
   autoUpdater.on("update-not-available", () => {
-    win?.webContents.send("update-not-available")
+    win?.webContents.send("update-not-available");
   });
 
   autoUpdater.on("download-progress", (progress) => {
     win?.webContents.send("update-progress", {
       percent: Math.round(progress.percent || 0),
-      bytesPerSecond: progress.bytesPerSecond
-    })
-  })
+      bytesPerSecond: progress.bytesPerSecond,
+    });
+  });
 
   autoUpdater.on("update-downloaded", () => {
-    win?.webContents.send("update-downloaded")
-  })
+    win?.webContents.send("update-downloaded");
+  });
 
   autoUpdater.on("error", (error) => {
     win?.webContents.send("update-error", {
-      error: error.message
-    })
-  })
+      error: error.message,
+    });
+  });
 
-  autoUpdater.checkForUpdates().catch(err => logError("auto-updater:check", err))
+  autoUpdater
+    .checkForUpdates()
+    .catch((err) => logError("auto-updater:check", err));
 
   setInterval(() => {
-    autoUpdater.checkForUpdates().catch(err => logError("auto-updater:check-interval", err))
-  }, UPDATE_CHECK_INTERVAL_MS)
+    autoUpdater
+      .checkForUpdates()
+      .catch((err) => logError("auto-updater:check-interval", err));
+  }, UPDATE_CHECK_INTERVAL_MS);
 }
 
 async function createWindow() {
@@ -248,26 +259,26 @@ handleIpc("app:open-external", async (_event, url: string) => {
 });
 
 ipcMain.on("start-update-download", () => {
-  autoUpdater.downloadUpdate()
-})
+  autoUpdater.downloadUpdate();
+});
 
 ipcMain.on("install-update", () => {
-  autoUpdater.quitAndInstall()
-})
+  autoUpdater.quitAndInstall();
+});
 
 handleIpc("check-for-updates", async () => {
-  if(process.env.NODE_ENV === 'development'){
-    win?.webContents.send("update-not-available")
-    return
+  if (process.env.NODE_ENV === "development") {
+    win?.webContents.send("update-not-available");
+    return;
   }
 
   try {
-    await autoUpdater.checkForUpdates()
+    await autoUpdater.checkForUpdates();
   } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error)
-    win?.webContents.send("update-error", {message: msg})
+    const msg = error instanceof Error ? error.message : String(error);
+    win?.webContents.send("update-error", { message: msg });
   }
-})
+});
 
 app.whenReady().then(async () => {
   logInfo("app:start", "App iniciando", { version: app.getVersion() });

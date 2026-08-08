@@ -19,7 +19,10 @@ import { useNavigate } from "react-router-dom";
 import { ServiceAlert } from "../Types/types";
 import LicenceTable from "../Components/Licenses/LicenceTable";
 import TablePagination from "../Components/TablePagination";
-import { getServiceUrgency, formatServiceUrgencyLabel } from "../Utils/serviceAlerts";
+import {
+  getServiceUrgency,
+  formatServiceUrgencyLabel,
+} from "../Utils/serviceAlerts";
 
 const PAGE_SIZE = 8;
 
@@ -121,7 +124,9 @@ const ServiceAlertsPage: React.FC = () => {
                   <TableColumn
                     key={col.key}
                     className={`bg-warning text-black text-sm font-bold ${
-                      i !== columns.length - 1 ? "border-r-2 border-divider" : ""
+                      i !== columns.length - 1
+                        ? "border-r-2 border-divider"
+                        : ""
                     }`}
                     style={{ width: col.width, minWidth: col.width }}
                   >
@@ -140,8 +145,12 @@ const ServiceAlertsPage: React.FC = () => {
                     </TableCell>
                     <TableCell className="border-r-2 border-divider">
                       <div>
-                        <p className="font-semibold text-sm">{alert.brand} {alert.model}</p>
-                        <p className="text-foreground-500 text-xs">{alert.year}</p>
+                        <p className="font-semibold text-sm">
+                          {alert.brand} {alert.model}
+                        </p>
+                        <p className="text-foreground-500 text-xs">
+                          {alert.year}
+                        </p>
                       </div>
                     </TableCell>
                     <TableCell className="border-r-2 border-divider text-sm">

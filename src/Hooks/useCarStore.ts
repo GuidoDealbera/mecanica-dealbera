@@ -47,40 +47,40 @@ export const useCarStore = () => {
 
   const fetchList = useCallback(
     (params: CarQueryParams) => dispatch(fetchCarsThunk(params)).unwrap(),
-    [dispatch],
+    [dispatch]
   );
 
   const fetchByLicence = useCallback(
     (licence: string) => dispatch(fetchCarByLicenceThunk(licence)).unwrap(),
-    [dispatch],
+    [dispatch]
   );
 
   const create = useCallback(
     (body: CreateCarBody) => dispatch(createCarThunk(body)).unwrap(),
-    [dispatch],
+    [dispatch]
   );
 
   const remove = useCallback(
     (licence: string) => dispatch(deleteCarThunk(licence)).unwrap(),
-    [dispatch],
+    [dispatch]
   );
 
   const update = useCallback(
     (carId: string, kilometers: number) =>
       dispatch(updatedCarThunk({ carId, kilometers })).unwrap(),
-    [dispatch],
+    [dispatch]
   );
 
   const addJob = useCallback(
     (licence: string, job: CreateCarJob) =>
       dispatch(addJobThunk({ licence, job })).unwrap(),
-    [dispatch],
+    [dispatch]
   );
 
   const updateJob = useCallback(
     (licence: string, jobId: string, body: UpdateJobBody) =>
       dispatch(updateJobInCarThunk({ licence, jobId, body })).unwrap(),
-    [dispatch],
+    [dispatch]
   );
 
   const cleanCar = useCallback(() => {
