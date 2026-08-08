@@ -28,6 +28,7 @@ import {
 } from "react-icons/md";
 import { IoCarSportSharp } from "react-icons/io5";
 import LicenceTable from "../Components/Licenses/LicenceTable";
+import ClientHistory from "./Components/ClientHistory";
 import { Client } from "../Types/types";
 import { JobStatus } from "../Types/apiTypes";
 import { useToasts } from "../Hooks/useToasts";
@@ -431,6 +432,23 @@ const ClientDetailPage: React.FC = () => {
                 ))}
               </div>
             )}
+          </CardBody>
+        </Card>
+
+        {/* ── Historial cruzado: actividad de todos sus vehículos ── */}
+        <Card className="col-span-full bg-content1 border border-divider shadow-none">
+          <CardHeader className="flex items-center gap-2 pb-2">
+            <MdHistory size={18} className="text-primary-400" />
+            <h5 className="font-semibold text-base text-primary-400">
+              Historial de actividad
+            </h5>
+            <span className="text-foreground-400 text-xs ml-1">
+              Todos los vehículos del cliente
+            </span>
+          </CardHeader>
+          <Divider className="bg-content3" />
+          <CardBody className="pt-3">
+            <ClientHistory cars={clientCars} />
           </CardBody>
         </Card>
       </div>

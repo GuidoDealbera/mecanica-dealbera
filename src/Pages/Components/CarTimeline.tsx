@@ -1,13 +1,10 @@
 import React from "react";
 import { Chip } from "@heroui/react";
 import { MdBuild, MdSpeed } from "react-icons/md";
-import { Cars, Jobs, KmRecord } from "../../Types/types";
+import { Cars } from "../../Types/types";
 import { JobStatus, STATUS_LABELS } from "../../Types/apiTypes";
 import { formatARS, formatDate } from "../../Utils/utils";
-
-type TimelineEvent =
-  | { kind: "km"; date: Date; record: KmRecord }
-  | { kind: "job"; date: Date; job: Jobs };
+import { buildTimelineEvents } from "../../Utils/timeline";
 
 const STATUS_COLOR: Record<
   JobStatus,
@@ -24,23 +21,7 @@ interface CarTimelineProps {
 }
 
 const CarTimeline: React.FC<CarTimelineProps> = ({ car }) => {
-  const events = React.useMemo<TimelineEvent[]>(() => {
-    const kmEvents: TimelineEvent[] = (car.kmHistory ?? []).map((r) => ({
-      kind: "km",
-      date: new Date(r.date),
-      record: r,
-    }));
-
-    const jobEvents: TimelineEvent[] = (car.jobs ?? []).map((j) => ({
-      kind: "job",
-      date: new Date((j.updatedAt ?? j.createdAt) as string),
-      job: j,
-    }));
-
-    return [...kmEvents, ...jobEvents].sort(
-      (a, b) => b.date.getTime() - a.date.getTime()
-    );
-  }, [car]);
+  const events = React.useMemo(() => buildTimelineEvents([car]), [car]);
 
   if (events.length === 0) {
     return (
@@ -70,7 +51,7 @@ const CarTimeline: React.FC<CarTimelineProps> = ({ car }) => {
 
           {/* Date label */}
           <time className="text-xs text-foreground-500 mb-1 block">
-            {formatDate(ev.date)}
+            {ev.date ? formatDate(ev.date) : "Sin fecha"}
           </time>
 
           {ev.kind === "km" && (

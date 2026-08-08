@@ -164,7 +164,7 @@ Estados posibles: `pendiente` · `en progreso` · `a testear` · `hecho`
   - **Gráficos (recharts) theme-aware**: hook `useChartTheme` para el chrome (grilla, ejes, tooltip, leyenda) en dashboard y modal de KM; los colores de datos quedan fijos.
 - Verificado: `tsc` + `npm run lint` + 48 tests + `vite build` OK.
 
-29. **[a testear]** Presupuesto PDF mejorado con número correlativo
+29. **[hecho]** Presupuesto PDF mejorado con número correlativo
    - Archivos: `electron/DataBase/Entities/document.entity.ts` (nuevo), `electron/DataBase/Migrations/CreateDocumentTable1700000006000.ts` (nueva), `electron/DataBase/Endpoints/document.endpoints.ts` (nuevo), `electron/DataBase/dataSource.ts`, `electron/{main,preload}.ts`, `global.d.ts`, `src/Types/apiTypes.ts`, `src/Hooks/useBudgetPdf.ts`, `src/Components/BudgetButton.tsx`.
    - Cambios:
      - **Antes** el "N°" del PDF era pseudo-aleatorio (`car.id` + timestamp): no era correlativo y cambiaba en cada impresión. Ahora el número lo **asigna la base de datos**.
@@ -181,7 +181,14 @@ Estados posibles: `pendiente` · `en progreso` · `a testear` · `hecho`
        - Tests nuevos (`budgetPdf.test.ts`, 10 casos): totales, filtro por tipo de documento, render con/sin trabajos, paginación, registro de la fuente y fallback con fuente inválida. `pdfPreview.test.ts` genera PDFs de muestra para revisar el diseño a ojo (sólo corre con `PDF_PREVIEW_DIR`).
    - Verificado: `tsc` + `npm run lint` + 48 tests + `vite build`. Además se probó la **migración contra una copia de la DB real**: corre sobre datos existentes, genera el esquema/índice, las series salen `PRE-000001..3` y `FAC-000001..2`, el índice único rechaza duplicados y el `down()` revierte.
    - Fix incidental: en `AddPartsToExistingJobs1700000002000.ts` la corrida de Prettier había desalineado un `eslint-disable-next-line` (rompía `npm run lint`); se reubicó.
-30. **[pendiente]** Historial cruzado de cliente
+30. **[a testear]** Historial cruzado de cliente
+   - Archivos: `src/Utils/timeline.ts` (nuevo), `src/Utils/timeline.test.ts` (nuevo), `src/Pages/Components/ClientHistory.tsx` (nuevo), `src/Pages/Components/CarTimeline.tsx`, `src/Pages/ClientDetailPage.tsx`.
+   - Cambios:
+     - La ficha del cliente ya mostraba el resumen de actividad (tarea 21) y la lista de vehículos, pero para ver *qué pasó* había que entrar a cada auto. Ahora hay un **historial cruzado**: una sola línea de tiempo con los trabajos y las actualizaciones de kilometraje de **todos** sus vehículos, de lo más reciente a lo más antiguo, y cada evento indica **a qué patente pertenece** (chip con la patente + marca/modelo).
+     - **Sin endpoint nuevo**: `client:find-by-name` ya carga `cars` y `cars.jobs`, y `kmHistory` viaja como columna del auto, así que se arma con los datos que la ficha ya tiene.
+     - `timeline.ts` (nuevo, puro): se **extrajo** de `CarTimeline` el modelo de eventos y el armado/orden, para que lo compartan el timeline del auto y el historial del cliente (cada evento lleva su `car`). Elimina la duplicación y lo vuelve testeable. Mejora de robustez: las fechas inválidas o ausentes ya no producen `Invalid Date` — el evento se conserva con `date: null` (se ordena al final y se muestra "Sin fecha") en vez de descartarse.
+     - `ClientHistory`: filtros por **vehículo** (sólo aparece si el cliente tiene más de uno) y por **tipo** (todo / trabajos / kilometraje), contador de eventos, y revelado incremental con "Ver más" de 8 en 8 para que un cliente con mucha historia no genere una lista interminable. Al cambiar un filtro se vuelve a la primera tanda. Estados vacíos propios (sin actividad / sin coincidencias).
+   - Tests nuevos (7): mezcla y orden entre vehículos, referencia al vehículo de cada evento, `updatedAt` por sobre `createdAt`, eventos sin fecha al final, fecha inválida, casos vacíos y tipo de evento.
 
 ## Sprint 7 — Features grandes (alta complejidad)
 
