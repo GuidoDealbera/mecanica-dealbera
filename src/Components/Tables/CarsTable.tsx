@@ -187,7 +187,16 @@ const CarsTable: React.FC<CarsTableProps> = ({
               >
                 <div className="flex justify-center gap-2">
                   <Tooltip content="Agregar trabajo" color="success" showArrow>
-                    <Button isIconOnly size="sm" className="bg-transparent" onPress={() => navigate("/cars/add-job", { state: { license: car.licensePlate } })}>
+                    <Button
+                      isIconOnly
+                      size="sm"
+                      className="bg-transparent"
+                      onPress={() =>
+                        navigate("/cars/add-job", {
+                          state: { license: car.licensePlate },
+                        })
+                      }
+                    >
                       <IoIosAddCircle size={25} className="text-success-600" />
                     </Button>
                   </Tooltip>
