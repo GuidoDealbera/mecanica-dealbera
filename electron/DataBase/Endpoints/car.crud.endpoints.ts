@@ -9,6 +9,7 @@ import type { CarQueryParams, Paginated } from "../Types/types";
 import { Car } from "../Entities/car.entity";
 import { Client } from "../Entities/client.entity";
 import { invalidateDashboardStatsCache } from "../dashboardCache";
+import { ensureReminder } from "../serviceReminders.service";
 
 // Columnas por las que se permite ordenar el listado de autos (mapa
 // campo-de-la-UI → columna calificada de la query, para no interpolar texto
@@ -70,6 +71,10 @@ handleIpc("car:create", async (_event, payload: CreateCarDto) => {
       ],
     });
     await qr.manager.save(Car, newCar);
+
+    // El vehículo entra al circuito de service desde el alta: se le crea el
+    // recordatorio inicial (según los intervalos configurados).
+    await ensureReminder(qr.manager, newCar);
 
     await qr.commitTransaction();
     invalidateDashboardStatsCache();

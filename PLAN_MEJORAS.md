@@ -195,9 +195,26 @@ Estados posibles: `pendiente` · `en progreso` · `a testear` · `hecho`
 
 ## Sprint 7 — Features grandes (alta complejidad)
 
-31. **[pendiente]** Sistema de recordatorios de service
-32. **[pendiente]** Fotos del vehículo (galería)
-33. **[pendiente]** Multi-usuario básico con PIN
+31. **[hecho]** Sistema de recordatorios de service
+   - Archivos nuevos: `src/Utils/serviceReminders.ts` (+ `.test.ts`), `electron/DataBase/Entities/{serviceReminder,appSetting}.entity.ts`, `electron/DataBase/Migrations/CreateServiceReminders1700000007000.ts`, `electron/DataBase/serviceReminders.service.ts`, `electron/DataBase/Endpoints/service.endpoints.ts`, `src/Pages/Components/NextServiceCard.tsx`.
+   - Modificados: `src/Pages/ServiceAlertsPage.tsx` (reescrita), `src/Types/{apiTypes,types}.ts`, `electron/DataBase/Entities/{car,job}.entity.ts`, `electron/DataBase/Types/car.dto.ts`, `electron/DataBase/Endpoints/{car.crud,car.jobs,car.search,dashboard}.endpoints.ts`, `electron/{main,preload}.ts`, `global.d.ts`, `src/Components/{Header,Forms/AddJobForm,Tables/JobsTable}.tsx`, `src/Pages/{CarDetailPage,Components/Jobs}.tsx`.
+   - Eliminados: endpoint `car:service-alerts`, `src/Utils/serviceAlerts.ts` (+ tests), tipo `ServiceAlert`, `cars.getServiceAlerts` del preload.
+   - **Qué resolvía**: la versión anterior medía "días desde cualquier trabajo" (no cuándo toca el próximo service), ignoraba el kilometraje, no tenía estado (no se podía posponer, marcar contactado ni descartar → fatiga de alerta), traía todos los autos a memoria, y la regla estaba **escrita tres veces** (endpoint de alertas, dashboard y notificación de arranque) con umbrales que ni coincidían (`getServiceUrgency` tenía un caso `"default"` inalcanzable).
+   - Cambios:
+     - **Entidad `ServiceReminder`** persistida (no cálculo al vuelo), con `type`, `status` (pending/snoozed/done/dismissed), `dueDate`, `dueKm`, `snoozedUntil`, `contactedAt`, `notes`. Cascada con el vehículo. Invariante: un solo recordatorio vigente por vehículo y tipo.
+     - **Vence por tiempo O por kilómetros, lo que ocurra primero** (criterio real del taller). Intervalos configurables globalmente (tabla `app_setting`, así viajan con el backup) con **override por vehículo** (`car.serviceIntervalMonths/Km`).
+     - **Se mantiene solo**: al pasar un trabajo marcado como service (`job.serviceType`) a completado/entregado, se cierra el recordatorio vigente y **se programa el siguiente**. Sólo en la transición a cerrado (no cada vez que se edita). Al registrar un vehículo se crea su recordatorio inicial.
+     - **Lógica pura compartida** (`src/Utils/serviceReminders.ts`): próximo vencimiento, urgencia, estimación de **km/día** desde `kmHistory` (proyecta cuándo alcanzará el km objetivo) y textos. La usan el backend y el renderer → **una sola fuente de verdad**. La notificación de arranque, el badge y el dashboard ahora cuentan con la misma función (`countDueReminders`).
+     - **Bandeja accionable** (`/alerts`): filtros (alcance, tipo, búsqueda por patente/titular), server-side y paginada, con acciones por fila — avisar por **WhatsApp** con mensaje prellenado (y registro del contacto), **posponer** 7/15/30/90 días, **marcar el service como hecho** (programa el próximo), cargar trabajo y **descartar**. Los postergados se reactivan solos al vencer el plazo.
+     - Bloque **"Próximo service"** en la ficha del vehículo, indicador de service en la tabla de trabajos y selector "¿Es un service?" en alta y edición de trabajos.
+     - Nota de diseño: el módulo de dominio recibe el `EntityManager` por parámetro (no toma `AppDataSource`), así funciona dentro de transacciones y se puede probar sin Electron.
+   - **Migración con backfill**: cada vehículo existente arranca con un recordatorio general cuyo vencimiento se calcula desde su último trabajo (o su alta), replicando el criterio anterior pero como fecha concreta. `dueKm` queda en NULL a propósito (no se sabe el km del último service; no se inventa el dato).
+   - Tests nuevos (28): intervalos, `addMonths` sin desborde de mes, km/día, proyección por km, urgencias por fecha y por km, postergados, umbrales configurados y textos.
+   - Verificado además contra una **copia de la DB real**: migración + backfill, cascada al borrar el vehículo, round-trip de fechas/km, y el ciclo completo (alta → recordatorio inicial → idempotencia → completar → siguiente programado → override por vehículo → reactivación del postergado → conteo).
+32. **[descartada]** Fotos del vehículo (galería)
+   - Decisión del usuario (2026-08-08): no se implementa. Se evaluó el alcance (almacenamiento en disco + entidad `CarPhoto`, thumbnails, protocolo custom para servir imágenes y **cambio del backup a ZIP** porque hoy sólo copia el `.db`) y se concluyó que no justifica el trabajo para este taller.
+33. **[pospuesta]** Multi-usuario básico con PIN
+   - Decisión del usuario (2026-08-08): no se implementa por ahora (hoy opera una sola persona, así que el login agrega fricción sin resolver un problema real). En su lugar se pidió una **recomendación** para robustecer el empaquetado/resguardo ante imprevistos, sin implementar.
 
 ---
 

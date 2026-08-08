@@ -40,6 +40,8 @@ import BudgetButton from "../Components/BudgetButton";
 import AddCarForm from "../Components/Forms/AddCarForm";
 import ReassignOwnerModal from "./Components/ReassingOwnerModal";
 import CarTimeline from "./Components/CarTimeline";
+import NextServiceCard from "./Components/NextServiceCard";
+import { MdNotificationsActive } from "react-icons/md";
 
 // ── Campo de solo lectura reutilizable ─────────────────────────────────────
 const InfoField: React.FC<{
@@ -245,6 +247,20 @@ const CarDetailPage: React.FC = () => {
               </Button>
             </div>
           </div>
+        </CardBody>
+      </Card>
+
+      {/* ── Próximo service ─────────────────────────────────────────────── */}
+      <Card className="bg-content1 border border-divider shadow-none">
+        <CardHeader className="flex items-center gap-2 pb-2">
+          <MdNotificationsActive size={18} className="text-warning-500" />
+          <h5 className="font-semibold text-base text-primary-400">
+            Próximo service
+          </h5>
+        </CardHeader>
+        <Divider className="bg-content3" />
+        <CardBody className="pt-3">
+          <NextServiceCard licensePlate={licence} />
         </CardBody>
       </Card>
 

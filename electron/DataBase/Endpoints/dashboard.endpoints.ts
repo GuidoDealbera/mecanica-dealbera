@@ -1,12 +1,13 @@
 import { handleIpc } from "../../ipc";
 import { MoreThanOrEqual } from "typeorm";
-import { getRepositories } from "../dataSource";
+import { AppDataSource, getRepositories } from "../dataSource";
 import { JobStatus } from "../../../src/Types/apiTypes";
 import type { DashboardStats } from "../../../src/Types/types";
 import {
   getDashboardStatsCache,
   setDashboardStatsCache,
 } from "../dashboardCache";
+import { countDueReminders } from "../serviceReminders.service";
 
 handleIpc("dashboard:get-stats", async () => {
   const cached = getDashboardStatsCache();
@@ -22,10 +23,6 @@ handleIpc("dashboard:get-stats", async () => {
 
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const sixMonthsAgo = new Date();
-  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-  const threeMonthsAgo = new Date();
-  threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
 
   const [allCars, totalClients, activeClients, newClientsThisMonth] =
     await Promise.all([
@@ -97,21 +94,15 @@ handleIpc("dashboard:get-stats", async () => {
     price: number;
   }[] = [];
 
-  let carsWithAlerts = 0;
+  // Vehículos que requieren service: sale del sistema de recordatorios, la
+  // misma fuente que el badge de la barra y la notificación de arranque (antes
+  // esta regla estaba reimplementada acá y podía dar un número distinto).
+  const carsWithAlerts = await countDueReminders(AppDataSource.manager);
 
   for (const car of allCars) {
     const hasJobs = Array.isArray(car.jobs) && car.jobs.length > 0;
 
-    if (!hasJobs) {
-      if (new Date(car.createdAt) < threeMonthsAgo) carsWithAlerts++;
-      continue;
-    }
-
-    const lastJobDate = car.jobs.reduce((latest, job) => {
-      const d = new Date((job.updatedAt || job.createdAt) as Date);
-      return d > latest ? d : latest;
-    }, new Date(0));
-    if (lastJobDate < sixMonthsAgo) carsWithAlerts++;
+    if (!hasJobs) continue;
 
     for (const job of car.jobs) {
       if (job.status === JobStatus.PENDING) {

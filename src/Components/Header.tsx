@@ -43,7 +43,7 @@ const ICON_BUTTONS = [
   {
     path: "/alerts",
     icon: MdWarning,
-    tooltip: "Alertas de service",
+    tooltip: "Recordatorios de service",
     color: "warning" as const,
   },
   {
@@ -79,11 +79,12 @@ const Header = () => {
   const isHome = location.pathname === "/";
 
   React.useEffect(() => {
-    window.api.cars.getServiceAlerts().then((res) => {
-      if (res.status === "success") {
-        setServiceAlertCount(res.result?.length ?? 0);
-      }
-    });
+    // Conteo de recordatorios que requieren atención (misma regla que la
+    // bandeja y que la notificación de arranque).
+    window.api.service
+      .countDue()
+      .then(setServiceAlertCount)
+      .catch(() => {});
     // Conteo de trabajos activos para el badge (COUNT liviano en la DB).
     window.api.cars
       .getActiveJobsCount()

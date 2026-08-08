@@ -65,6 +65,15 @@ export class Car {
   @Column("simple-json", { nullable: true })
   kmHistory!: { km: number; date: string }[];
 
+  // Intervalos de service propios del vehículo. `null` = usar los generales
+  // (configuración global). Permite distinguir, por ejemplo, un auto de uso
+  // intensivo de uno de fin de semana sin cambiar la configuración de todos.
+  @Column("integer", { nullable: true })
+  serviceIntervalMonths!: number | null;
+
+  @Column("integer", { nullable: true })
+  serviceIntervalKm!: number | null;
+
   @CreateDateColumn({ type: "datetime" })
   createdAt!: Date;
 

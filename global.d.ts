@@ -13,15 +13,13 @@ import {
   IssueDocumentBody,
   IssuedDocument,
   Paginated,
+  ReminderQueryParams,
+  SaveReminderBody,
+  ServiceReminderView,
+  ServiceSettings,
   UpdateClientBody,
 } from "./src/Types/apiTypes";
-import {
-  Car,
-  Client,
-  DashboardStats,
-  Jobs,
-  ServiceAlert,
-} from "./src/Types/types";
+import { Car, Client, DashboardStats, Jobs } from "./src/Types/types";
 export {};
 
 interface SearchResult {
@@ -87,7 +85,6 @@ declare global {
           jobId: string,
           updateJobDto: UpdateJobDto
         ) => Promise<APIResponse<Jobs>>;
-        getServiceAlerts: () => Promise<APIResponse<ServiceAlert[]>>;
         reassignOwner: (
           licensePlate: string,
           payload:
@@ -107,6 +104,29 @@ declare global {
       };
       dashboard: {
         getStats: () => Promise<APIResponse<DashboardStats>>;
+      };
+      service: {
+        list: (
+          params: ReminderQueryParams
+        ) => Promise<Paginated<ServiceReminderView>>;
+        countDue: () => Promise<number>;
+        byCar: (licensePlate: string) => Promise<ServiceReminderView[]>;
+        snooze: (
+          id: string,
+          days: number
+        ) => Promise<APIResponse<ServiceReminderView>>;
+        markContacted: (
+          id: string
+        ) => Promise<APIResponse<ServiceReminderView>>;
+        complete: (id: string) => Promise<APIResponse<ServiceReminderView>>;
+        dismiss: (id: string) => Promise<APIResponse>;
+        save: (
+          body: SaveReminderBody
+        ) => Promise<APIResponse<ServiceReminderView>>;
+        getSettings: () => Promise<ServiceSettings>;
+        setSettings: (
+          settings: Partial<ServiceSettings>
+        ) => Promise<APIResponse<ServiceSettings>>;
       };
       documents: {
         issue: (

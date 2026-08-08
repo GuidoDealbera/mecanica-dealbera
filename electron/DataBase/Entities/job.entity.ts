@@ -9,7 +9,7 @@ import {
   UpdateDateColumn,
 } from "typeorm";
 import { Car } from "./car.entity";
-import { JobStatus } from "../../../src/Types/apiTypes";
+import { JobStatus, ServiceType } from "../../../src/Types/apiTypes";
 
 /**
  * Trabajo realizado (o pendiente) sobre un vehículo. Antes vivía como JSON
@@ -41,6 +41,12 @@ export class Job {
   // incluyen en el presupuesto/factura.
   @Column("text", { nullable: true })
   notes?: string;
+
+  // Si el trabajo es un service, de qué tipo. Al pasarlo a completado/entregado
+  // se cierra el recordatorio vigente de ese tipo y se genera el siguiente.
+  // `null` = trabajo común (no afecta los recordatorios).
+  @Column("varchar", { nullable: true })
+  serviceType?: ServiceType | null;
 
   @CreateDateColumn({ type: "datetime" })
   createdAt!: Date;

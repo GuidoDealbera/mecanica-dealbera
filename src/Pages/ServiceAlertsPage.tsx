@@ -1,200 +1,552 @@
 import React from "react";
 import {
   Button,
-  Card,
-  CardBody,
   Chip,
-  Spinner,
-  Table,
-  TableBody,
-  TableCell,
-  TableColumn,
-  TableHeader,
-  TableRow,
+  Dropdown,
+  DropdownItem,
+  DropdownMenu,
+  DropdownTrigger,
+  Input,
+  Select,
+  SelectItem,
+  Tooltip,
 } from "@heroui/react";
 import { HiOutlineRefresh } from "react-icons/hi";
-import { MdWarning, MdPhone } from "react-icons/md";
-import { IoCarSportSharp } from "react-icons/io5";
+import {
+  MdBuild,
+  MdCheckCircle,
+  MdKeyboardArrowDown,
+  MdNotificationsActive,
+  MdPhone,
+  MdSchedule,
+  MdSettings,
+  MdWhatsapp,
+} from "react-icons/md";
+import { IoCarSportSharp, IoSearch } from "react-icons/io5";
 import { useNavigate } from "react-router-dom";
-import { ServiceAlert } from "../Types/types";
+import {
+  DEFAULT_SERVICE_SETTINGS,
+  ReminderScope,
+  SERVICE_TYPE_LABELS,
+  ServiceReminderView,
+  ServiceSettings,
+  ServiceType,
+} from "../Types/apiTypes";
+import {
+  evaluateReminder,
+  formatDueSummary,
+  URGENCY_COLOR,
+  URGENCY_LABELS,
+} from "../Utils/serviceReminders";
+import { buildWhatsappUrl, formatDate } from "../Utils/utils";
 import LicenceTable from "../Components/Licenses/LicenceTable";
 import TablePagination from "../Components/TablePagination";
-import {
-  getServiceUrgency,
-  formatServiceUrgencyLabel,
-} from "../Utils/serviceAlerts";
+import EmptyState from "../Components/EmptyState";
+import TableLoadingContent from "../Components/TableLoadingContent";
+import { useToasts } from "../Hooks/useToasts";
+import { useDebounce } from "../Hooks/useDebounce";
 
 const PAGE_SIZE = 8;
 
+const SCOPE_OPTIONS: { key: ReminderScope; label: string }[] = [
+  { key: "due", label: "Requieren atención" },
+  { key: "pending", label: "Todos los vigentes" },
+  { key: "all", label: "Historial completo" },
+];
+
+const SNOOZE_OPTIONS = [
+  { days: 7, label: "1 semana" },
+  { days: 15, label: "15 días" },
+  { days: 30, label: "1 mes" },
+  { days: 90, label: "3 meses" },
+];
+
+/**
+ * Bandeja de recordatorios de service.
+ *
+ * Reemplaza el listado de "alertas" anterior, que era de sólo lectura: al no
+ * poder marcar nada, mostraba siempre lo mismo y se volvía ruido. Acá cada
+ * recordatorio se puede accionar (avisar al titular, posponer, marcar el service
+ * como hecho o descartarlo), que es lo que lo hace útil.
+ */
 const ServiceAlertsPage: React.FC = () => {
   const navigate = useNavigate();
-  const [alerts, setAlerts] = React.useState<ServiceAlert[]>([]);
-  const [loading, setLoading] = React.useState(false);
-  const [page, setPage] = React.useState(1);
+  const { showToast } = useToasts();
 
-  const fetchAlerts = React.useCallback(async () => {
-    setLoading(true);
+  const [reminders, setReminders] = React.useState<ServiceReminderView[]>([]);
+  const [total, setTotal] = React.useState(0);
+  const [loading, setLoading] = React.useState(false);
+  const [loaded, setLoaded] = React.useState(false);
+  const [actioningId, setActioningId] = React.useState<string | null>(null);
+
+  const [page, setPage] = React.useState(1);
+  const [scope, setScope] = React.useState<ReminderScope>("due");
+  const [typeFilter, setTypeFilter] = React.useState<string>("all");
+  const [search, setSearch] = React.useState("");
+  const debouncedSearch = useDebounce(search, 300);
+
+  const [settings, setSettings] = React.useState<ServiceSettings>(
+    DEFAULT_SERVICE_SETTINGS
+  );
+  const [showSettings, setShowSettings] = React.useState(false);
+  const [settingsDraft, setSettingsDraft] = React.useState<ServiceSettings>(
+    DEFAULT_SERVICE_SETTINGS
+  );
+
+  const fetchSettings = React.useCallback(async () => {
     try {
-      const res = await window.api.cars.getServiceAlerts();
-      if (res.status === "success") {
-        setAlerts(res.result);
-        // El endpoint devuelve todas las alertas de una, así que la paginación
-        // es del lado del cliente: al recargar se vuelve a la primera página
-        // para no quedar fuera de rango si la lista se achicó.
-        setPage(1);
-      }
-    } finally {
-      setLoading(false);
+      const current = await window.api.service.getSettings();
+      setSettings(current);
+      setSettingsDraft(current);
+    } catch {
+      /* si falla, quedan los valores por defecto */
     }
   }, []);
 
+  const fetchReminders = React.useCallback(async () => {
+    setLoading(true);
+    try {
+      const result = await window.api.service.list({
+        page,
+        pageSize: PAGE_SIZE,
+        scope,
+        type: typeFilter === "all" ? undefined : (typeFilter as ServiceType),
+        search: debouncedSearch || undefined,
+      });
+      setReminders(result.items);
+      setTotal(result.total);
+    } finally {
+      setLoading(false);
+      setLoaded(true);
+    }
+  }, [page, scope, typeFilter, debouncedSearch]);
+
   React.useEffect(() => {
-    fetchAlerts();
-  }, [fetchAlerts]);
+    fetchSettings();
+  }, [fetchSettings]);
 
-  const paginatedAlerts = React.useMemo(() => {
-    const start = (page - 1) * PAGE_SIZE;
-    return alerts.slice(start, start + PAGE_SIZE);
-  }, [alerts, page]);
+  React.useEffect(() => {
+    fetchReminders();
+  }, [fetchReminders]);
 
-  const columns = [
-    { key: "licensePlate", label: "Patente", width: 160 },
-    { key: "vehicle", label: "Vehículo", width: 200 },
-    { key: "owner", label: "Titular", width: 200 },
-    { key: "phone", label: "Teléfono", width: 150 },
-    { key: "km", label: "Kilometraje", width: 130 },
-    { key: "lastJob", label: "Último trabajo", width: 150 },
-    { key: "actions", label: "Acciones", width: 100 },
-  ];
+  // Si la página quedó vacía pero hay resultados (se accionó el último item de
+  // la última página), se retrocede una.
+  React.useEffect(() => {
+    if (!loading && total > 0 && reminders.length === 0 && page > 1) {
+      setPage((p) => Math.max(1, p - 1));
+    }
+  }, [loading, total, reminders.length, page]);
+
+  /** Evalúa cada recordatorio con la misma lógica que usa el backend. */
+  const evaluated = React.useMemo(
+    () =>
+      reminders.map((reminder) => ({
+        reminder,
+        evaluation: evaluateReminder({
+          status: reminder.status,
+          dueDate: reminder.dueDate,
+          dueKm: reminder.dueKm,
+          snoozedUntil: reminder.snoozedUntil,
+          currentKm: reminder.car.kilometers,
+          kmPerDay: reminder.kmPerDay,
+          settings,
+        }),
+      })),
+    [reminders, settings]
+  );
+
+  /** Ejecuta una acción sobre un recordatorio y refresca la bandeja. */
+  const runAction = React.useCallback(
+    async (
+      id: string,
+      action: () => Promise<{ status: string; message: string }>
+    ) => {
+      setActioningId(id);
+      try {
+        const res = await action();
+        showToast(
+          res.message,
+          res.status === "success" ? "success" : "danger",
+          "Recordatorios"
+        );
+        if (res.status === "success") await fetchReminders();
+      } finally {
+        setActioningId(null);
+      }
+    },
+    [fetchReminders, showToast]
+  );
+
+  const handleWhatsapp = (reminder: ServiceReminderView) => {
+    const message =
+      `Hola ${reminder.owner.fullname}, te escribimos de Mecánica Dealbera. ` +
+      `Según nuestros registros, tu ${reminder.car.brand} ${reminder.car.model} ` +
+      `(${reminder.car.licensePlate}) ya está para el ${SERVICE_TYPE_LABELS[reminder.type].toLowerCase()}. ` +
+      `¿Querés que coordinemos un turno?`;
+    const url = buildWhatsappUrl(reminder.owner.phone, message);
+    if (!url) {
+      showToast(
+        "El titular no tiene un teléfono válido",
+        "warning",
+        "Recordatorios"
+      );
+      return;
+    }
+    window.api.global.openExternal(url);
+    // Se registra el contacto para saber a quién ya se avisó.
+    runAction(reminder.id, () => window.api.service.markContacted(reminder.id));
+  };
+
+  const handleSaveSettings = async () => {
+    const res = await window.api.service.setSettings(settingsDraft);
+    showToast(
+      res.message,
+      res.status === "success" ? "success" : "danger",
+      "Recordatorios"
+    );
+    if (res.status === "success" && res.result) {
+      setSettings(res.result);
+      setSettingsDraft(res.result);
+      setShowSettings(false);
+      await fetchReminders();
+    }
+  };
+
+  const hasFilters = !!debouncedSearch || typeFilter !== "all";
 
   return (
     <div className="w-full min-h-full shadow shadow-primary bg-content1 rounded-md p-4 text-foreground">
-      <div className="flex justify-between items-center mb-4">
-        <div className="flex items-center gap-3">
-          <MdWarning size={28} className="text-warning-400" />
-          <div>
-            <h4 className="font-semibold text-3xl text-shadow-2xs text-shadow-primary">
-              Recordatorios de service
-            </h4>
-            <p className="text-foreground-400 text-sm mt-0.5">
-              Vehículos sin actividad en los últimos 6 meses
-            </p>
-          </div>
+      <div className="flex justify-between items-center mb-4 gap-3 flex-wrap">
+        <div className="flex items-center gap-2">
+          <MdNotificationsActive size={26} className="text-warning-500" />
+          <h4 className="font-semibold text-3xl text-shadow-2xs text-shadow-primary">
+            Recordatorios de service
+          </h4>
+          {total > 0 && (
+            <Chip color="warning" variant="flat" className="text-warning">
+              {total}
+            </Chip>
+          )}
         </div>
-        <Button
-          isLoading={loading}
-          startContent={!loading ? <HiOutlineRefresh size={20} /> : undefined}
-          color="primary"
-          className="font-bold"
-          onPress={fetchAlerts}
-        >
-          Actualizar
-        </Button>
+        <div className="flex gap-2">
+          <Tooltip content="Intervalos de service" color="primary" showArrow>
+            <Button
+              isIconOnly
+              variant="flat"
+              onPress={() => setShowSettings((v) => !v)}
+              aria-label="Configurar intervalos"
+            >
+              <MdSettings size={18} />
+            </Button>
+          </Tooltip>
+          <Button
+            isLoading={loading}
+            startContent={!loading ? <HiOutlineRefresh size={18} /> : undefined}
+            color="primary"
+            className="font-bold"
+            onPress={fetchReminders}
+          >
+            {loading ? "Actualizando..." : "Actualizar"}
+          </Button>
+        </div>
       </div>
 
-      {loading ? (
-        <div className="flex justify-center py-20">
-          <Spinner size="lg" color="primary" />
-        </div>
-      ) : alerts.length === 0 ? (
-        <Card className="bg-success-900/30 border border-success-700">
-          <CardBody className="flex flex-row items-center gap-3 p-5">
-            <IoCarSportSharp size={24} className="text-success-400" />
-            <div>
-              <p className="text-success-300 font-semibold text-lg">
-                ¡Todo en orden!
-              </p>
-              <p className="text-success-500 text-sm">
-                No hay vehículos sin service en los últimos 6 meses.
-              </p>
-            </div>
-          </CardBody>
-        </Card>
-      ) : (
-        <>
-          <p className="text-foreground-400 text-sm mb-3">
-            Se encontraron{" "}
-            <strong className="text-warning-400">{alerts.length}</strong>{" "}
-            vehículo{alerts.length > 1 ? "s" : ""} que requieren atención.
-          </p>
-          <div className="light bg-content1 text-foreground rounded-lg overflow-hidden border border-divider">
-            <Table aria-label="Alertas de service">
-              <TableHeader>
-                {columns.map((col, i) => (
-                  <TableColumn
-                    key={col.key}
-                    className={`bg-warning text-black text-sm font-bold ${
-                      i !== columns.length - 1
-                        ? "border-r-2 border-divider"
-                        : ""
-                    }`}
-                    style={{ width: col.width, minWidth: col.width }}
-                  >
-                    {col.label}
-                  </TableColumn>
-                ))}
-              </TableHeader>
-              <TableBody>
-                {paginatedAlerts.map((alert, i) => (
-                  <TableRow
-                    key={alert.licensePlate}
-                    className={i % 2 === 0 ? "bg-default-100" : "bg-default-50"}
-                  >
-                    <TableCell className="border-r-2 border-divider">
-                      <LicenceTable licence={alert.licensePlate} dialog />
-                    </TableCell>
-                    <TableCell className="border-r-2 border-divider">
-                      <div>
-                        <p className="font-semibold text-sm">
-                          {alert.brand} {alert.model}
-                        </p>
-                        <p className="text-foreground-500 text-xs">
-                          {alert.year}
-                        </p>
-                      </div>
-                    </TableCell>
-                    <TableCell className="border-r-2 border-divider text-sm">
-                      {alert.ownerName}
-                    </TableCell>
-                    <TableCell className="border-r-2 border-divider">
-                      <div className="flex items-center gap-1 text-sm">
-                        <MdPhone size={14} className="text-foreground-400" />
-                        {alert.ownerPhone}
-                      </div>
-                    </TableCell>
-                    <TableCell className="border-r-2 border-divider text-sm text-center">
-                      {alert.kilometers.toLocaleString("es-AR")} km
-                    </TableCell>
-                    <TableCell className="border-r-2 border-divider text-center">
-                      <Chip
-                        size="sm"
-                        color={getServiceUrgency(alert.daysSinceLastJob)}
-                      >
-                        {formatServiceUrgencyLabel(alert.daysSinceLastJob)}
-                      </Chip>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Button
-                        size="sm"
-                        color="primary"
-                        onPress={() => navigate(`/cars/${alert.licensePlate}`)}
-                      >
-                        Ver
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-          <TablePagination
-            page={page}
-            pageSize={PAGE_SIZE}
-            total={alerts.length}
-            onPageChange={setPage}
+      {/* Configuración de intervalos */}
+      {showSettings && (
+        <div className="flex flex-wrap items-end gap-3 mb-4 p-3 rounded-lg border border-divider">
+          <Input
+            label="Cada (meses)"
+            size="sm"
+            className="max-w-[130px]"
+            inputMode="numeric"
+            value={String(settingsDraft.intervalMonths)}
+            onChange={(e) =>
+              setSettingsDraft((d) => ({
+                ...d,
+                intervalMonths: Number(e.target.value.replace(/\D/g, "")) || 0,
+              }))
+            }
           />
-        </>
+          <Input
+            label="Cada (km)"
+            size="sm"
+            className="max-w-[140px]"
+            inputMode="numeric"
+            value={String(settingsDraft.intervalKm)}
+            onChange={(e) =>
+              setSettingsDraft((d) => ({
+                ...d,
+                intervalKm: Number(e.target.value.replace(/\D/g, "")) || 0,
+              }))
+            }
+          />
+          <Input
+            label="Avisar (días antes)"
+            size="sm"
+            className="max-w-[150px]"
+            inputMode="numeric"
+            value={String(settingsDraft.soonDays)}
+            onChange={(e) =>
+              setSettingsDraft((d) => ({
+                ...d,
+                soonDays: Number(e.target.value.replace(/\D/g, "")) || 0,
+              }))
+            }
+          />
+          <Input
+            label="Avisar (km antes)"
+            size="sm"
+            className="max-w-[150px]"
+            inputMode="numeric"
+            value={String(settingsDraft.soonKm)}
+            onChange={(e) =>
+              setSettingsDraft((d) => ({
+                ...d,
+                soonKm: Number(e.target.value.replace(/\D/g, "")) || 0,
+              }))
+            }
+          />
+          <Button color="primary" size="sm" onPress={handleSaveSettings}>
+            Guardar
+          </Button>
+        </div>
       )}
+
+      {/* Filtros */}
+      <div className="flex flex-wrap items-end gap-3 mb-4">
+        <Select
+          label="Mostrar"
+          size="sm"
+          className="max-w-[220px]"
+          selectedKeys={[scope]}
+          onSelectionChange={(keys) => {
+            const value = Array.from(keys)[0] as ReminderScope | undefined;
+            if (value) {
+              setScope(value);
+              setPage(1);
+            }
+          }}
+        >
+          {SCOPE_OPTIONS.map((option) => (
+            <SelectItem key={option.key}>{option.label}</SelectItem>
+          ))}
+        </Select>
+        <Select
+          label="Tipo de service"
+          size="sm"
+          className="max-w-[200px]"
+          selectedKeys={[typeFilter]}
+          onSelectionChange={(keys) => {
+            const value = Array.from(keys)[0] as string | undefined;
+            if (value) {
+              setTypeFilter(value);
+              setPage(1);
+            }
+          }}
+        >
+          {[
+            <SelectItem key="all">Todos</SelectItem>,
+            ...Object.values(ServiceType).map((type) => (
+              <SelectItem key={type}>{SERVICE_TYPE_LABELS[type]}</SelectItem>
+            )),
+          ]}
+        </Select>
+        <Input
+          label="Buscar"
+          size="sm"
+          className="max-w-[240px]"
+          placeholder="Patente o titular"
+          startContent={<IoSearch className="text-foreground-400" />}
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
+        />
+      </div>
+
+      {/* Listado */}
+      {loading && !loaded ? (
+        <div className="py-16">
+          <TableLoadingContent />
+        </div>
+      ) : evaluated.length === 0 ? (
+        hasFilters ? (
+          <EmptyState
+            icon={<IoSearch size={28} />}
+            title="Sin resultados"
+            description="No hay recordatorios que coincidan con los filtros aplicados."
+          />
+        ) : scope === "due" ? (
+          <EmptyState
+            icon={<MdCheckCircle size={30} />}
+            title="Todo al día"
+            description="Ningún vehículo requiere service por ahora."
+          />
+        ) : (
+          <EmptyState
+            icon={<IoCarSportSharp size={28} />}
+            title="Sin recordatorios"
+            description="Los recordatorios se generan al registrar vehículos y al completar services."
+          />
+        )
+      ) : (
+        <div className="flex flex-col gap-3">
+          {evaluated.map(({ reminder, evaluation }) => (
+            <div
+              key={reminder.id}
+              className="flex flex-wrap items-center gap-3 p-3 rounded-lg bg-content2 border border-divider"
+            >
+              <LicenceTable licence={reminder.car.licensePlate} dialog />
+
+              <div className="flex-1 min-w-[180px]">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="font-semibold text-sm">
+                    {reminder.car.brand} {reminder.car.model}
+                  </p>
+                  <Chip
+                    size="sm"
+                    variant="flat"
+                    className="text-foreground-300"
+                  >
+                    {SERVICE_TYPE_LABELS[reminder.type]}
+                  </Chip>
+                  <Chip
+                    size="sm"
+                    color={URGENCY_COLOR[evaluation.urgency]}
+                    variant="flat"
+                  >
+                    {URGENCY_LABELS[evaluation.urgency]}
+                  </Chip>
+                </div>
+                <p className="text-foreground-400 text-xs mt-0.5">
+                  {formatDueSummary(evaluation)}
+                  {reminder.dueDate &&
+                    ` · vence ${formatDate(reminder.dueDate)}`}
+                  {reminder.dueKm !== null &&
+                    ` · a los ${reminder.dueKm.toLocaleString("es-AR")} km`}
+                </p>
+                <p className="text-foreground-400 text-xs">
+                  {reminder.owner.fullname}
+                  {reminder.owner.phone && (
+                    <span className="inline-flex items-center gap-1 ml-2">
+                      <MdPhone size={12} /> {reminder.owner.phone}
+                    </span>
+                  )}
+                  {reminder.contactedAt && (
+                    <span className="text-success-400 ml-2">
+                      · avisado {formatDate(reminder.contactedAt)}
+                    </span>
+                  )}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap">
+                <Tooltip
+                  content="Avisar por WhatsApp"
+                  color="success"
+                  showArrow
+                >
+                  <Button
+                    isIconOnly
+                    size="sm"
+                    className="bg-success-600 text-white"
+                    isDisabled={actioningId === reminder.id}
+                    onPress={() => handleWhatsapp(reminder)}
+                  >
+                    <MdWhatsapp size={18} />
+                  </Button>
+                </Tooltip>
+
+                <Dropdown>
+                  <DropdownTrigger>
+                    <Button
+                      size="sm"
+                      variant="flat"
+                      isDisabled={actioningId === reminder.id}
+                      startContent={<MdSchedule size={16} />}
+                      endContent={<MdKeyboardArrowDown size={16} />}
+                    >
+                      Posponer
+                    </Button>
+                  </DropdownTrigger>
+                  <DropdownMenu
+                    aria-label="Posponer recordatorio"
+                    onAction={(key) =>
+                      runAction(reminder.id, () =>
+                        window.api.service.snooze(reminder.id, Number(key))
+                      )
+                    }
+                  >
+                    {SNOOZE_OPTIONS.map((option) => (
+                      <DropdownItem key={option.days}>
+                        {option.label}
+                      </DropdownItem>
+                    ))}
+                  </DropdownMenu>
+                </Dropdown>
+
+                <Tooltip
+                  content="Service hecho (programa el próximo)"
+                  color="primary"
+                  showArrow
+                >
+                  <Button
+                    isIconOnly
+                    size="sm"
+                    color="primary"
+                    variant="flat"
+                    isDisabled={actioningId === reminder.id}
+                    onPress={() =>
+                      runAction(reminder.id, () =>
+                        window.api.service.complete(reminder.id)
+                      )
+                    }
+                  >
+                    <MdCheckCircle size={18} />
+                  </Button>
+                </Tooltip>
+
+                <Tooltip content="Cargar trabajo" color="primary" showArrow>
+                  <Button
+                    isIconOnly
+                    size="sm"
+                    variant="flat"
+                    onPress={() =>
+                      navigate("/cars/add-job", {
+                        state: { license: reminder.car.licensePlate },
+                      })
+                    }
+                  >
+                    <MdBuild size={18} />
+                  </Button>
+                </Tooltip>
+
+                <Button
+                  size="sm"
+                  variant="light"
+                  color="danger"
+                  isDisabled={actioningId === reminder.id}
+                  onPress={() =>
+                    runAction(reminder.id, () =>
+                      window.api.service.dismiss(reminder.id)
+                    )
+                  }
+                >
+                  Descartar
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <TablePagination
+        page={page}
+        pageSize={PAGE_SIZE}
+        total={total}
+        onPageChange={setPage}
+      />
     </div>
   );
 };

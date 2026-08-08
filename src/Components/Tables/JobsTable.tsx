@@ -18,8 +18,13 @@ import {
   TableRow,
   Tooltip,
 } from "@heroui/react";
-import { JobStatus } from "../../Types/apiTypes";
-import { MdEdit, MdKeyboardArrowDown, MdStickyNote2 } from "react-icons/md";
+import { JobStatus, SERVICE_TYPE_LABELS } from "../../Types/apiTypes";
+import {
+  MdEdit,
+  MdKeyboardArrowDown,
+  MdNotificationsActive,
+  MdStickyNote2,
+} from "react-icons/md";
 import { HiArrowUp } from "react-icons/hi";
 import { formatARS } from "../../Utils/utils";
 import TableLoadingContent from "../TableLoadingContent";
@@ -265,6 +270,18 @@ const JobsTable: React.FC<JobsProps> = ({
               <TableRow key={job.id} className="text-foreground">
                 <TableCell className="max-w-[300px]" title={job.description}>
                   <div className="flex items-center gap-1.5">
+                    {job.serviceType && (
+                      <Tooltip
+                        content={`Service: ${SERVICE_TYPE_LABELS[job.serviceType]}`}
+                        color="foreground"
+                        placement="top"
+                        showArrow
+                      >
+                        <span className="flex-shrink-0 text-primary-500">
+                          <MdNotificationsActive size={16} />
+                        </span>
+                      </Tooltip>
+                    )}
                     {job.notes && job.notes.trim() !== "" && (
                       <Tooltip
                         content={

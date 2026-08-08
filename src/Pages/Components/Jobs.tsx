@@ -13,7 +13,16 @@ import {
 } from "@heroui/react";
 import { IoIosAddCircleOutline } from "react-icons/io";
 import { useNavigate } from "react-router-dom";
-import { JobStatus, STATUS_LABELS, UpdateJobBody } from "../../Types/apiTypes";
+import {
+  JobStatus,
+  SERVICE_TYPE_LABELS,
+  STATUS_LABELS,
+  ServiceType,
+  UpdateJobBody,
+} from "../../Types/apiTypes";
+
+// Opción para trabajos que no son un service (la mayoría).
+const NO_SERVICE = "none";
 import { useCarQueries } from "../../Hooks/useCarQueries";
 import { useToasts } from "../../Hooks/useToasts";
 import { MdEdit } from "react-icons/md";
@@ -41,6 +50,8 @@ const Jobs: React.FC<JobsProps> = ({ jobs, isLoading, license }) => {
     { name: string; price: number }[]
   >([]);
   const [editNotes, setEditNotes] = React.useState<string>("");
+  const [editServiceType, setEditServiceType] =
+    React.useState<ServiceType | null>(null);
 
   const handleOpenEdit = React.useCallback((job: CarJobs) => {
     setEditingJob(job);
@@ -48,6 +59,7 @@ const Jobs: React.FC<JobsProps> = ({ jobs, isLoading, license }) => {
     setEditPrice(job.price);
     setEditParts(job.parts ?? []);
     setEditNotes(job.notes ?? "");
+    setEditServiceType(job.serviceType ?? null);
   }, []);
 
   const handleCloseEdit = React.useCallback(() => {
@@ -70,12 +82,15 @@ const Jobs: React.FC<JobsProps> = ({ jobs, isLoading, license }) => {
     const partsChanged =
       JSON.stringify(editParts) !== JSON.stringify(editingJob.parts ?? []);
     const notesChanged = editNotes !== (editingJob.notes ?? "");
+    const serviceTypeChanged =
+      editServiceType !== (editingJob.serviceType ?? null);
 
     const hasChanges =
       editStatus !== editingJob.status ||
       editPrice !== editingJob.price ||
       partsChanged ||
-      notesChanged;
+      notesChanged ||
+      serviceTypeChanged;
 
     if (!hasChanges) {
       showToast("No hay cambios para guardar", "warning", "Editar trabajo");
@@ -88,6 +103,7 @@ const Jobs: React.FC<JobsProps> = ({ jobs, isLoading, license }) => {
     if (editPrice !== editingJob.price) body.price = editPrice;
     if (partsChanged) body.parts = editParts;
     if (notesChanged) body.notes = editNotes;
+    if (serviceTypeChanged) body.serviceType = editServiceType;
 
     const response = await updateJob(license, editingJob.id, body);
     if (response?.status === "success") {
@@ -102,13 +118,17 @@ const Jobs: React.FC<JobsProps> = ({ jobs, isLoading, license }) => {
   const notesChanged = editingJob
     ? editNotes !== (editingJob.notes ?? "")
     : false;
+  const serviceTypeChanged = editingJob
+    ? editServiceType !== (editingJob.serviceType ?? null)
+    : false;
   const canSave =
     editingJob !== null &&
     isPriceValid &&
     (editStatus !== editingJob.status ||
       editPrice !== editingJob.price ||
       partsChanged ||
-      notesChanged);
+      notesChanged ||
+      serviceTypeChanged);
 
   return (
     <div className="w-full min-h-full shadow shadow-primary bg-content1 rounded-md p-3">
@@ -229,6 +249,34 @@ const Jobs: React.FC<JobsProps> = ({ jobs, isLoading, license }) => {
                   }
                   onChange={(e) => setEditPrice(parseNumber(e.target.value))}
                 />
+
+                {/* Tipo de service: al pasar el trabajo a completado/entregado
+                    se programa el próximo recordatorio de ese tipo. */}
+                <Select
+                  label="¿Es un service?"
+                  description="Si lo es, al completarlo se programa el próximo"
+                  selectedKeys={[editServiceType ?? NO_SERVICE]}
+                  onSelectionChange={(keys) => {
+                    const selected = Array.from(keys)[0] as string | undefined;
+                    setEditServiceType(
+                      !selected || selected === NO_SERVICE
+                        ? null
+                        : (selected as ServiceType)
+                    );
+                  }}
+                  isDisabled={updating}
+                >
+                  {[
+                    <SelectItem key={NO_SERVICE}>
+                      No, es un trabajo común
+                    </SelectItem>,
+                    ...Object.values(ServiceType).map((type) => (
+                      <SelectItem key={type}>
+                        {SERVICE_TYPE_LABELS[type]}
+                      </SelectItem>
+                    )),
+                  ]}
+                </Select>
 
                 {/* Notas internas */}
                 <Textarea

@@ -23,6 +23,7 @@ export interface UpdateJobBody {
     price: number;
   }[];
   notes?: string;
+  serviceType?: ServiceType | null;
 }
 
 export interface CreateCarBody {
@@ -108,6 +109,111 @@ export interface UpdateCar {
   kilometers?: number;
 }
 
+// ─── Recordatorios de service ────────────────────────────────────────────
+
+/** Tipo de service. Cada vehículo lleva un recordatorio vigente por tipo. */
+export enum ServiceType {
+  GENERAL = "general",
+  OIL = "oil",
+  BELT = "belt",
+  BRAKES = "brakes",
+  OTHER = "other",
+}
+
+export const SERVICE_TYPE_LABELS: Record<ServiceType, string> = {
+  [ServiceType.GENERAL]: "Service general",
+  [ServiceType.OIL]: "Cambio de aceite",
+  [ServiceType.BELT]: "Correa de distribución",
+  [ServiceType.BRAKES]: "Frenos",
+  [ServiceType.OTHER]: "Otro",
+};
+
+/**
+ * Estado del recordatorio. Es lo que evita la "fatiga de alerta": un
+ * recordatorio atendido, postergado o descartado deja de aparecer.
+ */
+export enum ReminderStatus {
+  /** Vigente: se evalúa contra la fecha y el kilometraje del vehículo. */
+  PENDING = "pending",
+  /** Postergado hasta `snoozedUntil` (vuelve a aparecer después de esa fecha). */
+  SNOOZED = "snoozed",
+  /** El service se hizo. Queda como historial; se genera el siguiente. */
+  DONE = "done",
+  /** Descartado a mano (p. ej. el cliente no vuelve más). */
+  DISMISSED = "dismissed",
+}
+
+/** Urgencia calculada de un recordatorio vigente. */
+export type ReminderUrgency = "overdue" | "due-soon" | "upcoming" | "snoozed";
+
+/** Intervalos y umbrales configurables del sistema de recordatorios. */
+export interface ServiceSettings {
+  /** Meses entre services (por defecto, si el vehículo no define el suyo). */
+  intervalMonths: number;
+  /** Kilómetros entre services (ídem). */
+  intervalKm: number;
+  /** Días de anticipación para considerar que un service "vence pronto". */
+  soonDays: number;
+  /** Kilómetros de anticipación para lo mismo. */
+  soonKm: number;
+}
+
+export const DEFAULT_SERVICE_SETTINGS: ServiceSettings = {
+  intervalMonths: 6,
+  intervalKm: 10000,
+  soonDays: 30,
+  soonKm: 1000,
+};
+
+/** Recordatorio tal como lo devuelve el backend, con el contexto que se muestra. */
+export interface ServiceReminderView {
+  id: string;
+  type: ServiceType;
+  status: ReminderStatus;
+  /** Fecha de vencimiento (ISO) o `null` si el recordatorio es sólo por km. */
+  dueDate: string | null;
+  /** Kilometraje de vencimiento o `null` si es sólo por fecha. */
+  dueKm: number | null;
+  snoozedUntil: string | null;
+  contactedAt: string | null;
+  notes: string;
+  car: {
+    licensePlate: string;
+    brand: string;
+    model: string;
+    year: number;
+    kilometers: number;
+  };
+  owner: { fullname: string; phone: string };
+  /**
+   * Promedio de kilómetros por día del vehículo (de su historial de km), para
+   * proyectar cuándo alcanzará `dueKm`. `null` si no hay historial suficiente.
+   */
+  kmPerDay: number | null;
+}
+
+/** Alcance del listado de recordatorios. */
+export type ReminderScope = "due" | "pending" | "all";
+
+export interface ReminderQueryParams extends PaginationParams {
+  /** `due` (vencidos o por vencer, default), `pending` (todos los vigentes) o `all`. */
+  scope?: ReminderScope;
+  /** Filtra por tipo de service. */
+  type?: ServiceType;
+}
+
+/** Body para crear o actualizar a mano el recordatorio de un vehículo. */
+export interface SaveReminderBody {
+  /** Si viene, actualiza ese recordatorio; si no, crea uno nuevo. */
+  id?: string;
+  licensePlate: string;
+  type: ServiceType;
+  /** Fecha de vencimiento en ISO (o `null` para que sea sólo por km). */
+  dueDate?: string | null;
+  dueKm?: number | null;
+  notes?: string;
+}
+
 /**
  * Tipo de documento emitido. Cada tipo lleva su propia numeración correlativa.
  */
@@ -167,4 +273,6 @@ export interface CreateCarJob {
     price: number;
   }[];
   notes?: string;
+  /** Si el trabajo es un service, de qué tipo (programa el próximo). */
+  serviceType?: ServiceType | null;
 }

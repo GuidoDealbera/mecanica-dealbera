@@ -1,5 +1,5 @@
 import type { CarBrand } from "../Utils/utils";
-import { AppError, JobStatus, Paginated } from "./apiTypes";
+import { AppError, JobStatus, Paginated, ServiceType } from "./apiTypes";
 
 export interface KmRecord {
   km: number;
@@ -49,6 +49,8 @@ export interface Jobs {
     price: number;
   }[];
   notes?: string;
+  /** Tipo de service si el trabajo es un service; `null` si es un trabajo común. */
+  serviceType?: ServiceType | null;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -135,16 +137,4 @@ export interface DashboardStats {
     description: string;
     price: number;
   }[];
-}
-
-export interface ServiceAlert {
-  licensePlate: string;
-  brand: string;
-  model: string;
-  year: number;
-  kilometers: number;
-  ownerName: string;
-  ownerPhone: string;
-  daysSinceLastJob: number | null;
-  lastJobDate: string | null;
 }

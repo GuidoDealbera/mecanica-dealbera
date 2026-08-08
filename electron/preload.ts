@@ -7,6 +7,9 @@ import {
   CreateCarJob,
   DocumentType,
   IssueDocumentBody,
+  ReminderQueryParams,
+  SaveReminderBody,
+  ServiceSettings,
 } from "../src/Types/apiTypes";
 import { UpdateInfo, UpdateProgress } from "../global";
 
@@ -57,8 +60,6 @@ contextBridge.exposeInMainWorld("api", {
       updateJobDto: UpdateJobDto
     ) =>
       await ipcRenderer.invoke("car:update-job", licence, jobId, updateJobDto),
-    getServiceAlerts: async () =>
-      await ipcRenderer.invoke("car:service-alerts"),
     reassignOwner: async (
       licensePlate: string,
       payload:
@@ -87,6 +88,26 @@ contextBridge.exposeInMainWorld("api", {
   },
   dashboard: {
     getStats: async () => await ipcRenderer.invoke("dashboard:get-stats"),
+  },
+  service: {
+    list: async (params: ReminderQueryParams) =>
+      await ipcRenderer.invoke("service:list", params),
+    countDue: async () => await ipcRenderer.invoke("service:count-due"),
+    byCar: async (licensePlate: string) =>
+      await ipcRenderer.invoke("service:by-car", licensePlate),
+    snooze: async (id: string, days: number) =>
+      await ipcRenderer.invoke("service:snooze", id, days),
+    markContacted: async (id: string) =>
+      await ipcRenderer.invoke("service:mark-contacted", id),
+    complete: async (id: string) =>
+      await ipcRenderer.invoke("service:complete", id),
+    dismiss: async (id: string) =>
+      await ipcRenderer.invoke("service:dismiss", id),
+    save: async (body: SaveReminderBody) =>
+      await ipcRenderer.invoke("service:save", body),
+    getSettings: async () => await ipcRenderer.invoke("service:settings-get"),
+    setSettings: async (settings: Partial<ServiceSettings>) =>
+      await ipcRenderer.invoke("service:settings-set", settings),
   },
   documents: {
     issue: async (body: IssueDocumentBody) =>

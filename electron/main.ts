@@ -5,6 +5,7 @@ import "./DataBase/Endpoints/car.search.endpoints";
 import "./DataBase/Endpoints/client.endpoints";
 import "./DataBase/Endpoints/dashboard.endpoints";
 import "./DataBase/Endpoints/document.endpoints";
+import "./DataBase/Endpoints/service.endpoints";
 import "./DataBase/Endpoints/backup.endpoints";
 import {
   app,
@@ -21,7 +22,8 @@ import fs from "node:fs";
 import log from "electron-log/main";
 import { logError, logInfo } from "./logger";
 import { handleIpc } from "./ipc";
-import { getRepositories, initializeDB } from "./DataBase/dataSource";
+import { AppDataSource, initializeDB } from "./DataBase/dataSource";
+import { countDueReminders } from "./DataBase/serviceReminders.service";
 
 log.initialize();
 log.transports.file.level = "info";
@@ -158,36 +160,22 @@ async function createWindow() {
 
   await initializeDB();
 
-  // Notificación de alertas de service al iniciar (solo en producción)
+  // Notificación de recordatorios de service al iniciar (solo en producción).
+  // El conteo sale de `countDueReminders`, la misma función que alimenta el
+  // badge y la bandeja: antes la regla estaba reimplementada acá y podía
+  // divergir de la del listado.
   if (process.env.NODE_ENV !== "development") {
     try {
-      const { carRepository } = getRepositories();
-      const cars = await carRepository.find({ relations: ["jobs"] });
-      const sixMonthsAgo = new Date();
-      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-      const threeMonthsAgo = new Date();
-      threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
-
-      const alertCount = cars.filter((car) => {
-        if (!Array.isArray(car.jobs) || car.jobs.length === 0) {
-          return new Date(car.createdAt) < threeMonthsAgo;
-        }
-        const lastDate = car.jobs.reduce((latest, job) => {
-          const d = new Date((job.updatedAt || job.createdAt) as Date);
-          return d > latest ? d : latest;
-        }, new Date(0));
-        return lastDate < sixMonthsAgo;
-      }).length;
-
-      if (alertCount > 0 && Notification.isSupported()) {
+      const dueCount = await countDueReminders(AppDataSource.manager);
+      if (dueCount > 0 && Notification.isSupported()) {
         new Notification({
           title: "Mecánica Dealbera — Recordatorios",
-          body: `${alertCount} vehículo${alertCount > 1 ? "s" : ""} sin service en los últimos 6 meses`,
+          body: `${dueCount} ${dueCount > 1 ? "vehículos requieren" : "vehículo requiere"} service`,
           urgency: "normal",
         }).show();
       }
     } catch (err) {
-      logError("service-alerts:check", err);
+      logError("service-reminders:check", err);
     }
   }
 
