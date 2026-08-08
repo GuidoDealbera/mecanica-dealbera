@@ -162,7 +162,7 @@ const ReassignOwnerModal: React.FC<ReassignOwnerModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       size="lg"
-      className="bg-foreground-800 text-white"
+      className="bg-content1 text-foreground"
       placement="center"
       backdrop="blur"
       scrollBehavior="inside"
@@ -238,8 +238,8 @@ const ReassignOwnerModal: React.FC<ReassignOwnerModalProps> = ({
 
               {/* Preview del cliente seleccionado */}
               {selectedClient && (
-                <div className="flex flex-col gap-1 p-3 rounded-lg bg-foreground-700 border border-foreground-600">
-                  <p className="text-white font-semibold text-sm">{selectedClient.fullname}</p>
+                <div className="flex flex-col gap-1 p-3 rounded-lg bg-content2 border border-divider">
+                  <p className="text-foreground font-semibold text-sm">{selectedClient.fullname}</p>
                   <p className="text-foreground-400 text-xs">{selectedClient.phone}</p>
                   <p className="text-foreground-400 text-xs">
                     {selectedClient.address} · {selectedClient.city}

@@ -15,7 +15,7 @@ import {
 } from "@heroui/react";
 import { IoMdArrowBack } from "react-icons/io";
 import { IoSearch } from "react-icons/io5";
-import { MdWarning, MdBackup, MdSystemUpdate, MdInstallDesktop, MdKeyboard } from "react-icons/md";
+import { MdWarning, MdBackup, MdSystemUpdate, MdInstallDesktop, MdKeyboard, MdLightMode, MdDarkMode } from "react-icons/md";
 import { useLocation, useNavigate } from "react-router-dom";
 import avatarImg from "../assets/images/avatar.png";
 import GlobalSearch from "./SearchBars/GlobalSearch";
@@ -23,6 +23,7 @@ import ShortcutsModal from "./ShortcutsModal";
 import UpdateModal from "./UpdateModal";
 import { useToasts } from "../Hooks/useToasts";
 import { useGlobalShortcuts } from "../Hooks/useGlobalShortcuts";
+import { useTheme } from "../Theme/themeContext";
 
 const BUTTONS = [
   { path: "/", text: "Inicio" },
@@ -47,7 +48,7 @@ const ICON_BUTTONS = [
 
 const hoverColors = {
   primary: "hover:bg-primary",
-  warning: "hover:bg-warning hover:text-foreground-800",
+  warning: "hover:bg-warning hover:text-black",
   default: "hover:bg-default",
 };
 
@@ -55,6 +56,7 @@ const Header = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { showToast } = useToasts();
+  const { theme, toggleTheme } = useTheme();
   const [updateAvailable, setUpdateAvailable] = React.useState(false);
   const [updateVersion, setUpdateVersion] = React.useState<string | null>(null);
   const [progress, setProgress] = React.useState<number | null>(null);
@@ -171,7 +173,7 @@ const Header = () => {
   return (
     <>
       <Navbar
-        className="bg-foreground-800 shadow shadow-primary-700"
+        className="bg-content1 shadow shadow-primary-700"
         maxWidth="full"
       >
         <NavbarContent>
@@ -257,7 +259,7 @@ const Header = () => {
                 className={
                   isActive
                     ? ""
-                    : `bg-foreground-700 text-foreground-300 ${hoverColors[color]}`
+                    : `bg-content2 text-foreground-300 ${hoverColors[color]}`
                 }
                 onPress={() => navigate(path)}
               >
@@ -306,6 +308,27 @@ const Header = () => {
             </Button>
           </Tooltip>
 
+          <Tooltip
+            content={theme === "dark" ? "Modo claro" : "Modo oscuro"}
+            placement="bottom"
+            color="primary"
+            showArrow
+          >
+            <Button
+              isIconOnly
+              radius="full"
+              className="bg-content2 text-foreground-500 hover:bg-content3"
+              onPress={toggleTheme}
+              aria-label="Cambiar tema"
+            >
+              {theme === "dark" ? (
+                <MdLightMode size={18} />
+              ) : (
+                <MdDarkMode size={18} />
+              )}
+            </Button>
+          </Tooltip>
+
           <Dropdown placement="bottom-end">
             <DropdownTrigger>
               <div className="cursor-pointer relative flex items-center">
@@ -314,13 +337,16 @@ const Header = () => {
                   name="Horacio Dealbera"
                   avatarProps={{ src: avatarImg }}
                   description="Mecánico"
-                  className="text-white"
+                  className="text-foreground"
                 />
               </div>
             </DropdownTrigger>
-            <DropdownMenu aria-label="Opciones" closeOnSelect={false} className="w-fit">
+            <DropdownMenu aria-label="Opciones" className="w-fit">
               <DropdownItem
                 key="update"
+                // No cierra el menú: al buscar/instalar la acción muestra su
+                // progreso dentro del propio ítem.
+                closeOnSelect={false}
                 startContent={updateMenuIcon()}
                 description={
                   updateError
@@ -338,6 +364,7 @@ const Header = () => {
               </DropdownItem>
               <DropdownItem
                 key="shortcuts"
+                // Cierra el menú al abrir el modal (evita que quede abierto detrás).
                 startContent={<MdKeyboard size={16} />}
                 description="Ver la lista de atajos de teclado"
                 onPress={() => setHelpOpen(true)}

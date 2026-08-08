@@ -65,7 +65,7 @@ const ServiceAlertsPage: React.FC = () => {
   ];
 
   return (
-    <div className="w-full min-h-full shadow shadow-primary bg-foreground-800 rounded-md p-4 text-white">
+    <div className="w-full min-h-full shadow shadow-primary bg-content1 rounded-md p-4 text-foreground">
       <div className="flex justify-between items-center mb-4">
         <div className="flex items-center gap-3">
           <MdWarning size={28} className="text-warning-400" />
@@ -114,14 +114,14 @@ const ServiceAlertsPage: React.FC = () => {
             <strong className="text-warning-400">{alerts.length}</strong>{" "}
             vehículo{alerts.length > 1 ? "s" : ""} que requieren atención.
           </p>
-          <div className="bg-white rounded-lg">
+          <div className="light bg-content1 text-foreground rounded-lg overflow-hidden border border-divider">
             <Table aria-label="Alertas de service">
               <TableHeader>
                 {columns.map((col, i) => (
                   <TableColumn
                     key={col.key}
-                    className={`bg-warning-600 text-white text-sm font-bold ${
-                      i !== columns.length - 1 ? "border-r-2 border-white" : ""
+                    className={`bg-warning text-black text-sm font-bold ${
+                      i !== columns.length - 1 ? "border-r-2 border-divider" : ""
                     }`}
                     style={{ width: col.width, minWidth: col.width }}
                   >
@@ -133,30 +133,30 @@ const ServiceAlertsPage: React.FC = () => {
                 {paginatedAlerts.map((alert, i) => (
                   <TableRow
                     key={alert.licensePlate}
-                    className={i % 2 === 0 ? "bg-foreground-100" : "bg-foreground-50"}
+                    className={i % 2 === 0 ? "bg-default-100" : "bg-default-50"}
                   >
-                    <TableCell className="border-r-2 border-white">
+                    <TableCell className="border-r-2 border-divider">
                       <LicenceTable licence={alert.licensePlate} dialog />
                     </TableCell>
-                    <TableCell className="border-r-2 border-white">
+                    <TableCell className="border-r-2 border-divider">
                       <div>
                         <p className="font-semibold text-sm">{alert.brand} {alert.model}</p>
                         <p className="text-foreground-500 text-xs">{alert.year}</p>
                       </div>
                     </TableCell>
-                    <TableCell className="border-r-2 border-white text-sm">
+                    <TableCell className="border-r-2 border-divider text-sm">
                       {alert.ownerName}
                     </TableCell>
-                    <TableCell className="border-r-2 border-white">
+                    <TableCell className="border-r-2 border-divider">
                       <div className="flex items-center gap-1 text-sm">
                         <MdPhone size={14} className="text-foreground-400" />
                         {alert.ownerPhone}
                       </div>
                     </TableCell>
-                    <TableCell className="border-r-2 border-white text-sm text-center">
+                    <TableCell className="border-r-2 border-divider text-sm text-center">
                       {alert.kilometers.toLocaleString("es-AR")} km
                     </TableCell>
-                    <TableCell className="border-r-2 border-white text-center">
+                    <TableCell className="border-r-2 border-divider text-center">
                       <Chip
                         size="sm"
                         color={getServiceUrgency(alert.daysSinceLastJob)}
@@ -178,8 +178,6 @@ const ServiceAlertsPage: React.FC = () => {
               </TableBody>
             </Table>
           </div>
-          {/* Fuera del contenedor `bg-white`: el texto de la página es blanco
-              y adentro no se leería. */}
           <TablePagination
             page={page}
             pageSize={PAGE_SIZE}

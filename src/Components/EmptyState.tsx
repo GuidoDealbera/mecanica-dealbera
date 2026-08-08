@@ -26,11 +26,11 @@ const EmptyState: React.FC<EmptyStateProps> = ({
   action,
 }) => (
   <div className="flex flex-col items-center justify-center gap-3 py-8 px-6 text-center">
-    <div className="p-4 rounded-full bg-foreground-600 text-foreground-300">
+    <div className="p-4 rounded-full bg-content3 text-foreground-300">
       {icon}
     </div>
     <div>
-      <p className="text-white font-semibold text-lg">{title}</p>
+      <p className="text-foreground font-semibold text-lg">{title}</p>
       {description && (
         <p className="text-foreground-400 text-sm mt-1">{description}</p>
       )}

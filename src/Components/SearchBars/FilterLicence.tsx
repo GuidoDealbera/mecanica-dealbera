@@ -55,7 +55,7 @@ const FilterByLicence: React.FC<Props> = ({ onFilterChange, initialValue = "" })
 
   return (
     <div className="relative p-1 mt-4 w-fit mb-4">
-      <h4 className="text-white text-lg">Buscar automóvil por patente</h4>
+      <h4 className="text-foreground text-lg">Buscar automóvil por patente</h4>
       <Input
         fullWidth
         value={value}

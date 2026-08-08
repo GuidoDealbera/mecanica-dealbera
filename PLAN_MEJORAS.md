@@ -111,7 +111,7 @@ Estados posibles: `pendiente` · `en progreso` · `a testear` · `hecho`
      - **Clientes** (`client:get-all` + `ClientPage`): filtro por **ciudad** (dropdown de ciudades distintas). Param `city` en `ClientQueryParams` (`client.city = :city`). Endpoint nuevo `client:cities` (`SELECT DISTINCT ... ORDER BY city`) expuesto como `window.api.clients.getCities`; el dropdown se muestra solo si hay ciudades. (El filtro activos/inactivos ya existía.)
      - **Trabajos** (`JobsTable`, client-side): **filtro por estado** (Select "Todos / Sin comenzar / En progreso / Completado / Entregado") y **orden por columnas** Estado (por avance del estado) y Precio (flechas asc→desc→sin orden, igual que autos/clientes). Filtro + orden se aplican antes de paginar; al cambiarlos se resetea a la página 1.
    - Todos los filtros de los listados resetean la página a 1 al cambiar. Verificado: `tsc` + `npm run lint` + 48 tests OK.
-27. **[a testear]** Atajos de teclado globales
+27. **[hecho]** Atajos de teclado globales
    - Archivos: `src/Hooks/useGlobalShortcuts.ts` (nuevo), `src/Components/ShortcutsModal.tsx` (nuevo), `src/Components/Header.tsx`, `src/Components/SearchBars/GlobalSearch.tsx`.
    - Cambios:
      - Hook centralizado `useGlobalShortcuts` con un único listener global de `keydown`. Los handlers se leen desde una ref (no re-suscribe el listener en cada render, no pierde la secuencia en curso).
@@ -120,7 +120,16 @@ Estados posibles: `pendiente` · `en progreso` · `a testear` · `hecho`
      - Guardas de robustez: los atajos de tecla simple/secuencia se suspenden si el foco está en un campo editable (`input`/`textarea`/`select`/contenteditable) o si hay un modal/diálogo abierto (`[aria-modal="true"]`) — evita navegar "por detrás" de un diálogo. Se le agregó `role="dialog"`/`aria-modal` a `GlobalSearch` (también mejora accesibilidad).
      - `ShortcutsModal`: modal de ayuda (HeroUI `Modal` + `Kbd`) con las secciones Navegación y Acciones; se abre con `?` y desde el menú del usuario ("Atajos de teclado"). Reemplaza el listener inline de `Ctrl+K` que vivía suelto en `Header`.
    - Verificado: `tsc` + `npm run lint` + 48 tests OK.
-28. **[pendiente]** Modo claro/oscuro con toggle persistido
+28. **[a testear]** Modo claro/oscuro con toggle persistido
+   - Archivos: `hero.ts`, `index.html`, `src/Theme/{themeContext.ts,ThemeProvider.tsx,useChartTheme.ts}` (nuevos), `src/Store/Providers.tsx`, `src/Components/Header.tsx`, y ~28 archivos de UI (superficies/colores → tokens semánticos).
+   - Enfoque elegido por el usuario: theme global centralizado + claro/oscuro completo (refactor de todos los colores hardcodeados).
+   - Cambios:
+     - **Fuente única de verdad en `hero.ts`**: se apoya en los temas `light`/`dark` de HeroUI (bien balanceados para contraste de inputs/menús/tablas/botones/toasts) con ajustes puntuales: en `light` el fondo de página es apenas gris (que las tarjetas blancas resalten) y los grises atenuados un poco más oscuros; en `dark` se **fija la escala `primary`** igual que en `light` porque HeroUI invierte las escalas numéricas por tema (si no, `bg-primary-800` sería celeste pálido y el texto blanco de los headers quedaría invisible). **Aprendizaje:** no hay que redefinir `content/background` con los mismos valores que la escala `default` (fondo de inputs/botones/toasts) o esos controles se vuelven invisibles; las tablas usan el mismo token `default-100` que los inputs para "comportarse igual".
+     - **`ThemeProvider` + `themeContext` (hook `useTheme`)**: aplica la clase `light`/`dark` en `<html>`, persiste la preferencia en `localStorage` y setea `color-scheme`. Script anti-FOUC en `index.html` aplica el tema antes del primer render. Default: **oscuro** (look actual).
+     - **Toggle sol/luna** en el Header (junto a la búsqueda) + `body` con `bg-background text-foreground`.
+     - **Refactor a tokens semánticos** en toda la app: superficies `bg-foreground-XXX` → `bg-background`/`bg-content1..3`; bordes → `border-divider`/`border-default-*`; `text-white` sobre superficies → `text-foreground` (se conserva blanco sobre colores saturados: headers `bg-primary-800`, `bg-warning`, `bg-danger`, placa de patente); zebra de tablas y "hoja" de alertas → escala `default` (theme-aware). Se hizo con dos scripts acotados (superficies y `text-white`) + ajustes manuales con criterio.
+     - **Gráficos (recharts) theme-aware**: hook `useChartTheme` para el chrome (grilla, ejes, tooltip, leyenda) en dashboard y modal de KM; los colores de datos quedan fijos.
+   - Verificado: `tsc` + `npm run lint` + 48 tests + `vite build` OK.
 29. **[pendiente]** Presupuesto PDF mejorado con número correlativo
 30. **[pendiente]** Historial cruzado de cliente
 

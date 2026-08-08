@@ -50,7 +50,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
 
     return (
       <div className="w-full min-h-full flex items-center justify-center p-6">
-        <div className="max-w-md w-full bg-foreground-800 rounded-2xl shadow-xl shadow-black/30 border border-foreground-700 p-8 flex flex-col items-center gap-6 text-white">
+        <div className="max-w-md w-full bg-content1 rounded-2xl shadow-xl shadow-black/30 border border-divider p-8 flex flex-col items-center gap-6 text-foreground">
 
           {/* Ícono */}
           <div className="p-4 rounded-full bg-danger-900/40 border border-danger-700/50">
@@ -59,7 +59,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
 
           {/* Título y mensaje */}
           <div className="text-center">
-            <h2 className="text-xl font-bold text-white mb-2">
+            <h2 className="text-xl font-bold text-foreground mb-2">
               Algo salió mal
             </h2>
             <p className="text-foreground-400 text-sm leading-relaxed">
@@ -70,7 +70,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
 
           {/* Detalle técnico solo en desarrollo */}
           {isDev && (
-            <div className="w-full bg-foreground-900 border border-danger-900/50 rounded-lg p-3">
+            <div className="w-full bg-background border border-danger-900/50 rounded-lg p-3">
               <p className="text-danger-400 text-xs font-mono break-words leading-relaxed">
                 {message}
               </p>

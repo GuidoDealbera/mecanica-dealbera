@@ -173,9 +173,9 @@ const CarsPage: React.FC = () => {
   );
 
   return (
-    <div className="w-full h-full shadow shadow-primary bg-foreground-800 rounded-md p-3">
+    <div className="w-full h-full shadow shadow-primary bg-content1 rounded-md p-3">
       <div className="flex justify-between items-center mb-2">
-        <h4 className="text-white font-semibold text-4xl text-shadow-2xs text-shadow-primary">
+        <h4 className="text-foreground font-semibold text-4xl text-shadow-2xs text-shadow-primary">
           Listado de vehículos
         </h4>
         <div className="flex justify-center items-center gap-2">
@@ -211,6 +211,7 @@ const CarsPage: React.FC = () => {
       />
 
       {/* Filtros avanzados: marca + rango de año */}
+      <span className="ml-1">Filtros</span>
       <div className="flex flex-wrap items-end gap-3 mb-4">
         <Autocomplete
           label="Marca"

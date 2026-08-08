@@ -44,7 +44,7 @@ const InfoRow: React.FC<{
     <span className="text-primary-400 mt-0.5 flex-shrink-0">{icon}</span>
     <div className="min-w-0">
       <p className="text-foreground-400 text-xs">{label}</p>
-      <p className="text-white font-medium text-sm break-words">
+      <p className="text-foreground font-medium text-sm break-words">
         {value || "---"}
       </p>
     </div>
@@ -57,8 +57,8 @@ const StatTile: React.FC<{
   label: string;
   value: string | number;
   accent?: string;
-}> = ({ icon, label, value, accent = "text-white" }) => (
-  <div className="flex flex-col gap-1 p-3 rounded-xl bg-foreground-700 border border-foreground-600">
+}> = ({ icon, label, value, accent = "text-foreground" }) => (
+  <div className="flex flex-col gap-1 p-3 rounded-xl bg-content2 border border-divider">
     <div className="flex items-center gap-1.5 text-foreground-400">
       {icon}
       <span className="text-xs">{label}</span>
@@ -183,7 +183,7 @@ const ClientDetailPage: React.FC = () => {
   }
 
   return (
-    <div className="w-full min-h-full shadow shadow-primary bg-foreground-800 rounded-md p-4 text-white">
+    <div className="w-full min-h-full shadow shadow-primary bg-content1 rounded-md p-4 text-foreground">
       {/* Header */}
       <div className="flex justify-between items-center mb-5">
         <h4 className="font-semibold text-4xl text-shadow-2xs text-shadow-primary">
@@ -247,7 +247,7 @@ const ClientDetailPage: React.FC = () => {
 
       <div className="grid grid-cols-12 gap-4">
         {/* ── Card izquierda: info del cliente ── */}
-        <Card className="col-span-full md:col-span-5 bg-foreground-800 border border-foreground-600 shadow-none">
+        <Card className="col-span-full md:col-span-5 bg-content1 border border-divider shadow-none">
           <CardHeader className="flex items-center gap-2 pb-2">
             <MdPerson size={18} className="text-primary-400" />
             <h5 className="font-semibold text-base text-primary-400">
@@ -261,7 +261,7 @@ const ClientDetailPage: React.FC = () => {
               {client.isActive ? "Activo" : "Inactivo"}
             </Chip>
           </CardHeader>
-          <Divider className="bg-foreground-600" />
+          <Divider className="bg-content3" />
           <CardBody className="pt-4">
             {!isEditing ? (
               <div className="flex flex-col gap-4">
@@ -369,7 +369,7 @@ const ClientDetailPage: React.FC = () => {
         </Card>
 
         {/* ── Card derecha: vehículos del cliente ── */}
-        <Card className="col-span-full md:col-span-7 bg-foreground-800 border border-foreground-600 shadow-none">
+        <Card className="col-span-full md:col-span-7 bg-content1 border border-divider shadow-none">
           <CardHeader className="flex items-center gap-2 pb-2">
             <IoCarSportSharp size={18} className="text-primary-400" />
             <h5 className="font-semibold text-base text-primary-400">
@@ -379,7 +379,7 @@ const ClientDetailPage: React.FC = () => {
               {clientCars.length}
             </Chip>
           </CardHeader>
-          <Divider className="bg-foreground-600" />
+          <Divider className="bg-content3" />
           <CardBody className="pt-3">
             {clientCars.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-8 gap-2">
@@ -395,14 +395,14 @@ const ClientDetailPage: React.FC = () => {
                     key={car.id}
                     type="button"
                     onClick={() => navigate(`/cars/${car.licensePlate}`)}
-                    className="w-full flex items-center gap-3 p-3 bg-foreground-800 rounded-lg
-                               hover:bg-foreground-600 transition-colors text-left
-                               border border-transparent hover:border-foreground-500"
+                    className="w-full flex items-center gap-3 p-3 bg-content1 rounded-lg
+                               hover:bg-content3 transition-colors text-left
+                               border border-transparent hover:border-default-400"
                   >
                     <LicenceTable licence={car.licensePlate} dialog />
 
                     <div className="flex-1 min-w-0">
-                      <p className="text-white font-medium text-sm">
+                      <p className="text-foreground font-medium text-sm">
                         {car.brand} {car.model}
                       </p>
                       <p className="text-foreground-400 text-xs">
@@ -410,7 +410,7 @@ const ClientDetailPage: React.FC = () => {
                       </p>
                     </div>
 
-                    <Chip size="sm" color="primary" variant="flat" className="flex-shrink-0 text-white">
+                    <Chip size="sm" color="primary" variant="flat" className="flex-shrink-0 text-foreground">
                       {car.jobs?.length ?? 0} trabajos
                     </Chip>
 

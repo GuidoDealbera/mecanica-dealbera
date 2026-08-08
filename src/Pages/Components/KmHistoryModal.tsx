@@ -17,6 +17,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { KmRecord } from "../../Types/types";
+import { useChartTheme } from "../../Theme/useChartTheme";
 
 interface KmHistoryModalProps {
   isOpen: boolean;
@@ -33,6 +34,7 @@ const KmHistoryModal: React.FC<KmHistoryModalProps> = ({
   currentKm,
   licensePlate,
 }) => {
+  const chart = useChartTheme();
   // Datos en orden cronológico ascendente para el eje X del gráfico.
   const chartData = React.useMemo(
     () =>
@@ -77,13 +79,13 @@ const KmHistoryModal: React.FC<KmHistoryModalProps> = ({
                   data={chartData}
                   margin={{ top: 8, right: 16, bottom: 0, left: 8 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                  <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} />
                   <XAxis
                     dataKey="date"
-                    tick={{ fill: "#9ca3af", fontSize: 11 }}
+                    tick={{ fill: chart.tick, fontSize: 11 }}
                   />
                   <YAxis
-                    tick={{ fill: "#9ca3af", fontSize: 11 }}
+                    tick={{ fill: chart.tick, fontSize: 11 }}
                     tickFormatter={(v) => Number(v).toLocaleString("es-AR")}
                     width={70}
                     domain={["dataMin", "dataMax"]}
@@ -94,11 +96,11 @@ const KmHistoryModal: React.FC<KmHistoryModalProps> = ({
                       "Kilometraje",
                     ]}
                     contentStyle={{
-                      background: "#1f2937",
-                      border: "1px solid #374151",
+                      background: chart.tooltipBg,
+                      border: `1px solid ${chart.tooltipBorder}`,
                       borderRadius: 8,
                     }}
-                    labelStyle={{ color: "#e5e7eb" }}
+                    labelStyle={{ color: chart.tooltipLabel }}
                     itemStyle={{ color: "#60a5fa" }}
                   />
                   <Line
@@ -117,7 +119,7 @@ const KmHistoryModal: React.FC<KmHistoryModalProps> = ({
         <ModalFooter className="flex justify-between items-center">
           <span className="text-sm text-foreground-400">
             Kilometraje actual:{" "}
-            <strong className="text-white">
+            <strong className="text-foreground">
               {currentKm.toLocaleString("es-AR")} km
             </strong>
             {" · "}

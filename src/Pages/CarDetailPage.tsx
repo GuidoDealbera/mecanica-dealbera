@@ -51,7 +51,7 @@ const InfoField: React.FC<{
     <span className="text-primary-400 mt-0.5 flex-shrink-0">{icon}</span>
     <div className="min-w-0">
       <p className="text-foreground-400 text-xs">{label}</p>
-      <p className="text-white font-medium text-sm break-words">
+      <p className="text-foreground font-medium text-sm break-words">
         {value ?? "---"}
       </p>
     </div>
@@ -145,18 +145,18 @@ const CarDetailPage: React.FC = () => {
   const whatsappUrl = buildWhatsappUrl(car.owner?.phone, whatsappMessage);
 
   return (
-    <div className="w-full bg-foreground-800 rounded-xl p-3 min-h-full flex flex-col gap-4 text-white">
+    <div className="w-full bg-content1 rounded-xl p-3 min-h-full flex flex-col gap-4 text-foreground">
       {/* ═══════════════════════════════════════════════════════════════════
           HERO CARD — identidad del vehículo
       ═══════════════════════════════════════════════════════════════════ */}
-      <Card className="bg-foreground-800 border border-foreground-600 shadow-lg shadow-primary-900/20">
+      <Card className="bg-content1 border border-divider shadow-lg shadow-primary-900/20">
         <CardBody className="p-5">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
             {/* Patente */}
             <LicenceTable licence={licence} />
 
             {/* Divisor vertical (solo sm+) */}
-            <div className="hidden sm:block w-px self-stretch bg-foreground-600" />
+            <div className="hidden sm:block w-px self-stretch bg-content3" />
 
             {/* Identidad del auto */}
             <div className="flex-1 min-w-0">
@@ -165,7 +165,7 @@ const CarDetailPage: React.FC = () => {
                   size={16}
                   className="text-primary-400 flex-shrink-0"
                 />
-                <h2 className="text-white font-bold text-xl truncate">
+                <h2 className="text-foreground font-bold text-xl truncate">
                   {car.brand} {car.model}
                 </h2>
                 <Chip
@@ -179,14 +179,14 @@ const CarDetailPage: React.FC = () => {
               </div>
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
                 <span className="text-foreground-400">
-                  <span className="text-white font-medium">
+                  <span className="text-foreground font-medium">
                     {(car.kilometers ?? 0).toLocaleString("es-AR")} km
                   </span>
                 </span>
                 <span className="text-foreground-600">·</span>
                 <span className="text-foreground-400">
                   Titular:{" "}
-                  <span className="text-white font-medium">
+                  <span className="text-foreground font-medium">
                     {car.owner?.fullname ?? "---"}
                   </span>
                 </span>
@@ -195,8 +195,8 @@ const CarDetailPage: React.FC = () => {
 
             {/* Stats rápidos */}
             <div className="hidden md:flex items-center gap-3">
-              <div className="text-center px-4 py-2 bg-foreground-700 rounded-xl border border-foreground-600">
-                <p className="text-2xl font-bold text-white">{jobsCount}</p>
+              <div className="text-center px-4 py-2 bg-content2 rounded-xl border border-divider">
+                <p className="text-2xl font-bold text-foreground">{jobsCount}</p>
                 <p className="text-foreground-400 text-xs">Trabajos</p>
               </div>
               {inProgress > 0 && (
@@ -218,7 +218,7 @@ const CarDetailPage: React.FC = () => {
             </div>
 
             {/* Divisor vertical (solo md+) */}
-            <div className="hidden md:block w-px self-stretch bg-foreground-600" />
+            <div className="hidden md:block w-px self-stretch bg-content3" />
 
             {/* Acciones */}
             <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
@@ -251,7 +251,7 @@ const CarDetailPage: React.FC = () => {
         aria-label="Secciones del vehículo"
         color="primary"
         variant="underlined"
-        classNames={{ tabList: "border-b border-foreground-600 w-full" }}
+        classNames={{ tabList: "border-b border-divider w-full" }}
       >
         <Tab key="jobs" title="Trabajos">
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 items-start pt-2">
@@ -260,7 +260,7 @@ const CarDetailPage: React.FC = () => {
             </div>
             <div className="flex flex-col gap-4">
         {/* Card vehículo */}
-          <Card className="bg-foreground-800 shadow shadow-primary">
+          <Card className="bg-content1 shadow shadow-primary">
             <CardHeader className="flex items-center justify-between pb-2">
               <div className="flex items-center gap-2">
                 <IoCarSportSharp size={15} className="text-primary-400" />
@@ -277,7 +277,7 @@ const CarDetailPage: React.FC = () => {
                 Editar
               </Button>
             </CardHeader>
-            <Divider className="bg-foreground-600" />
+            <Divider className="bg-content3" />
             <CardBody className="pt-4 flex flex-col gap-4">
               <div className="grid grid-cols-2 gap-4">
                 <InfoField
@@ -301,7 +301,7 @@ const CarDetailPage: React.FC = () => {
                   value={`${(car.kilometers ?? 0).toLocaleString("es-AR")} km`}
                 />
               </div>
-              <Divider className="bg-foreground-600" />
+              <Divider className="bg-content3" />
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <p className="text-foreground-400 text-xs">Registrado</p>
@@ -320,7 +320,7 @@ const CarDetailPage: React.FC = () => {
           </Card>
 
           {/* Card titular */}
-          <Card className="bg-foreground-800 shadow shadow-primary">
+          <Card className="bg-content1 shadow shadow-primary">
             <CardHeader className="flex items-center justify-between pb-2">
               <div className="flex items-center gap-2">
                 <MdPerson size={15} className="text-primary-400" />
@@ -337,7 +337,7 @@ const CarDetailPage: React.FC = () => {
                 Cambiar titular
               </Button>
             </CardHeader>
-            <Divider className="bg-foreground-600" />
+            <Divider className="bg-content3" />
             <CardBody className="pt-4 flex flex-col gap-4">
               <InfoField
                 icon={<MdPerson size={14} />}
@@ -399,7 +399,7 @@ const CarDetailPage: React.FC = () => {
         backdrop="blur"
         scrollBehavior="inside"
       >
-        <ModalContent className="bg-foreground-800">
+        <ModalContent className="bg-content1">
           <ModalHeader className="flex items-center gap-2 text-lg font-bold text-gray-300">
             <MdEdit size={18} className="text-primary-400" />
             Editar vehículo — {licence}

@@ -111,7 +111,7 @@ const Jobs: React.FC<JobsProps> = ({ jobs, isLoading, license }) => {
       notesChanged);
 
   return (
-    <div className="w-full min-h-full shadow shadow-primary bg-foreground-800 rounded-md p-3">
+    <div className="w-full min-h-full shadow shadow-primary bg-content1 rounded-md p-3">
       <div className="flex justify-end items-center mb-4">
         <Button
           color="primary"
@@ -152,7 +152,7 @@ const Jobs: React.FC<JobsProps> = ({ jobs, isLoading, license }) => {
             {editingJob && (
               <>
                 {/* Descripción (solo lectura) */}
-                <p className="text-foreground-400 text-sm bg-foreground-100 rounded-lg p-3 border border-foreground-200">
+                <p className="text-foreground-400 text-sm bg-default-100 rounded-lg p-3 border border-default-200">
                   {editingJob.description}
                 </p>
 

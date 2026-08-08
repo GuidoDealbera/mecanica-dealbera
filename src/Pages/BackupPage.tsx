@@ -67,14 +67,14 @@ const BackupPage: React.FC = () => {
   };
 
   return (
-    <div className="w-full min-h-full shadow shadow-primary bg-foreground-800 rounded-md p-4 text-white">
+    <div className="w-full min-h-full shadow shadow-primary bg-content1 rounded-md p-4 text-foreground">
       <h4 className="font-semibold text-4xl text-shadow-2xs text-shadow-primary mb-6">
         Gestión de datos
       </h4>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl">
         {/* Export */}
-        <Card className="bg-foreground-700 shadow shadow-primary border border-foreground-600">
+        <Card className="bg-content2 shadow shadow-primary border border-divider">
           <CardHeader className="flex items-center gap-3 pb-0">
             <MdBackup size={28} className="text-primary-400" />
             <div>
@@ -86,7 +86,7 @@ const BackupPage: React.FC = () => {
               </p>
             </div>
           </CardHeader>
-          <Divider className="my-3 bg-foreground-600" />
+          <Divider className="my-3 bg-content3" />
           <CardBody className="pt-0 flex flex-col gap-3">
             <p className="text-foreground-300 text-sm text-justify">
               Genera una copia del archivo de base de datos y te permite
@@ -94,7 +94,7 @@ const BackupPage: React.FC = () => {
               respaldos manuales o para transferir la información a otra
               computadora o entorno sin complicaciones.
             </p>
-            <div className="flex items-start gap-2 bg-foreground-800 rounded-lg p-3">
+            <div className="flex items-start gap-2 bg-content1 rounded-lg p-3">
               <MdInfo
                 size={16}
                 className="text-primary-400 flex-shrink-0 mt-0.5"
@@ -117,7 +117,7 @@ const BackupPage: React.FC = () => {
         </Card>
 
         {/* Export CSV */}
-        <Card className="bg-foreground-700 shadow shadow-success border border-success-800">
+        <Card className="bg-content2 shadow shadow-success border border-success-800">
           <CardHeader className="flex items-center gap-3 pb-0">
             <MdTableChart size={28} className="text-success-400" />
             <div>
@@ -129,14 +129,14 @@ const BackupPage: React.FC = () => {
               </p>
             </div>
           </CardHeader>
-          <Divider className="my-3 bg-foreground-600" />
+          <Divider className="my-3 bg-content3" />
           <CardBody className="pt-0 flex flex-col gap-3">
             <p className="text-foreground-300 text-sm text-justify">
               Genera un archivo CSV con todos los vehículos, sus titulares y un
               resumen de trabajos. El archivo incluye marca BOM para abrirse
               correctamente en Excel con acentos y caracteres especiales.
             </p>
-            <div className="flex items-start gap-2 bg-foreground-800 rounded-lg p-3">
+            <div className="flex items-start gap-2 bg-content1 rounded-lg p-3">
               <MdInfo size={16} className="text-success-400 flex-shrink-0 mt-0.5" />
               <p className="text-foreground-400 text-xs">
                 Separador ";" — compatible con Excel en configuración regional en español.
@@ -155,7 +155,7 @@ const BackupPage: React.FC = () => {
         </Card>
 
         {/* Auto-backups */}
-        <Card className="bg-foreground-700 shadow shadow-secondary border border-secondary-800">
+        <Card className="bg-content2 shadow shadow-secondary border border-secondary-800">
           <CardHeader className="flex items-center gap-3 pb-0">
             <MdSchedule size={28} className="text-secondary-400" />
             <div>
@@ -169,7 +169,7 @@ const BackupPage: React.FC = () => {
               </p>
             </div>
           </CardHeader>
-          <Divider className="my-3 bg-foreground-600" />
+          <Divider className="my-3 bg-content3" />
           <CardBody className="pt-0 flex flex-col gap-3">
             <p className="text-foreground-300 text-sm text-justify">
               La aplicación genera un respaldo diario automático al iniciar. Se
@@ -180,7 +180,7 @@ const BackupPage: React.FC = () => {
                 {autoBackups.map((name) => (
                   <div
                     key={name}
-                    className="flex items-center gap-2 text-xs text-foreground-400 bg-foreground-800 rounded px-2 py-1"
+                    className="flex items-center gap-2 text-xs text-foreground-400 bg-content1 rounded px-2 py-1"
                   >
                     <MdBackup size={12} className="text-secondary-400 flex-shrink-0" />
                     <span className="truncate">{name}</span>
@@ -201,7 +201,7 @@ const BackupPage: React.FC = () => {
         </Card>
 
         {/* Import */}
-        <Card className="bg-foreground-700 shadow shadow-warning border border-warning-800">
+        <Card className="bg-content2 shadow shadow-warning border border-warning-800">
           <CardHeader className="flex items-center gap-3 pb-0">
             <MdUploadFile size={28} className="text-warning-400" />
             <div>
@@ -213,7 +213,7 @@ const BackupPage: React.FC = () => {
               </p>
             </div>
           </CardHeader>
-          <Divider className="my-3 bg-foreground-600" />
+          <Divider className="my-3 bg-content3" />
           <CardBody className="pt-0 flex flex-col gap-3">
             <p className="text-foreground-300 text-sm text-justify">
               Reemplaza la base de datos actual usando un archivo externo que
@@ -244,7 +244,7 @@ const BackupPage: React.FC = () => {
         </Card>
 
         {/* Logs */}
-        <Card className="bg-foreground-700 shadow shadow-foreground-500 border border-foreground-600">
+        <Card className="bg-content2 shadow shadow-foreground-500 border border-divider">
           <CardHeader className="flex items-center gap-3 pb-0">
             <MdBugReport size={28} className="text-foreground-300" />
             <div>
@@ -256,7 +256,7 @@ const BackupPage: React.FC = () => {
               </p>
             </div>
           </CardHeader>
-          <Divider className="my-3 bg-foreground-600" />
+          <Divider className="my-3 bg-content3" />
           <CardBody className="pt-0 flex flex-col gap-3">
             <p className="text-foreground-300 text-sm text-justify">
               Abre la carpeta donde se guardan los archivos de log de la

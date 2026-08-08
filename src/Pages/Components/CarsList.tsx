@@ -26,7 +26,7 @@ const CarsList: React.FC<CarsListProps> = ({
         {Array.from({ length: 4 }).map((_, i) => (
           <div
             key={i}
-            className="w-full h-40 rounded-xl bg-foreground-700 border-2 border-foreground-600 animate-pulse"
+            className="w-full h-40 rounded-xl bg-content2 border-2 border-divider animate-pulse"
           />
         ))}
       </div>
@@ -35,12 +35,12 @@ const CarsList: React.FC<CarsListProps> = ({
 
   if (cars.length === 0) {
     return (
-      <div className="mt-4 flex flex-col items-center justify-center gap-4 py-12 px-6 rounded-xl border-2 border-dashed border-foreground-600 bg-foreground-700/50 text-center">
-        <div className="p-4 rounded-full bg-foreground-600">
+      <div className="mt-4 flex flex-col items-center justify-center gap-4 py-12 px-6 rounded-xl border-2 border-dashed border-divider bg-content2/50 text-center">
+        <div className="p-4 rounded-full bg-content3">
           <IoCarSportSharp size={32} className="text-foreground-400" />
         </div>
         <div>
-          <p className="text-white font-semibold text-lg">
+          <p className="text-foreground font-semibold text-lg">
             No hay vehículos registrados
           </p>
           <p className="text-foreground-400 text-sm mt-1">

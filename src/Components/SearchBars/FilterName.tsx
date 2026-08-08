@@ -37,7 +37,7 @@ const FilterName: React.FC<FilterNameProps> = ({ onFilterChange, initialValue = 
 
   return (
     <div className="relative p-1 mt-4 w-fit mb-4">
-      <h4 className="text-white text-lg">Buscar cliente por nombre o apellido</h4>
+      <h4 className="text-foreground text-lg">Buscar cliente por nombre o apellido</h4>
       <Input
         fullWidth
         value={value}

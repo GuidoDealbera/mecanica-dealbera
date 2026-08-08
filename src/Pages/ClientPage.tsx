@@ -207,9 +207,9 @@ const ClientPage: React.FC = () => {
   );
 
   return (
-    <div className="w-full h-full shadow shadow-primary bg-foreground-800 rounded-md p-3">
+    <div className="w-full h-full shadow shadow-primary bg-content1 rounded-md p-3">
       <div className="flex justify-between items-center mb-2">
-        <h4 className="text-white font-semibold text-4xl text-shadow-2xs text-shadow-primary">
+        <h4 className="text-foreground font-semibold text-4xl text-shadow-2xs text-shadow-primary">
           Listado de clientes
         </h4>
         <div className="flex gap-2 items-center">
@@ -240,6 +240,7 @@ const ClientPage: React.FC = () => {
       />
 
       {/* Filtro avanzado: ciudad */}
+      <span className="ml-1">Filtros</span>
       {cityOptions.length > 0 && (
         <div className="flex flex-wrap items-end gap-3 mb-4">
           <Autocomplete

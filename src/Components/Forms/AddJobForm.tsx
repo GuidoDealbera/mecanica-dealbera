@@ -55,8 +55,8 @@ const AddJobForm: React.FC<AddJobFormProps> = ({
       <form noValidate onSubmit={handleSubmit(onSubmit)}>
         <div className="grid w-full grid-cols-12 gap-4">
           {/* ── Columna izquierda: info del trabajo ── */}
-          <div className="col-span-full lg:col-span-6 flex flex-col gap-3 p-4 rounded-lg shadow shadow-primary bg-foreground-700">
-            <h5 className="font-semibold text-xl py-2 px-4 bg-primary-700 rounded-md shadow shadow-primary-500 w-fit">
+          <div className="col-span-full lg:col-span-6 flex flex-col gap-3 p-4 rounded-lg shadow shadow-primary bg-content2">
+            <h5 className="font-semibold text-xl py-2 px-4 bg-primary-700 text-white rounded-md shadow shadow-primary-500 w-fit">
               Información del trabajo
             </h5>
 
@@ -198,8 +198,8 @@ const AddJobForm: React.FC<AddJobFormProps> = ({
           </div>
 
           {/* ── Columna derecha: repuestos ── */}
-          <div className="col-span-full lg:col-span-6 flex flex-col gap-3 p-4 rounded-lg shadow shadow-primary bg-foreground-700">
-            <h5 className="font-semibold text-xl py-2 px-4 bg-primary-700 rounded-md shadow shadow-primary-500 w-fit">
+          <div className="col-span-full lg:col-span-6 flex flex-col gap-3 p-4 rounded-lg shadow shadow-primary bg-content2">
+            <h5 className="font-semibold text-xl py-2 px-4 bg-primary-700 text-white rounded-md shadow shadow-primary-500 w-fit">
               Repuestos
             </h5>
 
@@ -218,7 +218,7 @@ const AddJobForm: React.FC<AddJobFormProps> = ({
         </div>
 
         {/* ── Notas internas (opcional) ── */}
-        <div className="mt-4 p-4 rounded-lg shadow shadow-primary bg-foreground-700">
+        <div className="mt-4 p-4 rounded-lg shadow shadow-primary bg-content2">
           <Controller
             control={control}
             name="notes"

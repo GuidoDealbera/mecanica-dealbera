@@ -13,6 +13,7 @@ import { DashboardStats } from "../Types/types";
 import LicenceTable from "../Components/Licenses/LicenceTable";
 import { formatARS } from "../Utils/utils";
 import { useToasts } from "../Hooks/useToasts";
+import { useChartTheme } from "../Theme/useChartTheme";
 
 const StatCard: React.FC<{
   label: string;
@@ -21,7 +22,7 @@ const StatCard: React.FC<{
   color?: "primary" | "success" | "warning" | "danger" | "default";
   icon: React.ReactNode;
 }> = ({ label, value, sub, color = "primary", icon }) => (
-  <Card className="bg-foreground-700 shadow shadow-primary">
+  <Card className="bg-content2 shadow shadow-primary">
     <CardBody className="flex flex-row items-center gap-4 p-4">
       <div
         className={`p-3 rounded-full text-${color}-400 flex-shrink-0`}
@@ -55,6 +56,7 @@ const ChartEmpty: React.FC<{ icon: React.ReactNode; message: string }> = ({
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
   const { showToast } = useToasts();
+  const chart = useChartTheme();
   const [stats, setStats] = React.useState<DashboardStats | null>(null);
   const [loading, setLoading] = React.useState(false);
 
@@ -96,7 +98,7 @@ const HomePage: React.FC = () => {
   const hasRevenue = stats?.monthlyRevenue?.some((m) => m.revenue > 0) ?? false;
 
   return (
-    <div className="w-full min-h-full bg-foreground-800 rounded-md p-5 text-white flex flex-col gap-6">
+    <div className="w-full min-h-full bg-content1 rounded-md p-5 text-foreground flex flex-col gap-6">
       {/* Title */}
       <div className="flex justify-between items-center">
         <h1 className="font-michroma text-4xl md:text-5xl italic text-primary-500 font-bold">
@@ -153,7 +155,7 @@ const HomePage: React.FC = () => {
           {/* Charts */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             {/* Bar chart: ingresos últimos 6 meses */}
-            <Card className="lg:col-span-2 bg-foreground-700 shadow shadow-primary">
+            <Card className="lg:col-span-2 bg-content2 shadow shadow-primary">
               <CardBody className="p-4">
                 <p className="text-primary-400 text-base font-semibold mb-3 flex items-center gap-2">
                   <MdBarChart size={20} /> Ingresos últimos 6 meses
@@ -161,16 +163,16 @@ const HomePage: React.FC = () => {
                 {hasRevenue ? (
                   <ResponsiveContainer width="100%" height={200}>
                     <BarChart data={stats.monthlyRevenue} margin={{ top: 4, right: 8, bottom: 0, left: 8 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                      <XAxis dataKey="month" tick={{ fill: "#9ca3af", fontSize: 12 }} />
+                      <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} />
+                      <XAxis dataKey="month" tick={{ fill: chart.tick, fontSize: 12 }} />
                       <YAxis
-                        tick={{ fill: "#9ca3af", fontSize: 11 }}
+                        tick={{ fill: chart.tick, fontSize: 11 }}
                         tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
                       />
                       <RechartsTooltip
                         formatter={(v) => [formatARS(Number(v ?? 0)), "Ingresos"]}
-                        contentStyle={{ background: "#1f2937", border: "1px solid #374151", borderRadius: 8 }}
-                        labelStyle={{ color: "#e5e7eb" }}
+                        contentStyle={{ background: chart.tooltipBg, border: `1px solid ${chart.tooltipBorder}`, borderRadius: 8 }}
+                        labelStyle={{ color: chart.tooltipLabel }}
                         itemStyle={{ color: "#60a5fa" }}
                       />
                       <Bar dataKey="revenue" fill="#3b82f6" radius={[4, 4, 0, 0]} />
@@ -186,7 +188,7 @@ const HomePage: React.FC = () => {
             </Card>
 
             {/* Pie chart: distribución de estados de trabajos */}
-            <Card className="bg-foreground-700 shadow shadow-primary">
+            <Card className="bg-content2 shadow shadow-primary">
               <CardBody className="p-4">
                 <p className="text-primary-400 text-base font-semibold mb-3 flex items-center gap-2">
                   <MdPieChart size={20} /> Trabajos por estado
@@ -211,11 +213,11 @@ const HomePage: React.FC = () => {
                       <Legend
                         iconType="circle"
                         iconSize={8}
-                        wrapperStyle={{ fontSize: 11, color: "#9ca3af" }}
+                        wrapperStyle={{ fontSize: 11, color: chart.legend }}
                       />
                       <RechartsTooltip
-                        contentStyle={{ background: "#1f2937", border: "1px solid #374151", borderRadius: 8 }}
-                        labelStyle={{ color: "#e5e7eb" }}
+                        contentStyle={{ background: chart.tooltipBg, border: `1px solid ${chart.tooltipBorder}`, borderRadius: 8 }}
+                        labelStyle={{ color: chart.tooltipLabel }}
                       />
                     </PieChart>
                   </ResponsiveContainer>
@@ -268,7 +270,7 @@ const HomePage: React.FC = () => {
                 {stats.recentActiveJobs.map((job, i) => (
                   <div
                     key={i}
-                    className="flex items-center gap-3 p-3 bg-foreground-700 rounded-lg cursor-pointer hover:bg-foreground-600 transition-colors border border-transparent hover:border-foreground-500"
+                    className="flex items-center gap-3 p-3 bg-content2 rounded-lg cursor-pointer hover:bg-content3 transition-colors border border-transparent hover:border-default-400"
                     onClick={() => navigate(`/cars/${job.licensePlate}`)}
                   >
                     <LicenceTable licence={job.licensePlate} dialog />
@@ -280,7 +282,7 @@ const HomePage: React.FC = () => {
                         {job.brand} {job.model}
                       </p>
                     </div>
-                    <Chip color="primary" variant="flat" className="text-white">{formatARS(job.price)}</Chip>
+                    <Chip color="primary" variant="flat" className="text-foreground">{formatARS(job.price)}</Chip>
                   </div>
                 ))}
               </div>
@@ -288,7 +290,7 @@ const HomePage: React.FC = () => {
           )}
 
           {/* Quick actions */}
-          <div className="flex flex-wrap gap-3 mt-auto pt-4 border-t border-foreground-700">
+          <div className="flex flex-wrap gap-3 mt-auto pt-4 border-t border-divider">
             <Button
               onPress={() => navigate("/cars/new")}
               startContent={<IoCarSportSharp />}

@@ -61,13 +61,13 @@ const CarsTable: React.FC<CarsTableProps> = ({
     { key: "actions",      label: "Acciones",    width: 100, center: true },
   ];
   return (
-    <div className="bg-foreground-700 rounded-lg flex flex-col gap-4">
+    <div className="text-foreground rounded-lg flex flex-col gap-4 border border-divider overflow-hidden">
       <Table
         aria-label="Tabla de vehículos"
         classNames={{
-          wrapper: "relative min-h-[250px] bg-foreground-700", // altura mínima definida
+          wrapper: "relative min-h-[250px]", // altura mínima definida
           emptyWrapper:
-            "absolute inset-0 flex items-center justify-center z-10 h-full bg-foreground-700",
+            "absolute inset-0 flex items-center justify-center z-10 h-full",
         }}
       >
         <TableHeader>
@@ -75,7 +75,7 @@ const CarsTable: React.FC<CarsTableProps> = ({
             <TableColumn
               className={`${column.center ? "text-center" : ""} bg-primary-800 ${
                 i !== columns.length - 1 && "border-r-2"
-              } border-foreground-700 shadow shadow-primary-600 text-white text-lg`}
+              } border-divider shadow shadow-primary-600 text-white text-lg`}
               key={column.key}
               style={{
                 width: column.width,
@@ -120,20 +120,20 @@ const CarsTable: React.FC<CarsTableProps> = ({
         <TableBody
           isLoading={isLoading}
           loadingContent={<TableLoadingContent />}
-          className="bg-foreground-800 w-full"
+          className="w-full"
           emptyContent={emptyContent}
         >
           {cars.map((car, i) => (
             <TableRow
               key={car.id}
               className={`rounded-lg h-10 shadow-sm ${
-                i % 2 === 0 ? "bg-foreground-300" : "bg-foreground-200"
+                i % 2 === 0 ? "bg-default-100" : "bg-default-50"
               }`}
             >
               <TableCell
                 className={`${
                   i !== cars.length - 1 && "border-b-2"
-                } border-r-2 border-foreground-700`}
+                } border-r-2 border-divider`}
                 style={{
                   borderTopLeftRadius: 8,
                   borderBottomLeftRadius: 8,
@@ -146,42 +146,42 @@ const CarsTable: React.FC<CarsTableProps> = ({
               <TableCell
                 className={`${
                   i !== cars.length - 1 && "border-b-2"
-                } border-r-2 border-foreground-700 text-center`}
+                } border-r-2 border-divider text-center`}
               >
                 {car.brand}
               </TableCell>
               <TableCell
                 className={`${
                   i !== cars.length - 1 && "border-b-2"
-                } border-r-2 border-foreground-700`}
+                } border-r-2 border-divider`}
               >
                 {car.model}
               </TableCell>
               <TableCell
                 className={`${
                   i !== cars.length - 1 && "border-b-2"
-                } border-r-2 border-foreground-700 text-center`}
+                } border-r-2 border-divider text-center`}
               >
                 {car.year}
               </TableCell>
               <TableCell
                 className={`${
                   i !== cars.length - 1 && "border-b-2"
-                } border-r-2 border-foreground-700 text-center`}
+                } border-r-2 border-divider text-center`}
               >
                 {car.kilometers.toLocaleString("es-AR")} km
               </TableCell>
               <TableCell
                 className={`${
                   i !== cars.length - 1 && "border-b-2"
-                } border-r-2 border-foreground-700`}
+                } border-r-2 border-divider`}
               >
                 {car.owner.fullname}
               </TableCell>
               <TableCell
                 className={`${
                   i !== cars.length - 1 && "border-b-2"
-                } border-foreground-700 text-center`}
+                } border-divider text-center`}
                 style={{
                   borderTopRightRadius: 8,
                   borderBottomRightRadius: 8,

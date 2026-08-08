@@ -131,7 +131,7 @@ const PartsEditor: React.FC<PartsEditorProps> = ({
       >
         {parts.length === 0 ? (
           <div
-            className={`flex items-center justify-center text-foreground-400 border border-dashed border-foreground-500 rounded-lg ${compact ? "text-xs py-4" : "flex-1 text-sm py-8"}`}
+            className={`flex items-center justify-center text-foreground-400 border border-dashed border-default-400 rounded-lg ${compact ? "text-xs py-4" : "flex-1 text-sm py-8"}`}
           >
             No hay repuestos agregados
           </div>
@@ -141,8 +141,8 @@ const PartsEditor: React.FC<PartsEditorProps> = ({
               key={i}
               className={`flex items-center justify-between px-3 rounded-md ${
                 compact
-                  ? "py-1.5 bg-foreground-100"
-                  : "py-2 bg-foreground-600 border border-foreground-500"
+                  ? "py-1.5 bg-default-100"
+                  : "py-2 bg-content3 border border-default-400"
               }`}
             >
               <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -150,7 +150,7 @@ const PartsEditor: React.FC<PartsEditorProps> = ({
                   size="sm"
                   color="primary"
                   variant="flat"
-                  className={compact ? "text-primary" : "text-primary-100"}
+                  className={compact ? "text-primary" : "text-primary"}
                 >
                   {i + 1}
                 </Chip>
@@ -158,7 +158,7 @@ const PartsEditor: React.FC<PartsEditorProps> = ({
               </div>
               <div className="flex items-center gap-2 shrink-0 ml-2">
                 <span
-                  className={`text-sm font-medium ${compact ? "text-primary-600" : "text-primary-100"}`}
+                  className={`text-sm font-medium ${compact ? "text-primary-600" : "text-primary"}`}
                 >
                   {formatARS(part.price)}
                 </span>
@@ -190,11 +190,11 @@ const PartsEditor: React.FC<PartsEditorProps> = ({
       {totalParts > 0 && (
         <div
           className={`flex justify-between items-center px-3 py-2 rounded-md border border-primary-700 mt-1 ${
-            compact ? "bg-foreground-200" : "bg-primary-900"
+            compact ? "bg-default-200" : "bg-primary-900"
           }`}
         >
           <span
-            className={`text-sm ${compact ? "" : "text-foreground-300"}`}
+            className={`text-sm ${compact ? "" : "text-primary-100"}`}
           >
             Total repuestos{" "}
             <Chip

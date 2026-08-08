@@ -6,8 +6,8 @@ import { useNavigate } from "react-router-dom";
 const NotFoundPage: React.FC = () => {
   const navigate = useNavigate();
   return (
-    <div className="w-full h-screen p-10 text-white">
-      <div className="w-full h-full shadow shadow-primary bg-foreground-800 rounded-md flex flex-col justify-center items-center gap-4">
+    <div className="w-full h-screen p-10 text-foreground">
+      <div className="w-full h-full shadow shadow-primary bg-content1 rounded-md flex flex-col justify-center items-center gap-4">
         <h1 className="text-5xl">
           <span className="text-danger-500">Error</span> 404
         </h1>

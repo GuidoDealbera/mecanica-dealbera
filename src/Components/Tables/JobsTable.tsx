@@ -141,7 +141,9 @@ const JobsTable: React.FC<JobsProps> = ({
       : []),
   ];
   return (
-    <div className="bg-foreground-700 rounded-lg flex flex-col gap-4">
+    // Isla de tema claro (className light): la tabla se ve como "papel" claro
+    // con bordes en ambos temas (HeroUI toma el tema del ancestro con clase light).
+    <div className="text-foreground rounded-lg flex flex-col gap-4 border border-divider overflow-hidden">
       <div className="flex items-center gap-3 px-3 pt-3">
         <Select
           label="Filtrar por estado"
@@ -161,9 +163,9 @@ const JobsTable: React.FC<JobsProps> = ({
       <Table
         aria-label="Tabla de trabajos"
         classNames={{
-          wrapper: "relative min-h-[250px] bg-foreground-700", // altura mínima definida
+          wrapper: "relative min-h-[250px] bg-content1", // altura mínima definida
           emptyWrapper:
-            "absolute inset-0 flex items-center justify-center z-10 h-full bg-foreground-700",
+            "absolute inset-0 flex items-center justify-center z-10 h-full bg-content1",
         }}
       >
         <TableHeader>
@@ -171,7 +173,7 @@ const JobsTable: React.FC<JobsProps> = ({
             <TableColumn
               className={`${col.center ? "text-center" : ""} bg-primary-800 ${
                 i !== columns.length - 1 && "border-r-2"
-              } border-foreground-700 shadow shadow-primary-600 text-white text-lg`}
+              } border-divider shadow shadow-primary-600 text-white text-lg`}
               key={col.key}
               style={{
                 width: col.width,
@@ -211,7 +213,7 @@ const JobsTable: React.FC<JobsProps> = ({
         <TableBody
           isLoading={isLoading}
           loadingContent={<TableLoadingContent />}
-          className="bg-foreground-800 w-full"
+          className="w-full"
           emptyContent={<span>{noRowsLabel}</span>}
         >
           {paginatedJobs.map((job) => {
@@ -222,7 +224,7 @@ const JobsTable: React.FC<JobsProps> = ({
             };
             
             return (
-              <TableRow key={job.id} className="text-white">
+              <TableRow key={job.id} className="text-foreground">
                 <TableCell className="max-w-[300px]" title={job.description}>
                   <div className="flex items-center gap-1.5">
                     {job.notes && job.notes.trim() !== "" && (

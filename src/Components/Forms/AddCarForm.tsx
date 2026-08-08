@@ -157,7 +157,7 @@ const AddCarForm: React.FC<AddCarFormProps> = ({
       <form noValidate onSubmit={handleSubmit(onSubmit)} className="p-3">
         <div className="grid w-full grid-cols-12 gap-2">
           <div className="p-3 col-span-full sm:col-span-6 shadow shadow-primary flex flex-col mt-2 gap-3 rounded-md">
-            <h5 className="font-semibold w-fit text-2xl py-2 px-4 bg-primary-700 rounded-md shadow shadow-primary-500">
+            <h5 className="font-semibold w-fit text-2xl py-2 px-4 bg-primary-700 text-white rounded-md shadow shadow-primary-500">
               Datos del titular
             </h5>
             <Controller
@@ -303,7 +303,7 @@ const AddCarForm: React.FC<AddCarFormProps> = ({
             />
           </div>
           <div className="p-3 col-span-full sm:col-span-6 shadow shadow-primary flex flex-col mt-2 gap-3 rounded-md">
-            <h5 className="font-semibold w-fit text-2xl py-2 px-4 bg-primary-700 rounded-md shadow shadow-primary-500">
+            <h5 className="font-semibold w-fit text-2xl py-2 px-4 bg-primary-700 text-white rounded-md shadow shadow-primary-500">
               Datos del vehículo
             </h5>
             <Controller

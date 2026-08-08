@@ -107,11 +107,11 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose }) => {
         role="dialog"
         aria-modal="true"
         aria-label="Búsqueda global"
-        className="w-full max-w-xl bg-foreground-800 rounded-xl shadow-2xl shadow-primary-900 border border-primary-800 overflow-hidden"
+        className="w-full max-w-xl bg-content1 rounded-xl shadow-2xl shadow-primary-900 border border-primary-800 overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Search input */}
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-foreground-700">
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-divider">
           {loading ? (
             <Spinner size="sm" color="primary" />
           ) : (
@@ -122,9 +122,9 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose }) => {
             value={query}
             onChange={(e) => handleChange(e.target.value)}
             placeholder="Buscar por patente, modelo, cliente, teléfono..."
-            className="flex-1 bg-transparent text-white placeholder-foreground-500 outline-none text-base"
+            className="flex-1 bg-transparent text-foreground placeholder-foreground-500 outline-none text-base"
           />
-          <button onClick={onClose} className="text-foreground-500 hover:text-white">
+          <button onClick={onClose} className="text-foreground-500 hover:text-foreground">
             <IoClose size={18} />
           </button>
         </div>
@@ -139,18 +139,18 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose }) => {
 
           {results.cars.length > 0 && (
             <div>
-              <div className="px-4 py-2 text-xs font-semibold text-foreground-500 uppercase tracking-wider flex items-center gap-1 bg-foreground-900">
+              <div className="px-4 py-2 text-xs font-semibold text-foreground-500 uppercase tracking-wider flex items-center gap-1 bg-background">
                 <IoCarSportSharp size={12} /> Vehículos
               </div>
               {results.cars.map((car) => (
                 <div
                   key={car.id}
-                  className="flex items-center gap-3 px-4 py-3 hover:bg-primary-900 cursor-pointer transition-colors border-b border-foreground-700"
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-primary-500/20 cursor-pointer transition-colors border-b border-divider"
                   onClick={() => handleCarClick(car.licensePlate)}
                 >
                   <LicenceTable licence={car.licensePlate} dialog />
                   <div>
-                    <p className="text-white font-medium text-sm">
+                    <p className="text-foreground font-medium text-sm">
                       {car.brand} {car.model} {car.year}
                     </p>
                     <p className="text-foreground-400 text-xs">{car.ownerName}</p>
@@ -162,13 +162,13 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose }) => {
 
           {results.clients.length > 0 && (
             <div>
-              <div className="px-4 py-2 text-xs font-semibold text-foreground-500 uppercase tracking-wider flex items-center gap-1 bg-foreground-900">
+              <div className="px-4 py-2 text-xs font-semibold text-foreground-500 uppercase tracking-wider flex items-center gap-1 bg-background">
                 <MdPeople size={12} /> Clientes
               </div>
               {results.clients.map((client) => (
                 <div
                   key={client.id}
-                  className="flex items-center gap-3 px-4 py-3 hover:bg-primary-900 cursor-pointer transition-colors border-b border-foreground-700"
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-primary-500/20 cursor-pointer transition-colors border-b border-divider"
                   onClick={() => handleClientClick(client.fullname)}
                 >
                   <div className="w-8 h-8 rounded-full bg-primary-800 flex items-center justify-center flex-shrink-0">
@@ -177,7 +177,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose }) => {
                     </span>
                   </div>
                   <div>
-                    <p className="text-white font-medium text-sm flex items-center gap-2">
+                    <p className="text-foreground font-medium text-sm flex items-center gap-2">
                       {client.fullname}
                       {!client.isActive && (
                         <span className="text-xs text-danger-400">(Inactivo)</span>
@@ -200,7 +200,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose }) => {
         </div>
 
         {/* Hint */}
-        <div className="px-4 py-2 border-t border-foreground-700 flex gap-4 text-xs text-foreground-600">
+        <div className="px-4 py-2 border-t border-divider flex gap-4 text-xs text-foreground-600">
           <span>↵ Navegar</span>
           <span>Esc Cerrar</span>
         </div>

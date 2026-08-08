@@ -29,14 +29,18 @@ const CarCard: React.FC<CarCardProps> = ({
         ${
           isSelected
             ? "bg-primary-700 border-primary-400 shadow-lg shadow-primary-900/60"
-            : "bg-foreground-700 border-foreground-600 hover:border-primary-500 hover:shadow-md hover:shadow-primary-900/30"
+            : "bg-content2 border-divider hover:border-primary-500 hover:shadow-md hover:shadow-primary-900/30"
         }
       `}
     >
       <CardHeader className="flex items-start justify-between gap-3 pb-2">
         <LicenceTable licence={licensePlate} dialog />
         <div className="flex flex-col items-end min-w-0">
-          <p className="text-white font-semibold text-sm leading-tight truncate max-w-[140px]">
+          <p
+            className={`font-semibold text-sm leading-tight truncate max-w-[140px] ${
+              isSelected ? "text-white" : "text-foreground"
+            }`}
+          >
             {owner?.fullname ?? "---"}
           </p>
           <p
@@ -48,7 +52,7 @@ const CarCard: React.FC<CarCardProps> = ({
       </CardHeader>
 
       <Divider
-        className={isSelected ? "bg-primary-500" : "bg-foreground-600"}
+        className={isSelected ? "bg-primary-500" : "bg-content3"}
       />
 
       <CardBody className="pt-3 pb-3 flex flex-col gap-3">
@@ -62,7 +66,11 @@ const CarCard: React.FC<CarCardProps> = ({
                 : "text-primary-400 flex-shrink-0"
             }
           />
-          <span className="text-white font-medium text-sm truncate">
+          <span
+            className={`font-medium text-sm truncate ${
+              isSelected ? "text-white" : "text-foreground"
+            }`}
+          >
             {brand} {model}
           </span>
         </div>
@@ -75,7 +83,13 @@ const CarCard: React.FC<CarCardProps> = ({
             >
               Año
             </p>
-            <p className="text-white text-sm font-semibold">{year}</p>
+            <p
+              className={`text-sm font-semibold ${
+                isSelected ? "text-white" : "text-foreground"
+              }`}
+            >
+              {year}
+            </p>
           </div>
           <div className="text-right">
             <p
@@ -83,7 +97,11 @@ const CarCard: React.FC<CarCardProps> = ({
             >
               Kilometraje
             </p>
-            <p className="text-white text-sm font-semibold">
+            <p
+              className={`text-sm font-semibold ${
+                isSelected ? "text-white" : "text-foreground"
+              }`}
+            >
               {(kilometers ?? 0).toLocaleString("es-AR")} km
             </p>
           </div>
