@@ -143,270 +143,282 @@ const CarDetailPage: React.FC = () => {
 
   // WhatsApp al titular con un mensaje pre-cargado (editable antes de enviar).
   const ownerFirstName = car.owner?.fullname?.trim().split(/\s+/)[0] ?? "";
-  const whatsappMessage = `Hola ${ownerFirstName}! 👋 Te escribimos de Mecánica Dealbera por tu ${car.brand} ${car.model} (patente ${car.licensePlate}).`;
+  const whatsappMessage = `Hola ${ownerFirstName}!👋🏼\n Te escribimos de Mecánica Dealbera por tu ${car.brand} ${car.model} (patente ${car.licensePlate}).`;
   const whatsappUrl = buildWhatsappUrl(car.owner?.phone, whatsappMessage);
 
   return (
-    <div className="w-full h-full min-h-0 overflow-y-auto overflow-x-hidden bg-content1 rounded-xl p-3 flex flex-col gap-4 text-foreground">
-      {/* ═══════════════════════════════════════════════════════════════════
-          HERO CARD — identidad del vehículo
-      ═══════════════════════════════════════════════════════════════════ */}
-      <Card className="bg-content1 border border-divider shadow-lg shadow-primary-900/20">
-        <CardBody className="p-5">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
-            {/* Patente */}
-            <LicenceTable licence={licence} />
+    <div className="w-full h-full min-h-0 overflow-y-auto overflow-x-hidden bg-content1 rounded-xl p-3 text-foreground">
+      {/* El contenedor que scrollea no maquetea: la columna vive en este wrapper
+          interno. Si el scroller fuera `flex flex-col`, las Cards se
+          **comprimirían** en vez de desbordar: al tener `overflow-hidden`, su
+          mínimo automático como flex item es 0 y se achican hasta quedar en una
+          tira ilegible. */}
+      <div className="flex flex-col gap-4">
+        {/* ═════════════════════════════════════════════════════════════════
+            HERO CARD — identidad del vehículo
+        ═════════════════════════════════════════════════════════════════ */}
+        <Card className="bg-content1 border border-divider shadow-lg shadow-primary-900/20">
+          <CardBody className="p-5">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
+              {/* Patente */}
+              <LicenceTable licence={licence} />
 
-            {/* Divisor vertical (solo sm+) */}
-            <div className="hidden sm:block w-px self-stretch bg-content3" />
+              {/* Divisor vertical (solo sm+) */}
+              <div className="hidden sm:block w-px self-stretch bg-content3" />
 
-            {/* Identidad del auto */}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <IoCarSportSharp
-                  size={16}
-                  className="text-primary-400 flex-shrink-0"
-                />
-                <h2 className="text-foreground font-bold text-xl truncate">
-                  {car.brand} {car.model}
-                </h2>
-                <Chip
-                  size="sm"
-                  variant="flat"
-                  color="primary"
-                  className="text-primary"
-                >
-                  {car.year}
-                </Chip>
-              </div>
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-                <span className="text-foreground-400">
-                  <span className="text-foreground font-medium">
-                    {(car.kilometers ?? 0).toLocaleString("es-AR")} km
-                  </span>
-                </span>
-                <span className="text-foreground-600">·</span>
-                <span className="text-foreground-400">
-                  Titular:{" "}
-                  <span className="text-foreground font-medium">
-                    {car.owner?.fullname ?? "---"}
-                  </span>
-                </span>
-              </div>
-            </div>
-
-            {/* Stats rápidos */}
-            <div className="hidden md:flex items-center gap-3">
-              <div className="text-center px-4 py-2 bg-content2 rounded-xl border border-divider">
-                <p className="text-2xl font-bold text-foreground">
-                  {jobsCount}
-                </p>
-                <p className="text-foreground-400 text-xs">Trabajos</p>
-              </div>
-              {inProgress > 0 && (
-                <div className="text-center px-4 py-2 bg-primary-900/50 rounded-xl border border-primary-700/50">
-                  <p className="text-2xl font-bold text-primary-300">
-                    {inProgress}
-                  </p>
-                  <p className="text-primary-400 text-xs">En curso</p>
-                </div>
-              )}
-              {pending > 0 && (
-                <div className="text-center px-4 py-2 bg-warning-900/50 rounded-xl border border-warning-700/50">
-                  <p className="text-2xl font-bold text-warning-300">
-                    {pending}
-                  </p>
-                  <p className="text-warning-400 text-xs">Sin comenzar</p>
-                </div>
-              )}
-            </div>
-
-            {/* Divisor vertical (solo md+) */}
-            <div className="hidden md:block w-px self-stretch bg-content3" />
-
-            {/* Acciones */}
-            <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
-              <BudgetButton car={car} jobs={jobs} />
-              <Button
-                isDisabled={isEditing || isLoading}
-                startContent={<MdHistory size={16} />}
-                onPress={() => setKmHistoryOpen(true)}
-              >
-                Historial KM
-              </Button>
-              <Button
-                color="primary"
-                isLoading={isLoading}
-                isDisabled={isEditing}
-                startContent={
-                  !refreshing ? <HiOutlineRefresh size={16} /> : undefined
-                }
-                onPress={() => refreshCar(licence)}
-              >
-                {refreshing ? "Actualizando..." : "Actualizar"}
-              </Button>
-            </div>
-          </div>
-        </CardBody>
-      </Card>
-
-      {/* ── Próximo service ─────────────────────────────────────────────── */}
-      <Card className="bg-content1 border border-divider shadow-none">
-        <CardHeader className="flex items-center gap-2 pb-2">
-          <MdNotificationsActive size={18} className="text-warning-500" />
-          <h5 className="font-semibold text-base text-primary-400">
-            Próximo service
-          </h5>
-        </CardHeader>
-        <Divider className="bg-content3" />
-        <CardBody className="pt-3">
-          <NextServiceCard licensePlate={licence} />
-        </CardBody>
-      </Card>
-
-      {/* ── TABS: Trabajos / Historial ────────────────────────────────── */}
-      <Tabs
-        aria-label="Secciones del vehículo"
-        color="primary"
-        variant="underlined"
-        classNames={{ tabList: "border-b border-divider w-full" }}
-      >
-        <Tab key="jobs" title="Trabajos">
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 items-start pt-2">
-            <div className="xl:col-span-2">
-              <Jobs jobs={jobs} isLoading={isLoading} license={licence} />
-            </div>
-            <div className="flex flex-col gap-4">
-              {/* Card vehículo */}
-              <Card className="bg-content1 shadow shadow-primary">
-                <CardHeader className="flex items-center justify-between pb-2">
-                  <div className="flex items-center gap-2">
-                    <IoCarSportSharp size={15} className="text-primary-400" />
-                    <h5 className="text-primary-400 font-semibold text-sm">
-                      Vehículo
-                    </h5>
-                  </div>
-                  <Button
+              {/* Identidad del auto */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <IoCarSportSharp
+                    size={16}
+                    className="text-primary-400 flex-shrink-0"
+                  />
+                  <h2 className="text-foreground font-bold text-xl truncate">
+                    {car.brand} {car.model}
+                  </h2>
+                  <Chip
                     size="sm"
-                    color="primary"
-                    startContent={<MdEdit size={13} />}
-                    onPress={() => setIsEditing(true)}
-                  >
-                    Editar
-                  </Button>
-                </CardHeader>
-                <Divider className="bg-content3" />
-                <CardBody className="pt-4 flex flex-col gap-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <InfoField
-                      icon={<FaTag size={14} />}
-                      label="Marca"
-                      value={car.brand}
-                    />
-                    <InfoField
-                      icon={<FaCube size={14} />}
-                      label="Modelo"
-                      value={car.model}
-                    />
-                    <InfoField
-                      icon={<MdBuild size={14} />}
-                      label="Año"
-                      value={car.year}
-                    />
-                    <InfoField
-                      icon={<MdBuild size={14} />}
-                      label="Kilometraje"
-                      value={`${(car.kilometers ?? 0).toLocaleString("es-AR")} km`}
-                    />
-                  </div>
-                  <Divider className="bg-content3" />
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <p className="text-foreground-400 text-xs">Registrado</p>
-                      <p className="text-foreground-300 text-xs mt-0.5">
-                        {formatDate(car.createdAt)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-foreground-400 text-xs">Actualizado</p>
-                      <p className="text-foreground-300 text-xs mt-0.5">
-                        {formatDate(car.updatedAt)}
-                      </p>
-                    </div>
-                  </div>
-                </CardBody>
-              </Card>
-
-              {/* Card titular */}
-              <Card className="bg-content1 shadow shadow-primary">
-                <CardHeader className="flex items-center justify-between pb-2">
-                  <div className="flex items-center gap-2">
-                    <MdPerson size={15} className="text-primary-400" />
-                    <h5 className="text-primary-400 font-semibold text-sm">
-                      Titular
-                    </h5>
-                  </div>
-                  <Button
-                    size="sm"
-                    color="primary"
-                    startContent={<MdPerson size={13} />}
-                    onPress={() => setReassignOpen(true)}
-                  >
-                    Cambiar titular
-                  </Button>
-                </CardHeader>
-                <Divider className="bg-content3" />
-                <CardBody className="pt-4 flex flex-col gap-4">
-                  <InfoField
-                    icon={<MdPerson size={14} />}
-                    label="Nombre"
-                    value={car.owner?.fullname}
-                  />
-                  <InfoField
-                    icon={<MdPhone size={14} />}
-                    label="Teléfono"
-                    value={car.owner?.phone}
-                  />
-                  <InfoField
-                    icon={<MdLocationOn size={14} />}
-                    label="Dirección"
-                    value={car.owner?.address}
-                  />
-                  <InfoField
-                    icon={<MdLocationCity size={14} />}
-                    label="Localidad"
-                    value={car.owner?.city}
-                  />
-                  <InfoField
-                    icon={<MdEmail size={14} />}
-                    label="Correo"
-                    value={car.owner?.email || "---"}
-                  />
-                  <Button
-                    color="success"
                     variant="flat"
-                    fullWidth
-                    startContent={<FaWhatsapp size={18} />}
-                    isDisabled={!whatsappUrl}
-                    onPress={() =>
-                      whatsappUrl && window.api.global.openExternal(whatsappUrl)
-                    }
-                    className="text-success-500 font-semibold mt-1"
+                    color="primary"
+                    className="text-primary"
                   >
-                    {whatsappUrl ? "Enviar WhatsApp" : "Sin teléfono"}
-                  </Button>
-                </CardBody>
-              </Card>
-            </div>
-          </div>
-        </Tab>
+                    {car.year}
+                  </Chip>
+                </div>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                  <span className="text-foreground-400">
+                    <span className="text-foreground font-medium">
+                      {(car.kilometers ?? 0).toLocaleString("es-AR")} km
+                    </span>
+                  </span>
+                  <span className="text-foreground-600">·</span>
+                  <span className="text-foreground-400">
+                    Titular:{" "}
+                    <span className="text-foreground font-medium">
+                      {car.owner?.fullname ?? "---"}
+                    </span>
+                  </span>
+                </div>
+              </div>
 
-        <Tab key="timeline" title="Historial">
-          <div className="pt-2 max-w-2xl">
-            <CarTimeline car={car} />
-          </div>
-        </Tab>
-      </Tabs>
+              {/* Stats rápidos */}
+              <div className="hidden md:flex items-center gap-3">
+                <div className="text-center px-4 py-2 bg-content2 rounded-xl border border-divider">
+                  <p className="text-2xl font-bold text-foreground">
+                    {jobsCount}
+                  </p>
+                  <p className="text-foreground-400 text-xs">Trabajos</p>
+                </div>
+                {inProgress > 0 && (
+                  <div className="text-center px-4 py-2 bg-primary-900/50 rounded-xl border border-primary-700/50">
+                    <p className="text-2xl font-bold text-primary-300">
+                      {inProgress}
+                    </p>
+                    <p className="text-primary-400 text-xs">En curso</p>
+                  </div>
+                )}
+                {pending > 0 && (
+                  <div className="text-center px-4 py-2 bg-warning-900/50 rounded-xl border border-warning-700/50">
+                    <p className="text-2xl font-bold text-warning-300">
+                      {pending}
+                    </p>
+                    <p className="text-warning-400 text-xs">Sin comenzar</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Divisor vertical (solo md+) */}
+              <div className="hidden md:block w-px self-stretch bg-content3" />
+
+              {/* Acciones */}
+              <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
+                <BudgetButton car={car} jobs={jobs} />
+                <Button
+                  isDisabled={isEditing || isLoading}
+                  startContent={<MdHistory size={16} />}
+                  onPress={() => setKmHistoryOpen(true)}
+                >
+                  Historial KM
+                </Button>
+                <Button
+                  color="primary"
+                  isLoading={isLoading}
+                  isDisabled={isEditing}
+                  startContent={
+                    !refreshing ? <HiOutlineRefresh size={16} /> : undefined
+                  }
+                  onPress={() => refreshCar(licence)}
+                >
+                  {refreshing ? "Actualizando..." : "Actualizar"}
+                </Button>
+              </div>
+            </div>
+          </CardBody>
+        </Card>
+
+        {/* ── Próximo service ─────────────────────────────────────────────── */}
+        <Card className="bg-content1 border border-divider shadow-none">
+          <CardHeader className="flex items-center gap-2 pb-2">
+            <MdNotificationsActive size={18} className="text-warning-500" />
+            <h5 className="font-semibold text-base text-primary-400">
+              Próximo service
+            </h5>
+          </CardHeader>
+          <Divider className="bg-content3" />
+          <CardBody className="pt-3">
+            <NextServiceCard licensePlate={licence} />
+          </CardBody>
+        </Card>
+
+        {/* ── TABS: Trabajos / Historial ────────────────────────────────── */}
+        <Tabs
+          aria-label="Secciones del vehículo"
+          color="primary"
+          variant="underlined"
+          classNames={{ tabList: "border-b border-divider w-full" }}
+        >
+          <Tab key="jobs" title="Trabajos">
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 items-start pt-2">
+              <div className="xl:col-span-2">
+                <Jobs jobs={jobs} isLoading={isLoading} license={licence} />
+              </div>
+              <div className="flex flex-col gap-4">
+                {/* Card vehículo */}
+                <Card className="bg-content1 shadow shadow-primary">
+                  <CardHeader className="flex items-center justify-between pb-2">
+                    <div className="flex items-center gap-2">
+                      <IoCarSportSharp size={15} className="text-primary-400" />
+                      <h5 className="text-primary-400 font-semibold text-sm">
+                        Vehículo
+                      </h5>
+                    </div>
+                    <Button
+                      size="sm"
+                      color="primary"
+                      startContent={<MdEdit size={13} />}
+                      onPress={() => setIsEditing(true)}
+                    >
+                      Editar
+                    </Button>
+                  </CardHeader>
+                  <Divider className="bg-content3" />
+                  <CardBody className="pt-4 flex flex-col gap-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <InfoField
+                        icon={<FaTag size={14} />}
+                        label="Marca"
+                        value={car.brand}
+                      />
+                      <InfoField
+                        icon={<FaCube size={14} />}
+                        label="Modelo"
+                        value={car.model}
+                      />
+                      <InfoField
+                        icon={<MdBuild size={14} />}
+                        label="Año"
+                        value={car.year}
+                      />
+                      <InfoField
+                        icon={<MdBuild size={14} />}
+                        label="Kilometraje"
+                        value={`${(car.kilometers ?? 0).toLocaleString("es-AR")} km`}
+                      />
+                    </div>
+                    <Divider className="bg-content3" />
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <p className="text-foreground-400 text-xs">
+                          Registrado
+                        </p>
+                        <p className="text-foreground-300 text-xs mt-0.5">
+                          {formatDate(car.createdAt)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-foreground-400 text-xs">
+                          Actualizado
+                        </p>
+                        <p className="text-foreground-300 text-xs mt-0.5">
+                          {formatDate(car.updatedAt)}
+                        </p>
+                      </div>
+                    </div>
+                  </CardBody>
+                </Card>
+
+                {/* Card titular */}
+                <Card className="bg-content1 shadow shadow-primary">
+                  <CardHeader className="flex items-center justify-between pb-2">
+                    <div className="flex items-center gap-2">
+                      <MdPerson size={15} className="text-primary-400" />
+                      <h5 className="text-primary-400 font-semibold text-sm">
+                        Titular
+                      </h5>
+                    </div>
+                    <Button
+                      size="sm"
+                      color="primary"
+                      startContent={<MdPerson size={13} />}
+                      onPress={() => setReassignOpen(true)}
+                    >
+                      Cambiar titular
+                    </Button>
+                  </CardHeader>
+                  <Divider className="bg-content3" />
+                  <CardBody className="pt-4 flex flex-col gap-4">
+                    <InfoField
+                      icon={<MdPerson size={14} />}
+                      label="Nombre"
+                      value={car.owner?.fullname}
+                    />
+                    <InfoField
+                      icon={<MdPhone size={14} />}
+                      label="Teléfono"
+                      value={car.owner?.phone}
+                    />
+                    <InfoField
+                      icon={<MdLocationOn size={14} />}
+                      label="Dirección"
+                      value={car.owner?.address}
+                    />
+                    <InfoField
+                      icon={<MdLocationCity size={14} />}
+                      label="Localidad"
+                      value={car.owner?.city}
+                    />
+                    <InfoField
+                      icon={<MdEmail size={14} />}
+                      label="Correo"
+                      value={car.owner?.email || "---"}
+                    />
+                    <Button
+                      color="success"
+                      variant="flat"
+                      fullWidth
+                      startContent={<FaWhatsapp size={18} />}
+                      isDisabled={!whatsappUrl}
+                      onPress={() =>
+                        whatsappUrl &&
+                        window.api.global.openExternal(whatsappUrl)
+                      }
+                      className="text-success-500 font-semibold mt-1"
+                    >
+                      {whatsappUrl ? "Enviar WhatsApp" : "Sin teléfono"}
+                    </Button>
+                  </CardBody>
+                </Card>
+              </div>
+            </div>
+          </Tab>
+
+          <Tab key="timeline" title="Historial">
+            <div className="pt-2 max-w-2xl">
+              <CarTimeline car={car} />
+            </div>
+          </Tab>
+        </Tabs>
+      </div>
 
       {/* ── MODAL DE EDICIÓN ──────────────────────────────────────────── */}
       <Modal
