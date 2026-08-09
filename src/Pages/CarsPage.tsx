@@ -15,6 +15,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import DeleteCarDialog from "../Components/DeleteCarDialog";
 import FilterByLicence from "../Components/SearchBars/FilterLicence";
 import EmptyState from "../Components/EmptyState";
+import PageShell from "../Components/PageShell";
 import { useDebounce } from "../Hooks/useDebounce";
 import { BRANDS_OPTIONS } from "../Utils/utils";
 import { CarQueryParams } from "../Types/apiTypes";
@@ -174,8 +175,10 @@ const CarsPage: React.FC = () => {
     />
   );
 
-  return (
-    <div className="w-full h-full shadow shadow-primary bg-content1 rounded-md p-3">
+  // Cabecera fija (título, acciones y filtros): la tabla se queda con el alto
+  // restante y scrollea su propio cuerpo.
+  const header = (
+    <>
       <div className="flex justify-between items-center mb-2">
         <h4 className="text-foreground font-semibold text-4xl text-shadow-2xs text-shadow-primary">
           Listado de vehículos
@@ -254,7 +257,11 @@ const CarsPage: React.FC = () => {
           </Button>
         )}
       </div>
+    </>
+  );
 
+  return (
+    <PageShell header={header} scrollBody={false}>
       <CarsTable
         cars={list.items}
         isLoading={listLoading}
@@ -276,7 +283,7 @@ const CarsPage: React.FC = () => {
         onCancel={handleCancelDelete}
         title="Eliminar automóvil"
       />
-    </div>
+    </PageShell>
   );
 };
 

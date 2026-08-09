@@ -10,20 +10,29 @@ interface CarsListProps {
   selectedLicense: string;
   onSelect: (license: string) => void;
   isLoading?: boolean;
+  /** Cuántos esqueletos mostrar en la primera carga (idealmente, el tamaño de página). */
+  skeletonCount?: number;
 }
+
+// Mismas clases para esqueletos y tarjetas: si la grilla cambiara de forma
+// entre un estado y otro, el alto saltaría al terminar la carga.
+const GRID =
+  "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 p-3";
 
 const CarsList: React.FC<CarsListProps> = ({
   cars,
   selectedLicense,
   isLoading = false,
+  skeletonCount = 8,
   onSelect,
 }) => {
   const navigate = useNavigate();
 
-  if (isLoading) {
+  // Primera carga: todavía no hay nada que mostrar, así que van esqueletos.
+  if (isLoading && cars.length === 0) {
     return (
-      <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-        {Array.from({ length: 4 }).map((_, i) => (
+      <div className={GRID} aria-busy="true">
+        {Array.from({ length: skeletonCount }).map((_, i) => (
           <div
             key={i}
             className="w-full h-40 rounded-xl bg-content2 border-2 border-divider animate-pulse"
@@ -58,8 +67,16 @@ const CarsList: React.FC<CarsListProps> = ({
     );
   }
 
+  // Recargas (cambio de página o búsqueda): las tarjetas actuales se mantienen
+  // montadas y sólo se atenúan. Reemplazarlas por esqueletos hacía colapsar el
+  // alto de la grilla y volver a expandirlo: ese era el parpadeo.
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 p-3">
+    <div
+      className={`${GRID} transition-opacity duration-200 ${
+        isLoading ? "opacity-50 pointer-events-none" : "opacity-100"
+      }`}
+      aria-busy={isLoading}
+    >
       {cars.map((car) => (
         <CarCard
           key={car.id}

@@ -112,7 +112,7 @@ const HomePage: React.FC = () => {
   const hasRevenue = stats?.monthlyRevenue?.some((m) => m.revenue > 0) ?? false;
 
   return (
-    <div className="w-full min-h-full bg-content1 rounded-md p-5 text-foreground flex flex-col gap-6">
+    <div className="w-full h-full min-h-0 overflow-y-auto overflow-x-hidden bg-content1 rounded-md p-5 text-foreground flex flex-col gap-6">
       {/* Title */}
       <div className="flex justify-between items-center">
         <h1 className="font-michroma text-4xl md:text-5xl italic text-primary-500 font-bold">

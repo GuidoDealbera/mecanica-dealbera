@@ -205,8 +205,12 @@ const JobsTable: React.FC<JobsProps> = ({
       </div>
       <Table
         aria-label="Tabla de trabajos"
+        isHeaderSticky
         classNames={{
-          wrapper: "relative min-h-[250px] bg-content1", // altura mínima definida
+          // Alto acotado: la tabla vive dentro de una ficha, así que scrollea su
+          // propio cuerpo para que el paginado quede siempre visible.
+          wrapper:
+            "relative min-h-[250px] max-h-[420px] overflow-y-auto overflow-x-auto bg-content1",
           emptyWrapper:
             "absolute inset-0 flex items-center justify-center z-10 h-full bg-content1",
         }}

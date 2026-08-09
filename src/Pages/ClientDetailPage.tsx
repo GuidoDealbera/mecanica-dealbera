@@ -182,7 +182,7 @@ const ClientDetailPage: React.FC = () => {
   }
 
   return (
-    <div className="w-full min-h-full shadow shadow-primary bg-content1 rounded-md p-4 text-foreground">
+    <div className="w-full h-full min-h-0 overflow-y-auto overflow-x-hidden shadow shadow-primary bg-content1 rounded-md p-4 text-foreground">
       {/* Header */}
       <div className="flex justify-between items-center mb-5">
         <h4 className="font-semibold text-4xl text-shadow-2xs text-shadow-primary">

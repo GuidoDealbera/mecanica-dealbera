@@ -147,7 +147,7 @@ const CarDetailPage: React.FC = () => {
   const whatsappUrl = buildWhatsappUrl(car.owner?.phone, whatsappMessage);
 
   return (
-    <div className="w-full bg-content1 rounded-xl p-3 min-h-full flex flex-col gap-4 text-foreground">
+    <div className="w-full h-full min-h-0 overflow-y-auto overflow-x-hidden bg-content1 rounded-xl p-3 flex flex-col gap-4 text-foreground">
       {/* ═══════════════════════════════════════════════════════════════════
           HERO CARD — identidad del vehículo
       ═══════════════════════════════════════════════════════════════════ */}

@@ -12,7 +12,8 @@ const PICKER_PAGE_SIZE = 12;
 
 const AddJobPage: React.FC = () => {
   const { state } = useLocation();
-  const { list, loading, addCarJob, getCars, cleanCars } = useCarQueries();
+  const { list, listLoading, loadingStates, addCarJob, getCars, cleanCars } =
+    useCarQueries();
   const [selectedLicense, setSelectedLicense] = React.useState<string>("");
   const [search, setSearch] = React.useState("");
   const [page, setPage] = React.useState(1);
@@ -48,7 +49,7 @@ const AddJobPage: React.FC = () => {
   const pages = Math.max(1, Math.ceil(list.total / PICKER_PAGE_SIZE));
 
   return (
-    <div className="text-foreground shadow shadow-primary bg-content1 rounded-md p-3 min-h-full">
+    <div className="text-foreground shadow shadow-primary bg-content1 rounded-md p-3 h-full min-h-0 overflow-y-auto overflow-x-hidden">
       <h4 className="mb-1 font-semibold text-4xl text-shadow-2xs text-shadow-primary">
         Registrar nuevo trabajo
       </h4>
@@ -72,11 +73,14 @@ const AddJobPage: React.FC = () => {
         }}
       />
 
+      {/* `listLoading` incluye "todavía no se pidió", así que no aparece el
+          estado vacío por un frame antes de que arranque la primera consulta. */}
       <CarsList
         cars={list.items}
         selectedLicense={selectedLicense}
         onSelect={setSelectedLicense}
-        isLoading={loading}
+        isLoading={listLoading}
+        skeletonCount={PICKER_PAGE_SIZE}
       />
 
       {pages > 1 && (
@@ -91,10 +95,12 @@ const AddJobPage: React.FC = () => {
         </div>
       )}
 
+      {/* Sólo el alta del trabajo bloquea el formulario: con el `loading`
+          general, paginar el selector deshabilitaba los campos. */}
       <AddJobForm
         license={selectedLicense}
         onSubmit={handleSubmit}
-        isLoading={loading}
+        isLoading={loadingStates.creating}
       />
     </div>
   );

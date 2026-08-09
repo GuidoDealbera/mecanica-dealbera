@@ -77,10 +77,15 @@ const ClientTable: React.FC<ClientTableProps> = ({
   ];
 
   return (
-    <div className="text-foreground rounded-lg flex flex-col gap-4 border border-divider overflow-hidden">
+    // Alto fijo: la tabla ocupa el espacio disponible y scrollea sólo su cuerpo,
+    // así el encabezado y el paginado quedan siempre a la vista.
+    <div className="text-foreground h-full min-h-0 rounded-lg flex flex-col border border-divider overflow-hidden">
       <Table
+        isHeaderSticky
         classNames={{
-          wrapper: "relative min-h-[250px]",
+          base: "flex-1 min-h-0 overflow-hidden",
+          wrapper:
+            "relative h-full max-h-full min-h-[200px] overflow-y-auto overflow-x-auto p-0 rounded-none shadow-none",
           emptyWrapper:
             "absolute inset-0 flex items-center justify-center z-10 h-full",
         }}
@@ -139,7 +144,7 @@ const ClientTable: React.FC<ClientTableProps> = ({
           {clients.map((client, i) => (
             <TableRow
               key={client.id}
-              className={`rounded-lg h-10 shadow-sm ${
+              className={`rounded-lg h-18 shadow-sm ${
                 i % 2 === 0 ? "bg-default-100" : "bg-default-50"
               } ${!client.isActive ? "opacity-60" : ""}`}
             >

@@ -6,6 +6,7 @@ import ClientTable from "../Components/Tables/ClientsTable";
 import FilterName from "../Components/SearchBars/FilterName";
 import CustomDialog from "../Components/CustomDialog";
 import EmptyState from "../Components/EmptyState";
+import PageShell from "../Components/PageShell";
 import { useToasts } from "../Hooks/useToasts";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { IoSearch, IoCarSportSharp } from "react-icons/io5";
@@ -207,8 +208,10 @@ const ClientPage: React.FC = () => {
       />
     );
 
-  return (
-    <div className="w-full h-full shadow shadow-primary bg-content1 rounded-md p-3">
+  // Cabecera fija (título, acciones y filtros): la tabla se queda con el alto
+  // restante y scrollea su propio cuerpo.
+  const header = (
+    <>
       <div className="flex justify-between items-center mb-2">
         <h4 className="text-foreground font-semibold text-4xl text-shadow-2xs text-shadow-primary">
           Listado de clientes
@@ -270,7 +273,11 @@ const ClientPage: React.FC = () => {
           )}
         </div>
       )}
+    </>
+  );
 
+  return (
+    <PageShell header={header} scrollBody={false}>
       <ClientTable
         clients={list.items}
         isLoading={listLoading}
@@ -315,7 +322,7 @@ const ClientPage: React.FC = () => {
         content={deleteContent}
         confirmText="Eliminar"
       />
-    </div>
+    </PageShell>
   );
 };
 

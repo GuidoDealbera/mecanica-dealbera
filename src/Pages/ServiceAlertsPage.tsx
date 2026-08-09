@@ -42,6 +42,7 @@ import { buildWhatsappUrl, formatDate } from "../Utils/utils";
 import LicenceTable from "../Components/Licenses/LicenceTable";
 import TablePagination from "../Components/TablePagination";
 import EmptyState from "../Components/EmptyState";
+import PageShell from "../Components/PageShell";
 import TableLoadingContent from "../Components/TableLoadingContent";
 import { useToasts } from "../Hooks/useToasts";
 import { useDebounce } from "../Hooks/useDebounce";
@@ -214,8 +215,10 @@ const ServiceAlertsPage: React.FC = () => {
 
   const hasFilters = !!debouncedSearch || typeFilter !== "all";
 
-  return (
-    <div className="w-full min-h-full shadow shadow-primary bg-content1 rounded-md p-4 text-foreground">
+  // Cabecera fija: título, configuración y filtros. El listado scrollea abajo y
+  // el paginado queda anclado al pie.
+  const header = (
+    <>
       <div className="flex justify-between items-center mb-4 gap-3 flex-wrap">
         <div className="flex items-center gap-2">
           <MdNotificationsActive size={26} className="text-warning-500" />
@@ -364,7 +367,21 @@ const ServiceAlertsPage: React.FC = () => {
           }}
         />
       </div>
+    </>
+  );
 
+  return (
+    <PageShell
+      header={header}
+      footer={
+        <TablePagination
+          page={page}
+          pageSize={PAGE_SIZE}
+          total={total}
+          onPageChange={setPage}
+        />
+      }
+    >
       {/* Listado */}
       {loading && !loaded ? (
         <div className="py-16">
@@ -540,14 +557,7 @@ const ServiceAlertsPage: React.FC = () => {
           ))}
         </div>
       )}
-
-      <TablePagination
-        page={page}
-        pageSize={PAGE_SIZE}
-        total={total}
-        onPageChange={setPage}
-      />
-    </div>
+    </PageShell>
   );
 };
 

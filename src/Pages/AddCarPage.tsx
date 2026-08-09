@@ -20,7 +20,7 @@ const AddCarPage: React.FC = () => {
     }
   };
   return (
-    <div className="text-foreground shadow shadow-primary bg-content1 rounded-md p-3 min-h-full">
+    <div className="text-foreground shadow shadow-primary bg-content1 rounded-md p-3 h-full min-h-0 overflow-y-auto overflow-x-hidden">
       <h4 className="mb-1 font-semibold text-4xl text-shadow-2xs text-shadow-primary">
         Ingresar nuevo vehículo
       </h4>
