@@ -50,6 +50,7 @@ export interface UpdateProgress {
 }
 
 export interface UpdateError {
+  /** Motivo del fallo, tal como lo reporta `electron-updater`. */
   message: string;
 }
 
@@ -63,6 +64,8 @@ export interface UpdaterAPI {
   startDownload: () => void;
   installUpdate: () => void;
   checkForUpdates: () => Promise<void>;
+  /** Da de baja los listeners registrados con los `on*` (limpieza del efecto). */
+  removeAllListeners: () => void;
 }
 
 declare global {

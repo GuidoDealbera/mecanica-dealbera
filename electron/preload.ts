@@ -136,6 +136,15 @@ contextBridge.exposeInMainWorld("api", {
   },
 });
 
+/** Canales que el proceso principal usa para informar el estado de la actualización. */
+const UPDATER_CHANNELS = [
+  "update-available",
+  "update-not-available",
+  "update-progress",
+  "update-downloaded",
+  "update-error",
+] as const;
+
 contextBridge.exposeInMainWorld("updater", {
   onUpdateAvailable: (cb: (data: UpdateInfo) => void) =>
     ipcRenderer.on("update-available", (_, data) => cb(data)),
@@ -149,4 +158,13 @@ contextBridge.exposeInMainWorld("updater", {
   startDownload: () => ipcRenderer.send("start-update-download"),
   installUpdate: () => ipcRenderer.send("install-update"),
   checkForUpdates: () => ipcRenderer.invoke("check-for-updates"),
+  // Los `on` de arriba acumulan listeners: sin una forma de darlos de baja, cada
+  // montaje del componente que los registra agrega un handler más y el mismo
+  // aviso se muestra repetido (en desarrollo pasa siempre, porque `StrictMode`
+  // ejecuta los efectos dos veces).
+  removeAllListeners: () => {
+    for (const channel of UPDATER_CHANNELS) {
+      ipcRenderer.removeAllListeners(channel);
+    }
+  },
 });

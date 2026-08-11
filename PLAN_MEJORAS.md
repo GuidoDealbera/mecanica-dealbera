@@ -36,16 +36,27 @@ recordatorios de service, documentos (presupuesto/factura) y resguardo de datos.
 Todos están verificados leyendo el código (y varios contra una copia de la base
 real). Son chicos y de bajo riesgo: conviene empezar por acá.
 
-1. **[pendiente]** El error del auto-updater nunca llega a la interfaz
-   - Archivo: `electron/main.ts:120` vs `src/Components/Header.tsx:141`.
-   - `autoUpdater.on("error")` emite `{ error: error.message }`, pero el contrato
-     (`UpdateError` en `global.d.ts`) y el consumidor leen `data.message`. El
-     resultado es `setUpdateError(undefined)`: el menú nunca muestra "Error al
-     buscar actualizaciones" y el motivo real se pierde. El otro emisor del mismo
-     canal (`check-for-updates`, `main.ts:268`) sí manda `{ message }`.
-   - Solución: emitir `{ message: error.message }` en el `on("error")` (una
-     línea) y, de paso, mostrar el mensaje en el ítem del menú.
-   - Esfuerzo: mínimo · Riesgo: nulo.
+1. **[a testear]** El error del auto-updater nunca llega a la interfaz
+   - Archivos: `electron/main.ts`, `electron/preload.ts`, `global.d.ts`,
+     `src/Components/Header.tsx`.
+   - Diagnóstico afinado al implementar: `autoUpdater.on("error")` emitía
+     `{ error: error.message }` mientras el contrato (`UpdateError`) y el `Header`
+     leen `data.message`, así que llegaba `undefined`. Y `checkForUpdates()`, ante
+     un fallo, **emite el evento `error` y además rechaza la promesa**: el
+     handler de `check-for-updates` reenviaba el mensaje por su cuenta, con lo
+     cual una búsqueda manual fallida mostraba **dos** avisos y el estado final
+     dependía del orden de llegada. El caso realmente roto era el de
+     los fallos **automáticos** (chequeo periódico y descarga), donde sólo se
+     emite el evento: ahí la interfaz no mostraba nada útil. Encima el error **no
+     se logueaba en ningún lado**, así que no quedaba rastro para diagnosticar.
+   - Cambios: un único emisor del canal (el listener de `error`), con la clave
+     `message` y `logError`; el handler `check-for-updates` sólo absorbe el
+     rechazo (con el motivo documentado) para que el `await` del renderer no quede
+     como promesa rechazada sin atender; `downloadUpdate()` también atiende su
+     rechazo; el renderer muestra el motivo real en el toast **y** en el ítem del
+     menú; y se agregó `updater.removeAllListeners()` con limpieza en el efecto,
+     porque los `ipcRenderer.on` del preload acumulaban un handler por montaje
+     (en desarrollo `StrictMode` los duplica siempre).
 
 2. **[pendiente]** El historial de kilometraje suma un registro aunque el km no cambie
    - Archivo: `electron/DataBase/Endpoints/car.crud.endpoints.ts:178`.
@@ -318,6 +329,55 @@ datos del taller.
 
 ---
 
+## Sprint F — Interfaz: observaciones de uso
+
+Detectadas usando la aplicación (10/08/2026). La 27 es un **bug de flujo** y
+conviene que entre antes del despliegue; las otras dos son de presentación.
+
+27. **[pendiente]** El vehículo preseleccionado no se ve si no está en la primera página
+    - Archivos: `src/Pages/AddJobPage.tsx:39-43`, `src/Pages/Components/CarsList.tsx`.
+    - Al entrar a "Nuevo trabajo" desde la ficha de un vehículo, la patente llega
+      por el `state` de la navegación y se guarda en `selectedLicense`, pero el
+      selector muestra la **primera página** del listado paginado. Si el vehículo
+      no cae en esa página, no se ve ninguna tarjeta marcada: la selección existe
+      (el formulario funciona) pero el usuario no tiene forma de confirmarla, y
+      parece que no se seleccionó nada.
+    - Solución propuesta, en dos partes que se complementan:
+      1. Al llegar con `state.license`, **precargar el buscador** con esa patente.
+         La búsqueda ya es server-side, así que el vehículo queda en la primera
+         página sin necesidad de endpoints nuevos.
+      2. Mostrar arriba del listado un **resumen fijo del vehículo seleccionado**
+         (patente + marca/modelo + titular, con un botón para desmarcarlo), que
+         se vea siempre sin importar la página o el filtro. Esto además arregla
+         el caso general: elegir un auto, paginar y perder de vista qué se eligió.
+    - Esfuerzo: bajo · Riesgo: bajo.
+
+28. **[pendiente]** Las tarjetas de vehículos no tienen el mismo tamaño
+    - Archivo: `src/Pages/Components/CarCard.tsx:28` y la grilla de
+      `src/Pages/Components/CarsList.tsx:19`.
+    - La `Card` usa `w-full max-w-fit`: `max-w-fit` gana sobre `w-full`, así que
+      el ancho lo define el contenido (el nombre del titular, la cantidad de
+      dígitos del kilometraje) en lugar de la celda de la grilla. El resultado es
+      una grilla con tarjetas de anchos distintos y huecos irregulares.
+    - Solución: quitar `max-w-fit` y dejar `w-full h-full`; en la grilla, bajar la
+      separación (`gap-3` → `gap-2`) y agregar `items-stretch` para que además
+      igualen la altura dentro de cada fila.
+    - Esfuerzo: mínimo · Riesgo: nulo.
+
+29. **[pendiente]** Las tarjetas del dashboard quedan pegadas a la cabecera
+    - Archivos: `src/Components/PageShell.tsx:46`, `src/Pages/HomePage.tsx`.
+    - El cuerpo de `PageShell` no lleva padding superior cuando hay cabecera
+      (`${header ? "" : "pt-4"}`). En el dashboard la cabecera es una sola fila
+      sin margen inferior propio, así que las `StatCard` arrancan pegadas al
+      borde y su `shadow shadow-primary` queda recortada por el `overflow-y-auto`
+      del contenedor: las tarjetas no se aprecian completas.
+    - Solución: agregar un padding superior chico (`pt-1`) al cuerpo de
+      `PageShell` — beneficia a todas las pantallas con cabecera, no sólo al
+      dashboard. Verificar que no afecte al encabezado adherido (`isHeaderSticky`)
+      de las tablas de Autos y Clientes; si molesta ahí, aplicarlo sólo en el
+      contenedor interno del dashboard.
+    - Esfuerzo: mínimo · Riesgo: bajo.
+
 ## Notas de sesión
 
 ### 2026-08-10 — Correcciones sobre observaciones de uso (esta sesión)
@@ -392,6 +452,57 @@ Modificados: `electron/DataBase/Endpoints/service.endpoints.ts`,
 `src/Hooks/useBudgetPdf.ts`, `src/Components/BudgetButton.tsx`,
 `src/Components/Header.tsx`, `src/Pages/{HomePage,BackupPage,ServiceAlertsPage}.tsx`,
 `src/Pages/Components/NextServiceCard.tsx`.
+
+### 2026-08-10 — Evaluación previa al despliegue
+
+Se relevó el estado del entregable: **48 commits** en la rama (29/03 → 10/08) y
+la versión sigue en `1.0.3`, igual que la instalada.
+
+El riesgo principal era la actualización de la base: la versión publicada usa
+**`synchronize: true` con `migrations: []`** y sólo las entidades `Car` y
+`Client`, así que la base del taller no tiene tabla de migraciones y en el primer
+arranque de la versión nueva corren **las 7 migraciones de una**. Se simuló ese
+escenario sobre una **copia de la base de producción de este equipo**
+(`Documents/taller.db`): las 7 migraciones se aplicaron en orden, los datos se
+conservaron, el trabajo que vivía en el JSON de `car.jobs` quedó como fila de
+`job`, el backfill generó los recordatorios, `integrity_check` devolvió `ok`,
+`foreign_key_check` salió limpio y las entidades nuevas leen los datos. El camino
+de actualización **está verificado** (`InitialSchema` usa
+`CREATE TABLE IF NOT EXISTS`, así que sobre el esquema existente es un no-op).
+
+Dos hallazgos de esa evaluación:
+
+- **Divergencia dev/producción en `car.brand`**: en producción la columna tiene un
+  `CHECK` con la lista de marcas (lo generó `synchronize` desde el `simple-enum`)
+  que en desarrollo **no existe**, porque `InitialSchema` la crea como `varchar`
+  simple. Hoy no hay riesgo (se compararon las dos listas: 104 marcas, idénticas),
+  pero **agregar una marca nueva va a requerir una migración que reconstruya la
+  tabla**, y en desarrollo el problema no se va a notar.
+- **Volver atrás no es sólo reinstalar**: con `synchronize: true`, la 1.0.3 sobre
+  una base ya migrada reconstruye la tabla `car` para que coincida con la entidad
+  vieja (le devuelve `jobs` vacía y le saca `serviceIntervalMonths/Km`). Las
+  tablas nuevas sobreviven huérfanas, así que los trabajos no se pierden, pero la
+  app los muestra en cero. El rollback exige **reinstalar la 1.0.3 y restaurar el
+  respaldo pre-migración**.
+
+Lo que **no** está verificado: todas las rutas detrás de
+`NODE_ENV !== "development"` (base en `Documentos`, respaldo automático,
+notificación de arranque, splash desde `resourcesPath` y el auto-updater
+completo) nunca se ejecutaron en estos cuatro meses y medio, y el paquete NSIS no
+se armó ni una vez con este código.
+
+Pasos acordados antes de publicar: copiar a mano `Documents/taller.db`, arreglar
+la tarea 1 (el error del updater no llega a la interfaz, relevante justamente
+para un release), subir la versión a `1.1.0`, armar el instalador y probarlo en
+este equipo —que ya tiene una base con forma de producción— y recién después
+publicar y probar el auto-update desde una 1.0.3 instalada. Pendiente, y es el
+paso con mejor relación esfuerzo/certeza: correr la misma simulación sobre una
+copia de la base **real del taller**, que es la única que tiene datos de meses.
+
+Se agregaron además las tareas 27 a 29 (Sprint F) a partir de observaciones de
+uso: el vehículo preseleccionado que no se ve al cargar un trabajo, el tamaño
+desigual de las tarjetas de vehículos y las tarjetas del dashboard pegadas a la
+cabecera.
 
 ### Historial anterior
 

@@ -141,13 +141,24 @@ const Header = () => {
     window.updater.onError((data) => {
       setChecking(false);
       isManualCheck.current = false;
-      setUpdateError(data.message);
+      const reason = data?.message?.trim();
+      setUpdateError(reason || "No se pudo completar la actualización");
+      // Se muestra el motivo real: sin esto, un fallo de actualización sólo
+      // decía "hubo un error" y no había forma de saber qué pasó sin abrir los
+      // logs.
       showToast(
-        "Hubo un error al actualizar el sistema",
+        reason
+          ? `No se pudo actualizar el sistema: ${reason}`
+          : "No se pudo actualizar el sistema",
         "danger",
         "Actualización de sistema"
       );
     });
+
+    // Los listeners viven en el proceso de preload, así que hay que darlos de
+    // baja al desmontar: si no, cada montaje suma un handler y los avisos se
+    // duplican.
+    return () => window.updater.removeAllListeners();
   }, [showToast]);
 
   const handleManualCheck = async () => {
@@ -361,13 +372,16 @@ const Header = () => {
                 startContent={updateMenuIcon()}
                 description={
                   updateError
-                    ? "Hacé click para reintentar"
+                    ? // El motivo va en el ítem del menú (no sólo en el toast),
+                      // que es donde el usuario vuelve a mirar después.
+                      `${updateError} — hacé click para reintentar`
                     : updateAvailable && !downloaded
                       ? "Hay una nueva versión disponible"
                       : downloaded
                         ? "La actualización está lista. Hacé click para instalar"
                         : "Verificar si hay una nueva versión del sistema"
                 }
+                classNames={{ description: "max-w-[260px] whitespace-normal" }}
                 color={
                   downloaded
                     ? "success"

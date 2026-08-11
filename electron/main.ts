@@ -117,9 +117,18 @@ function setupAutoUpdater() {
     win?.webContents.send("update-downloaded");
   });
 
+  // Único punto por el que se reportan los errores de actualización al
+  // renderer. La clave es `message` porque es lo que declara el contrato
+  // (`UpdateError` en `global.d.ts`) y lo que lee el Header: con `error` la
+  // interfaz recibía `undefined` y no podía mostrar el motivo. Además se loguea,
+  // que antes no pasaba: un fallo de actualización no dejaba ningún rastro.
   autoUpdater.on("error", (error) => {
+    logError("auto-updater", error, { version: app.getVersion() });
     win?.webContents.send("update-error", {
-      error: error.message,
+      message:
+        error instanceof Error && error.message
+          ? error.message
+          : "No se pudo completar la actualización",
     });
   });
 
@@ -248,7 +257,11 @@ handleIpc("app:open-external", async (_event, url: string) => {
 });
 
 ipcMain.on("start-update-download", () => {
-  autoUpdater.downloadUpdate();
+  // `downloadUpdate()` también emite `error` y rechaza: el rechazo se atiende
+  // para no dejar una promesa colgada en el proceso principal.
+  autoUpdater.downloadUpdate().catch(() => {
+    /* ya reportado por el listener de `error` */
+  });
 });
 
 ipcMain.on("install-update", () => {
@@ -261,11 +274,15 @@ handleIpc("check-for-updates", async () => {
     return;
   }
 
+  // `checkForUpdates()` ante un fallo emite el evento `error` **y** rechaza la
+  // promesa. El evento ya avisa al renderer (y loguea), así que acá sólo se
+  // absorbe el rechazo: si se propagara, el `await` del renderer quedaría como
+  // promesa rechazada sin atender, y si se reenviara el mensaje el usuario
+  // vería dos avisos del mismo error.
   try {
     await autoUpdater.checkForUpdates();
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
-    win?.webContents.send("update-error", { message: msg });
+  } catch {
+    /* ya reportado por el listener de `error` */
   }
 });
 
