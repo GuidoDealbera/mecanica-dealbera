@@ -155,7 +155,7 @@ real). Son chicos y de bajo riesgo: conviene empezar por acá.
      de "trabajos recientes" tomando los primeros que encuentra, pero eso se
      resuelve con su reescritura a agregados SQL (tarea 8).
 
-7. **[a testear]** Robustez del arranque de Electron
+7. **[hecho]** Robustez del arranque de Electron
    - Archivos: `electron/main.ts`, `electron/splash.html`.
    - `uncaughtException` ya no sigue con la app viva: nuevo `fatalError()` que
      registra, cierra el splash, avisa al usuario y sale con `app.exit(1)`. Es lo
@@ -192,22 +192,39 @@ real). Son chicos y de bajo riesgo: conviene empezar por acá.
 
 ## Sprint B — Rendimiento y modelo de datos
 
-8. **[pendiente]** El dashboard recorre toda la base en memoria
-   - Archivo: `electron/DataBase/Endpoints/dashboard.endpoints.ts:29`.
-   - `carRepository.find({ relations: ["jobs"] })` trae **todos** los vehículos
-     con **todos** sus trabajos al proceso main para contar y sumar en un `for`.
-     Con la base de prueba actual (101 autos / 313 trabajos) no se nota, pero
-     crece de forma lineal y es el único lugar que quedó sin paginar. La caché en
-     memoria lo tapa hasta que una mutación la invalida.
-   - Solución: reemplazar el recorrido por agregados SQL (`COUNT`/`SUM` con
-     `GROUP BY status`, y los ingresos por mes con `strftime`), dejando en
-     memoria sólo los "trabajos recientes" (que ya están limitados a 6).
-   - Incluir en esa reescritura: las listas `recentActiveJobs` /
-     `recentCompletedJobs` / `recentDeliveredJobs` **no son "recientes"**, toman
-     los primeros 6 que aparecen al recorrer los autos sin ningún orden. Con la
-     consulta agregada deben salir ordenadas por fecha (`ORDER BY ... LIMIT 6`).
-   - Esfuerzo: medio · Riesgo: medio (hay que mantener los mismos números; se
-     puede validar comparando la salida vieja y la nueva sobre la misma base).
+8. **[a testear]** El dashboard recorre toda la base en memoria
+   - Archivos: `electron/DataBase/dashboardStats.service.ts` (nuevo),
+     `electron/DataBase/Endpoints/dashboard.endpoints.ts`.
+   - El cálculo se movió a un módulo de dominio que recibe el `EntityManager` por
+     parámetro (mismo patrón que `serviceReminders.service.ts`, así no depende de
+     Electron y se puede probar). El endpoint quedó sólo con la caché.
+   - Cada número sale de un `COUNT`/`SUM` en la base (9 consultas chicas en
+     paralelo) en vez de traer todos los autos con todos sus trabajos al proceso
+     principal. Medido sobre copias de la base, haciéndola crecer:
+
+     | trabajos  | nuevo (SQL) | anterior (memoria) |
+     | --------- | ----------- | ------------------ |
+     | 312 (hoy) | 3,7 ms      | 7,6 ms             |
+     | 5.000     | 12,4 ms     | 114 ms             |
+     | 20.000    | 59 ms       | 421 ms             |
+     | 80.000    | 232 ms      | 1.817 ms           |
+
+   - Las listas de "trabajos recientes" ahora **sí** son las más recientes
+     (`ORDER BY updatedAt DESC LIMIT 6` en la base); antes eran los primeros seis
+     que aparecían al recorrer los autos, sin ningún orden.
+   - **Se conservaron todos los números exactamente igual**, validado con un
+     script que corre las dos implementaciones sobre la misma base y compara
+     campo por campo: sin diferencias en los 13 escalares ni en `monthlyRevenue`,
+     tanto en la base de desarrollo como en la de producción ya migrada.
+   - Detalle de implementación: los filtros por mes usan
+     `strftime('%Y-%m', columna)` en vez de un `>=` contra un datetime, porque
+     `job.createdAt/updatedAt` **no tiene un único formato** guardado (ver la
+     tarea 30). Comparar la clave del mes es equivalente a lo que hacía el código
+     anterior y además es inmune al formato.
+   - **Pregunta abierta para el usuario** (no se cambió nada): `revenueThisMonth`
+     suma sólo los trabajos **completados** del mes, no los entregados. Se
+     conservó el criterio anterior, pero un trabajo entregado también se cobró:
+     si la idea es "lo facturado del mes", debería incluirlos.
 
 9. **[pendiente]** El listado de clientes trae todos los vehículos para mostrar un número
    - Archivo: `electron/DataBase/Endpoints/client.endpoints.ts:60-88`.
@@ -226,7 +243,33 @@ real). Son chicos y de bajo riesgo: conviene empezar por acá.
     - Solución: migración con `@Index()` sobre `job.status`.
     - Esfuerzo: mínimo · Riesgo: bajo.
 
-11. **[pendiente]** Revisar el paginado en dos pasos de TypeORM en el resto de los listados
+11. **[pendiente]** Normalizar el formato de fecha guardado en `job.createdAt/updatedAt`
+    - _(Numerada 30, después del Sprint F, para no renumerar el resto del plan;
+      pertenece a este sprint por tema.)_
+    - Descubierto al implementar la tarea 8. La columna tiene **dos formatos**:
+      lo que escribe TypeORM es `YYYY-MM-DD HH:MM:SS.SSS` en hora **local**, pero
+      las filas que generó la migración `NormalizeJobs` —los trabajos que ya
+      existían, tomados del JSON de `car.jobs`— quedaron en ISO con `T` y `Z`
+      (hora UTC). Verificado sobre la copia de producción migrada: **todos** sus
+      trabajos históricos están en ISO.
+    - Por qué importa: cualquier comparación SQL sobre esas columnas es una
+      comparación de **texto** entre formatos distintos. Hoy no rompe nada (la
+      tarea 8 quedó escrita de forma tolerante y el resto de los consumidores usan
+      `new Date()`, que lee ambos), pero es una trampa para cualquier consulta
+      futura, y el mes de las filas en `Z` se interpreta en UTC (un trabajo de las
+      últimas 3 horas del mes puede caer en el mes siguiente).
+    - Se comprobó que el problema **no** afecta a `car.createdAt`,
+      `client.createdAt` ni a `service_reminder.dueDate` (que sí se compara con
+      `<=` en SQL): esas están todas en el formato canónico.
+    - Solución: migración que reescriba las dos columnas al formato canónico,
+      convirtiendo de UTC a hora local sólo las que estén en ISO
+      (`strftime('%Y-%m-%d %H:%M:%f', columna, 'localtime')` para las que
+      terminan en `Z`, dejando intactas las demás). Probar contra una copia
+      comparando los instantes antes y después.
+    - Esfuerzo: bajo · Riesgo: medio (toca datos de producción → conviene después
+      de la tarea 13, el snapshot previo a migraciones).
+
+12. **[pendiente]** Revisar el paginado en dos pasos de TypeORM en el resto de los listados
     - Contexto: el `TypeError` de la bandeja de recordatorios (ver notas de
       sesión) salió de combinar `skip/take` + joins + un `ORDER BY` con una
       expresión SQL. `car:get-all` y `client:get-all` también usan `skip/take`
