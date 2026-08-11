@@ -95,6 +95,8 @@ const CarDetailPage: React.FC = () => {
 
   const handleSubmit = async (data: CreateCarBody): Promise<void> => {
     try {
+      // El kilometraje va primero: si el backend lo rechaza se corta acá y no se
+      // aplica nada, así el formulario queda abierto con los datos del usuario.
       await updateCar(car!.id, data.kilometers);
       await updateOwner({ ...data.owner, id: car!.owner.id });
       await getCarDetail(car!.licensePlate);
@@ -104,8 +106,17 @@ const CarDetailPage: React.FC = () => {
         "success",
         "Actualización"
       );
-    } catch {
-      showToast("Error al actualizar datos", "danger", "Actualización");
+    } catch (error) {
+      // Se muestra el motivo que devuelve el backend ("no se pueden bajar los
+      // kilómetros", "el teléfono ya está registrado a nombre de..."): con un
+      // mensaje genérico el usuario no sabía qué corregir.
+      showToast(
+        error instanceof Error && error.message
+          ? error.message
+          : "Error al actualizar datos",
+        "danger",
+        "Actualización"
+      );
     }
   };
 

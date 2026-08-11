@@ -175,16 +175,41 @@ handleIpc("car:update", async (_, id: string, kilometers: number) => {
       message: "Vehículo no registrado",
     };
   }
-  if (kilometers < car.kilometers) {
+  // El kilometraje se valida acá porque la validación con class-validator sólo
+  // cubre el alta. Sin esto un valor no numérico pasaba de largo: `NaN` no es
+  // menor que nada, así que el control de abajo lo dejaba entrar y se guardaba.
+  const km = Math.round(Number(kilometers));
+  if (!Number.isFinite(km) || km < 0) {
+    return {
+      status: "failed",
+      message: "El kilometraje no es válido",
+    };
+  }
+  if (km < car.kilometers) {
     return {
       status: "failed",
       message: "No se pueden bajar los kilómetros de un vehículo",
     };
   }
-  const history = Array.isArray(car.kmHistory) ? [...car.kmHistory] : [];
-  history.push({ km: kilometers, date: new Date().toISOString() });
-  car.kmHistory = history;
-  car.kilometers = kilometers;
+
+  // Sin cambio de kilometraje no hay nada que registrar. Antes se agregaba un
+  // punto igual al anterior en cada guardado, y el formulario de edición manda
+  // el kilometraje siempre —incluso cuando sólo se editó el titular—, así que
+  // el historial se llenaba de repetidos: tramos planos en el gráfico de KM y
+  // eventos duplicados en el historial del vehículo y del cliente.
+  if (km === car.kilometers) {
+    return {
+      status: "success",
+      message: "Vehículo actualizado correctamente",
+      result: car,
+    };
+  }
+
+  car.kmHistory = [
+    ...(Array.isArray(car.kmHistory) ? car.kmHistory : []),
+    { km, date: new Date().toISOString() },
+  ];
+  car.kilometers = km;
 
   const savedCar = await carRepo.save(car);
   invalidateDashboardStatsCache();

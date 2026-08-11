@@ -31,7 +31,6 @@ import LicenceTable from "../Components/Licenses/LicenceTable";
 import ClientHistory from "./Components/ClientHistory";
 import { Client } from "../Types/types";
 import { JobStatus } from "../Types/apiTypes";
-import { useToasts } from "../Hooks/useToasts";
 import { useForm, Controller } from "react-hook-form";
 import { formatARS, formatDate, handleCapitalizedChange } from "../Utils/utils";
 
@@ -71,7 +70,6 @@ const StatTile: React.FC<{
 const ClientDetailPage: React.FC = () => {
   const { fullname } = useParams<{ fullname: string }>();
   const navigate = useNavigate();
-  const { showToast } = useToasts();
   const {
     client,
     clientLoaded,
@@ -155,7 +153,9 @@ const ClientDetailPage: React.FC = () => {
       await getClientByName(decodedName);
       setIsEditing(false);
     } catch {
-      showToast("Error al actualizar cliente", "danger", "Actualizar cliente");
+      // El hook ya avisó con el motivo que devolvió el backend (se le pasa
+      // `isOnly`), así que acá sólo se evita cerrar el formulario: un segundo
+      // toast genérico taparía el mensaje útil.
     }
   };
 

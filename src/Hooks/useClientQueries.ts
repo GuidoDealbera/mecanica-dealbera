@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import { useClientStore } from "./useClientStore";
 import { useToasts } from "./useToasts";
 import { ClientQueryParams, UpdateClientBody } from "../Types/apiTypes";
+import { ensureSuccess } from "../Utils/apiResponse";
 
 /**
  * Capa de presentación sobre `useClientStore`: agrega toasts y el estado local
@@ -82,7 +83,10 @@ export const useClientQueries = () => {
     async (body: UpdateClientBody, isOnly?: boolean) => {
       setLoading(true);
       try {
-        await update(body);
+        // Ver `ensureSuccess`: el thunk resuelve igual cuando el backend rechaza
+        // la operación (nombre o teléfono ya registrados), así que sin esto el
+        // formulario avisaba que el titular se había actualizado y no era cierto.
+        ensureSuccess(await update(body));
         if (isOnly)
           showToast(
             "Cliente actualizado correctamente",
@@ -92,7 +96,9 @@ export const useClientQueries = () => {
       } catch (error) {
         if (isOnly)
           showToast(
-            "Error al actualizar cliente",
+            error instanceof Error
+              ? error.message
+              : "Error al actualizar cliente",
             "danger",
             "Actualizar Cliente"
           );

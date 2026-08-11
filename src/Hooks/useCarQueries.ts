@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useCarStore } from "./useCarStore";
 import { useToasts } from "./useToasts";
 import { CarActions } from "../Constants/car.constants";
+import { ensureSuccess } from "../Utils/apiResponse";
 import {
   CarQueryParams,
   CreateCarBody,
@@ -178,13 +179,14 @@ export const useCarQueries = () => {
     async (carId: string, kilometers: number, isOnly?: boolean) => {
       setLoading(true);
       try {
+        // `ensureSuccess` es lo que hace que un rechazo del backend (por ejemplo
+        // bajar los kilómetros) llegue al usuario: el thunk resuelve igual con
+        // `status: "failed"`, así que sin esto la pantalla seguía adelante y
+        // avisaba que la actualización había salido bien.
         const response = await updateInStore(carId, kilometers);
+        ensureSuccess(response);
         if (isOnly) {
-          showToast(
-            response.message,
-            response.result ? "success" : "warning",
-            CarActions.UPDATE
-          );
+          showToast(response.message, "success", CarActions.UPDATE);
         }
       } catch (error: any) {
         if (isOnly) showToast(error.message, "danger", CarActions.UPDATE);

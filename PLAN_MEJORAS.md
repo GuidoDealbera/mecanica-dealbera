@@ -36,7 +36,7 @@ recordatorios de service, documentos (presupuesto/factura) y resguardo de datos.
 Todos están verificados leyendo el código (y varios contra una copia de la base
 real). Son chicos y de bajo riesgo: conviene empezar por acá.
 
-1. **[a testear]** El error del auto-updater nunca llega a la interfaz
+1. **[hecho]** El error del auto-updater nunca llega a la interfaz
    - Archivos: `electron/main.ts`, `electron/preload.ts`, `global.d.ts`,
      `src/Components/Header.tsx`.
    - Diagnóstico afinado al implementar: `autoUpdater.on("error")` emitía
@@ -58,15 +58,31 @@ real). Son chicos y de bajo riesgo: conviene empezar por acá.
      porque los `ipcRenderer.on` del preload acumulaban un handler por montaje
      (en desarrollo `StrictMode` los duplica siempre).
 
-2. **[pendiente]** El historial de kilometraje suma un registro aunque el km no cambie
-   - Archivo: `electron/DataBase/Endpoints/car.crud.endpoints.ts:178`.
-   - Sólo se rechaza `kilometers < car.kilometers`; con el **mismo** valor se
-     appendea otro punto al `kmHistory`. Guardar el formulario del vehículo sin
-     tocar el kilometraje ensucia el historial (y el gráfico de KM) con puntos
-     repetidos.
-   - Solución: appendear sólo si `kilometers > car.kilometers`; si es igual,
-     actualizar el resto sin tocar el historial.
-   - Esfuerzo: mínimo · Riesgo: bajo.
+2. **[a testear]** El historial de kilometraje suma un registro aunque el km no cambie
+   - Archivos: `electron/DataBase/Endpoints/car.crud.endpoints.ts`,
+     `src/Utils/apiResponse.ts` (nuevo, + tests), `src/Hooks/useCarQueries.ts`,
+     `src/Hooks/useClientQueries.ts`, `src/Pages/CarDetailPage.tsx`,
+     `src/Pages/ClientDetailPage.tsx`.
+   - El historial ya no crece si el kilometraje no cambió (el formulario de
+     edición lo manda siempre, incluso cuando sólo se editó el titular): con km
+     igual no se escribe nada, así que tampoco se toca `updatedAt` ni se
+     invalida la caché del dashboard por una edición que no ocurrió. Se midió el
+     daño antes de decidir: 2 registros repetidos en la base de desarrollo y
+     **0** en la que tiene forma de producción, así que no hace falta una
+     migración de limpieza.
+   - Se agregó validación del kilometraje en el endpoint (entero finito y no
+     negativo): la validación con class-validator sólo cubre el alta, y `NaN` no
+     es menor que nada, así que un valor no numérico pasaba el control de "no
+     bajar los km" y se guardaba.
+   - **Bug más grave encontrado en el mismo camino**: un rechazo del backend se
+     reportaba como éxito. Los thunks **resuelven** con `status: "failed"` (sólo
+     rechazan si falla la llamada IPC), así que al bajar los kilómetros el
+     formulario del vehículo mostraba "Vehículo y titular actualizados
+     correctamente" sin haber guardado nada. Se resolvió con un helper puro
+     `ensureSuccess` en la capa de presentación (`useCarQueries.updateCar` y
+     `useClientQueries.updateOwner`), y las pantallas ahora muestran el motivo
+     que devuelve el backend en vez de un "Error al actualizar datos" genérico.
+     5 tests nuevos.
 
 3. **[pendiente]** Borrar un vehículo puede borrar al titular sin avisarlo
    - Archivos: `car.crud.endpoints.ts:214` (borra el `owner` si se quedó sin
