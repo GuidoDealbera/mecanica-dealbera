@@ -6,6 +6,8 @@ import {
   estimateKmPerDay,
   evaluateReminder,
   formatDueSummary,
+  getReminderActions,
+  getReminderBadge,
   projectKmDueDate,
 } from "./serviceReminders";
 import {
@@ -270,5 +272,112 @@ describe("formatDueSummary", () => {
 
   it("tiene un texto para el caso sin vencimiento", () => {
     expect(formatDueSummary(evaluate({}))).toBe("Sin vencimiento definido");
+  });
+});
+
+describe("getReminderActions", () => {
+  const OVERDUE = { dueDate: "2026-05-01T12:00:00Z" };
+  const UPCOMING = { dueDate: "2027-01-01T12:00:00Z" };
+  const SNOOZED = {
+    status: ReminderStatus.SNOOZED,
+    dueDate: "2026-05-01T12:00:00Z",
+    snoozedUntil: "2026-07-15T12:00:00Z",
+  };
+
+  const actionsOf = (over: Partial<Parameters<typeof evaluateReminder>[0]>) =>
+    getReminderActions(over.status ?? ReminderStatus.PENDING, evaluate(over));
+
+  it("un recordatorio vencido se puede posponer", () => {
+    const actions = actionsOf(OVERDUE);
+    expect(actions.canSnooze).toBe(true);
+    expect(actions.snoozeDisabledReason).toBeNull();
+    expect(actions.canReactivate).toBe(false);
+  });
+
+  it("uno que vence pronto también se puede posponer", () => {
+    expect(actionsOf({ dueDate: "2026-06-20T12:00:00Z" }).canSnooze).toBe(true);
+  });
+
+  it("uno al día NO se puede posponer y explica por qué", () => {
+    const actions = actionsOf(UPCOMING);
+    expect(actions.canSnooze).toBe(false);
+    expect(actions.snoozeDisabledReason).toContain("al día");
+    // Igual se puede cerrar: el service puede hacerse antes de tiempo.
+    expect(actions.canComplete).toBe(true);
+    expect(actions.canDismiss).toBe(true);
+  });
+
+  it("uno postergado no se vuelve a posponer: primero se reactiva", () => {
+    const actions = actionsOf(SNOOZED);
+    expect(actions.canSnooze).toBe(false);
+    expect(actions.canReactivate).toBe(true);
+    expect(actions.snoozeDisabledReason).toContain("postergado");
+  });
+
+  it("un postergado cuyo plazo ya venció vuelve a admitir posponer", () => {
+    const actions = actionsOf({
+      status: ReminderStatus.SNOOZED,
+      dueDate: "2026-05-01T12:00:00Z",
+      snoozedUntil: "2026-06-01T12:00:00Z",
+    });
+    expect(actions.canSnooze).toBe(true);
+    expect(actions.canReactivate).toBe(false);
+  });
+
+  it("un service hecho es un estado cerrado sin acciones", () => {
+    const actions = actionsOf({ status: ReminderStatus.DONE, ...OVERDUE });
+    expect(actions).toMatchObject({
+      canSnooze: false,
+      canReactivate: false,
+      canComplete: false,
+      canDismiss: false,
+    });
+  });
+
+  it("un descartado sólo se puede reactivar", () => {
+    const actions = actionsOf({ status: ReminderStatus.DISMISSED, ...OVERDUE });
+    expect(actions.canReactivate).toBe(true);
+    expect(actions.canComplete).toBe(false);
+    expect(actions.canDismiss).toBe(false);
+    expect(actions.canSnooze).toBe(false);
+  });
+});
+
+describe("getReminderBadge", () => {
+  it("un recordatorio vencido se muestra en danger", () => {
+    const badge = getReminderBadge(
+      ReminderStatus.PENDING,
+      evaluate({ dueDate: "2026-05-01T12:00:00Z" })
+    );
+    expect(badge).toEqual({ label: "Vencido", color: "danger" });
+  });
+
+  it("el estado cerrado gana sobre la urgencia", () => {
+    // `evaluateReminder` no evalúa los cerrados (devuelve `upcoming`): sin este
+    // ajuste, un service ya hecho se mostraba como "Al día".
+    const evaluation = evaluate({
+      status: ReminderStatus.DONE,
+      dueDate: "2026-05-01T12:00:00Z",
+    });
+    expect(evaluation.urgency).toBe("upcoming");
+    expect(getReminderBadge(ReminderStatus.DONE, evaluation)).toEqual({
+      label: "Service hecho",
+      color: "success",
+    });
+    expect(getReminderBadge(ReminderStatus.DISMISSED, evaluation).label).toBe(
+      "Descartado"
+    );
+  });
+
+  it("el postergado se muestra como tal", () => {
+    const badge = getReminderBadge(
+      ReminderStatus.SNOOZED,
+      evaluate({
+        status: ReminderStatus.SNOOZED,
+        dueDate: "2026-05-01T12:00:00Z",
+        snoozedUntil: "2026-07-15T12:00:00Z",
+      })
+    );
+    expect(badge.label).toBe("Postergado");
   });
 });

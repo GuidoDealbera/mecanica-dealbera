@@ -103,6 +103,8 @@ contextBridge.exposeInMainWorld("api", {
       await ipcRenderer.invoke("service:complete", id),
     dismiss: async (id: string) =>
       await ipcRenderer.invoke("service:dismiss", id),
+    reactivate: async (id: string) =>
+      await ipcRenderer.invoke("service:reactivate", id),
     save: async (body: SaveReminderBody) =>
       await ipcRenderer.invoke("service:save", body),
     getSettings: async () => await ipcRenderer.invoke("service:settings-get"),

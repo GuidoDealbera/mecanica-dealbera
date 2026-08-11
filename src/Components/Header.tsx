@@ -78,19 +78,24 @@ const Header = () => {
   const [pendingJobsCount, setPendingJobsCount] = React.useState(0);
   const isHome = location.pathname === "/";
 
+  // Los contadores se refrescan en cada cambio de pantalla. El Header no se
+  // desmonta nunca (vive en el Layout), así que con un efecto de montaje los
+  // badges quedaban congelados con el valor del arranque: cargar un trabajo o
+  // marcar un service como hecho no se reflejaba hasta reiniciar la app. Son dos
+  // COUNT en la base, así que navegar sale barato.
   React.useEffect(() => {
-    // Conteo de recordatorios que requieren atención (misma regla que la
-    // bandeja y que la notificación de arranque).
+    // Recordatorios que requieren atención (misma regla que la bandeja, el
+    // dashboard y la notificación de arranque).
     window.api.service
       .countDue()
       .then(setServiceAlertCount)
       .catch(() => {});
-    // Conteo de trabajos activos para el badge (COUNT liviano en la DB).
+    // Trabajos activos (pendientes o en progreso).
     window.api.cars
       .getActiveJobsCount()
       .then(setPendingJobsCount)
       .catch(() => {});
-  }, []);
+  }, [location.pathname]);
 
   // Atajos de teclado globales (navegación, búsqueda, ayuda, nuevo vehículo).
   useGlobalShortcuts({

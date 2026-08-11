@@ -3,19 +3,22 @@ import { Cars, Jobs } from "../Types/types";
 import { DocumentType, type IssuedDocument } from "../Types/apiTypes";
 import {
   computeTotals,
-  filterJobsForDocument,
+  eligibleJobsForDocument,
   renderBudgetDocument,
 } from "../Utils/budgetPdf";
 import { getPlateFontBase64 } from "../Utils/plateFont";
 
+/** Título impreso según el tipo de documento. */
+export const DOCUMENT_TITLES: Record<DocumentType, string> = {
+  [DocumentType.BUDGET]: "Presupuesto de Trabajo",
+  [DocumentType.INVOICE]: "Factura de Trabajos",
+};
+
 export interface BudgetOptions {
-  onlyCompleted?: boolean;
+  /** Tipo de documento a emitir (define la serie del correlativo). */
+  type: DocumentType;
+  /** Título impreso; por defecto, el que corresponde al tipo. */
   title?: string;
-  /**
-   * Tipo de documento a emitir (define la serie del correlativo). Si no se
-   * pasa, se deduce: sólo-completados = factura, resto = presupuesto.
-   */
-  type?: DocumentType;
 }
 
 /**
@@ -28,27 +31,27 @@ export const useBudgetPDF = () => {
 
   /**
    * Emite el documento (asigna su número correlativo en la DB) y descarga el
-   * PDF. Devuelve el documento emitido para que el consumidor pueda mostrar el
+   * PDF. `jobs` son los trabajos ya elegidos por el usuario en el modal.
+   * Devuelve el documento emitido para que el consumidor pueda mostrar el
    * número. Si algo falla, descarta el número y lanza el error.
    */
   const generatePDF = useCallback(
     async (
       car: Cars,
       jobs: Jobs[],
-      options: BudgetOptions = {}
+      options: BudgetOptions
     ): Promise<IssuedDocument> => {
       setIsGenerating(true);
       setError(null);
 
       let issuedId: string | null = null;
       try {
-        const { title = "Presupuesto de Trabajo", onlyCompleted = false } =
-          options;
-        const docType =
-          options.type ??
-          (onlyCompleted ? DocumentType.INVOICE : DocumentType.BUDGET);
+        const docType = options.type;
+        const { title = DOCUMENT_TITLES[docType] } = options;
 
-        const filteredJobs = filterJobsForDocument(jobs, onlyCompleted);
+        // La elegibilidad se vuelve a aplicar acá (no sólo en la UI): ningún
+        // documento debe poder incluir un trabajo ya entregado.
+        const filteredJobs = eligibleJobsForDocument(jobs, docType);
         // Los totales se calculan antes de emitir: el total forma parte del
         // registro del documento (snapshot de lo que se entregó).
         const totals = computeTotals(filteredJobs);
@@ -74,7 +77,6 @@ export const useBudgetPDF = () => {
           docNumber,
           docType,
           title,
-          onlyCompleted,
           plateFontBase64: getPlateFontBase64(),
         });
 

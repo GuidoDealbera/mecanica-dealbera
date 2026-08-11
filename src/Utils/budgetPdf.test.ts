@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import fs from "node:fs";
 import {
   computeTotals,
-  filterJobsForDocument,
+  eligibleJobsForDocument,
   renderBudgetDocument,
 } from "./budgetPdf";
 import { DocumentType, JobStatus } from "../Types/apiTypes";
@@ -74,7 +74,6 @@ const render = (over: Partial<Parameters<typeof renderBudgetDocument>[0]>) => {
     docNumber: "PRE-000123",
     docType: DocumentType.BUDGET,
     title: "Presupuesto de Trabajo",
-    onlyCompleted: false,
     ...over,
   });
 };
@@ -103,14 +102,29 @@ describe("computeTotals", () => {
   });
 });
 
-describe("filterJobsForDocument", () => {
-  it("con onlyCompleted deja sólo completados y entregados", () => {
-    const filtered = filterJobsForDocument(jobs, true);
-    expect(filtered.map((j) => j.id)).toEqual(["j1", "j2"]);
+describe("eligibleJobsForDocument", () => {
+  it("la factura sólo admite trabajos completados", () => {
+    const filtered = eligibleJobsForDocument(jobs, DocumentType.INVOICE);
+    expect(filtered.map((j) => j.id)).toEqual(["j1"]);
   });
 
-  it("sin onlyCompleted deja todos", () => {
-    expect(filterJobsForDocument(jobs, false)).toHaveLength(jobs.length);
+  it("el presupuesto admite todo menos los entregados", () => {
+    const filtered = eligibleJobsForDocument(jobs, DocumentType.BUDGET);
+    expect(filtered.map((j) => j.id)).toEqual(["j1", "j3", "j4"]);
+  });
+
+  it("nunca incluye trabajos entregados (ya cobrados)", () => {
+    for (const type of [DocumentType.BUDGET, DocumentType.INVOICE]) {
+      expect(
+        eligibleJobsForDocument(jobs, type).some(
+          (j) => j.status === JobStatus.DELIVERED
+        )
+      ).toBe(false);
+    }
+  });
+
+  it("no rompe con una lista vacía", () => {
+    expect(eligibleJobsForDocument([], DocumentType.INVOICE)).toEqual([]);
   });
 });
 
@@ -153,15 +167,15 @@ describe("renderBudgetDocument", () => {
   });
 
   it("emite factura sin la nota de validez y presupuesto con ella", () => {
+    const included = eligibleJobsForDocument(jobs, DocumentType.INVOICE);
     const invoice = render({
       docType: DocumentType.INVOICE,
       title: "Factura de Trabajos",
-      onlyCompleted: true,
-      jobs: filterJobsForDocument(jobs, true),
+      jobs: included,
     });
     expect(invoice.getNumberOfPages()).toBe(1);
     // El presupuesto imprime una línea extra (validez), así que pesa más.
-    const budget = render({ jobs: filterJobsForDocument(jobs, true) });
+    const budget = render({ jobs: included });
     expect(sizeOf(budget)).toBeGreaterThan(sizeOf(invoice));
   });
 });

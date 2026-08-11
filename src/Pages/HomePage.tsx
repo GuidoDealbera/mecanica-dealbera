@@ -27,6 +27,8 @@ import {
 } from "recharts";
 import { DashboardStats } from "../Types/types";
 import LicenceTable from "../Components/Licenses/LicenceTable";
+import EmptyState from "../Components/EmptyState";
+import PageShell from "../Components/PageShell";
 import { formatARS } from "../Utils/utils";
 import { useToasts } from "../Hooks/useToasts";
 import { useChartTheme } from "../Theme/useChartTheme";
@@ -111,27 +113,46 @@ const HomePage: React.FC = () => {
   const hasJobStatus = jobStatusData.length > 0;
   const hasRevenue = stats?.monthlyRevenue?.some((m) => m.revenue > 0) ?? false;
 
-  return (
-    <div className="w-full h-full min-h-0 overflow-y-auto overflow-x-hidden bg-content1 rounded-md p-5 text-foreground">
-      {/* El contenedor que scrollea no maquetea: la columna va en este wrapper
-          interno. Como flex column, las Cards (con `overflow-hidden`, y por eso
-          mínimo automático 0) se comprimirían en vez de desbordar. */}
-      <div className="flex flex-col gap-6">
-        {/* Title */}
-        <div className="flex justify-between items-center">
-          <h1 className="font-michroma text-4xl md:text-5xl italic text-primary-500 font-bold">
-            MECÁNICA DEALBERA
-          </h1>
-          <Button
-            color="primary"
-            isLoading={loading}
-            onPress={() => fetchStats(true)}
-            startContent={!loading ? <HiOutlineRefresh size={20} /> : undefined}
-          >
-            {loading ? "Actualizando..." : "Actualizar"}
-          </Button>
-        </div>
+  // Cabecera fija: título y acciones. Las dos acciones frecuentes del taller
+  // (ingresar un vehículo y cargar un trabajo) viven acá y no al pie del
+  // dashboard, así quedan siempre a la vista sin depender del scroll.
+  const header = (
+    <div className="flex flex-wrap justify-between items-center gap-3">
+      <h1 className="font-michroma text-3xl md:text-4xl italic text-primary-500 font-bold">
+        MECÁNICA DEALBERA
+      </h1>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
+          onPress={() => navigate("/cars/new")}
+          startContent={<IoCarSportSharp size={18} />}
+          color="primary"
+        >
+          Ingresar Vehículo
+        </Button>
+        <Button
+          onPress={() => navigate("/cars/add-job")}
+          startContent={<MdPostAdd size={18} />}
+          color="primary"
+          variant="bordered"
+        >
+          Nuevo Trabajo
+        </Button>
+        <Button
+          variant="flat"
+          isIconOnly={!loading}
+          isLoading={loading}
+          onPress={() => fetchStats(true)}
+          aria-label="Actualizar estadísticas"
+        >
+          {!loading && <HiOutlineRefresh size={20} />}
+        </Button>
+      </div>
+    </div>
+  );
 
+  return (
+    <PageShell header={header}>
+      <div className="flex flex-col gap-6 pb-2">
         {loading && !stats ? (
           <div className="flex justify-center items-center h-64">
             <Spinner size="lg" color="primary" />
@@ -273,22 +294,23 @@ const HomePage: React.FC = () => {
               </Card>
             </div>
 
-            {/* Alerts */}
+            {/* Alerts — el número es el mismo que el badge de la barra y el de
+                la bandeja: sale de `countDueReminders`. El texto anterior
+                ("sin service en los últimos 6 meses") describía la heurística
+                vieja y ya no coincidía con lo que se contaba. */}
             {stats.carsWithAlerts > 0 && (
-              <Card className="bg-warning-900/30 border border-warning-700 shadow shadow-warning-800">
+              <Card className="bg-warning/10 border border-warning/40">
                 <CardBody className="flex flex-row items-center gap-3 p-4">
-                  <MdWarning
-                    size={24}
-                    className="text-warning-400 flex-shrink-0"
-                  />
+                  <MdWarning size={24} className="text-warning flex-shrink-0" />
                   <div className="flex-1">
-                    <p className="text-warning-300 font-semibold">
-                      {stats.carsWithAlerts} vehículo
-                      {stats.carsWithAlerts > 1 ? "s" : ""} sin service en los
-                      últimos 6 meses
+                    <p className="text-warning font-semibold">
+                      {stats.carsWithAlerts === 1
+                        ? "1 vehículo requiere service"
+                        : `${stats.carsWithAlerts} vehículos requieren service`}
                     </p>
-                    <p className="text-warning-400 text-sm">
-                      Revisalos en Recordatorios de service
+                    <p className="text-foreground-500 text-sm">
+                      Recordatorios vencidos o por vencer, por fecha o por
+                      kilometraje.
                     </p>
                   </div>
                   <Button
@@ -336,51 +358,18 @@ const HomePage: React.FC = () => {
                 </div>
               </div>
             )}
-
-            {/* Quick actions */}
-            <div className="flex flex-wrap gap-3 mt-auto pt-4 border-t border-divider">
-              <Button
-                onPress={() => navigate("/cars/new")}
-                startContent={<IoCarSportSharp />}
-                color="primary"
-                className="text-base"
-              >
-                Ingresar Vehículo
-              </Button>
-              <Button
-                onPress={() => navigate("/cars/add-job")}
-                startContent={<MdPostAdd />}
-                color="primary"
-                variant="bordered"
-                className="text-base"
-              >
-                Nuevo Trabajo
-              </Button>
-            </div>
           </>
         ) : (
-          <div className="flex flex-wrap gap-3">
-            <Button
-              onPress={() => navigate("/cars/new")}
-              startContent={<IoCarSportSharp />}
-              color="primary"
-              className="text-lg"
-            >
-              Ingresar Vehículo
-            </Button>
-            <Button
-              onPress={() => navigate("/cars/add-job")}
-              startContent={<MdPostAdd />}
-              color="primary"
-              variant="bordered"
-              className="text-lg"
-            >
-              Nuevo Trabajo
-            </Button>
-          </div>
+          // Las acciones rápidas ya están en la cabecera fija, así que acá sólo
+          // hace falta explicar por qué no hay datos.
+          <EmptyState
+            icon={<MdBarChart size={28} />}
+            title="Sin estadísticas para mostrar"
+            description="No se pudieron obtener los datos del dashboard. Probá actualizar; si sigue igual, revisá los logs en Gestión de datos."
+          />
         )}
       </div>
-    </div>
+    </PageShell>
   );
 };
 

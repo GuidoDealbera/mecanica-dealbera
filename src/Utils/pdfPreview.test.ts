@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import {
   computeTotals,
-  filterJobsForDocument,
+  eligibleJobsForDocument,
   renderBudgetDocument,
 } from "./budgetPdf";
 import { DocumentType, JobStatus } from "../Types/apiTypes";
@@ -77,7 +77,6 @@ describe.skipIf(!OUT)("muestras de PDF", () => {
         name: "presupuesto",
         docType: DocumentType.BUDGET,
         title: "Presupuesto de Trabajo",
-        onlyCompleted: false,
         docNumber: "PRE-000123",
         jobs,
       },
@@ -85,7 +84,6 @@ describe.skipIf(!OUT)("muestras de PDF", () => {
         name: "factura",
         docType: DocumentType.INVOICE,
         title: "Factura de Trabajos",
-        onlyCompleted: true,
         docNumber: "FAC-000045",
         jobs,
       },
@@ -93,14 +91,13 @@ describe.skipIf(!OUT)("muestras de PDF", () => {
         name: "sin-trabajos",
         docType: DocumentType.BUDGET,
         title: "Presupuesto de Trabajo",
-        onlyCompleted: false,
         docNumber: "PRE-000124",
         jobs: [] as Jobs[],
       },
     ];
 
     for (const c of cases) {
-      const included = filterJobsForDocument(c.jobs, c.onlyCompleted);
+      const included = eligibleJobsForDocument(c.jobs, c.docType);
       const doc = renderBudgetDocument({
         car,
         jobs: included,
@@ -108,7 +105,6 @@ describe.skipIf(!OUT)("muestras de PDF", () => {
         docNumber: c.docNumber,
         docType: c.docType,
         title: c.title,
-        onlyCompleted: c.onlyCompleted,
         plateFontBase64,
       });
       fs.writeFileSync(

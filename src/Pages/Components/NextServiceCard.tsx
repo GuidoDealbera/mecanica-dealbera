@@ -1,11 +1,8 @@
 import React from "react";
-import { Button, Chip, Spinner, Tooltip } from "@heroui/react";
+import { Chip, Spinner } from "@heroui/react";
+import { MdNotificationsActive, MdSchedule } from "react-icons/md";
 import {
-  MdCheckCircle,
-  MdNotificationsActive,
-  MdSchedule,
-} from "react-icons/md";
-import {
+  APIResponse,
   DEFAULT_SERVICE_SETTINGS,
   SERVICE_TYPE_LABELS,
   ServiceReminderView,
@@ -14,11 +11,11 @@ import {
 import {
   evaluateReminder,
   formatDueSummary,
-  URGENCY_COLOR,
-  URGENCY_LABELS,
+  getReminderBadge,
 } from "../../Utils/serviceReminders";
 import { formatDate } from "../../Utils/utils";
 import { useToasts } from "../../Hooks/useToasts";
+import ReminderActions from "./ReminderActions";
 
 interface NextServiceCardProps {
   licensePlate: string;
@@ -26,8 +23,8 @@ interface NextServiceCardProps {
 
 /**
  * Bloque "Próximo service" de la ficha del vehículo: muestra los recordatorios
- * vigentes con su urgencia y permite marcar el service como hecho (lo que
- * programa el siguiente) o posponerlo.
+ * vigentes con su urgencia y las acciones disponibles según el estado
+ * (`ReminderActions`, compartido con la bandeja de `/alerts`).
  */
 const NextServiceCard: React.FC<NextServiceCardProps> = ({ licensePlate }) => {
   const { showToast } = useToasts();
@@ -47,10 +44,19 @@ const NextServiceCard: React.FC<NextServiceCardProps> = ({ licensePlate }) => {
       ]);
       setReminders(list);
       setSettings(currentSettings);
+    } catch (error) {
+      setReminders([]);
+      showToast(
+        error instanceof Error
+          ? error.message
+          : "No se pudo cargar el próximo service",
+        "danger",
+        "Service"
+      );
     } finally {
       setLoading(false);
     }
-  }, [licensePlate]);
+  }, [licensePlate, showToast]);
 
   React.useEffect(() => {
     fetch();
@@ -58,7 +64,7 @@ const NextServiceCard: React.FC<NextServiceCardProps> = ({ licensePlate }) => {
 
   const runAction = async (
     id: string,
-    action: () => Promise<{ status: string; message: string }>
+    action: () => Promise<APIResponse<unknown>>
   ) => {
     setActioningId(id);
     try {
@@ -102,27 +108,24 @@ const NextServiceCard: React.FC<NextServiceCardProps> = ({ licensePlate }) => {
           kmPerDay: reminder.kmPerDay,
           settings,
         });
+        const badge = getReminderBadge(reminder.status, evaluation);
 
         return (
           <div
             key={reminder.id}
-            className="flex items-center gap-3 p-3 rounded-lg bg-content2 border border-divider"
+            className="flex flex-wrap items-center gap-3 p-3 rounded-lg bg-content2 border border-divider"
           >
             <MdNotificationsActive
               size={18}
               className="text-warning-500 flex-shrink-0"
             />
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-[200px]">
               <div className="flex items-center gap-2 flex-wrap">
                 <p className="text-sm font-medium">
                   {SERVICE_TYPE_LABELS[reminder.type]}
                 </p>
-                <Chip
-                  size="sm"
-                  color={URGENCY_COLOR[evaluation.urgency]}
-                  variant="flat"
-                >
-                  {URGENCY_LABELS[evaluation.urgency]}
+                <Chip size="sm" color={badge.color} variant="flat">
+                  {badge.label}
                 </Chip>
               </div>
               <p className="text-foreground-400 text-xs">
@@ -131,6 +134,14 @@ const NextServiceCard: React.FC<NextServiceCardProps> = ({ licensePlate }) => {
                 {reminder.dueKm !== null &&
                   ` · ${reminder.dueKm.toLocaleString("es-AR")} km`}
               </p>
+              {/* Al posponer, esto es lo que cambia a la vista: hasta cuándo
+                  quedó postergado (el vencimiento no se toca). */}
+              {evaluation.urgency === "snoozed" && reminder.snoozedUntil && (
+                <p className="text-primary-500 text-xs flex items-center gap-1">
+                  <MdSchedule size={12} />
+                  Postergado hasta {formatDate(reminder.snoozedUntil)}
+                </p>
+              )}
               {evaluation.projectedKmDate && (
                 <p className="text-foreground-500 text-xs">
                   Al ritmo actual llegaría al kilometraje el{" "}
@@ -139,41 +150,12 @@ const NextServiceCard: React.FC<NextServiceCardProps> = ({ licensePlate }) => {
               )}
             </div>
 
-            <Tooltip content="Posponer 30 días" color="primary" showArrow>
-              <Button
-                isIconOnly
-                size="sm"
-                variant="flat"
-                isDisabled={actioningId === reminder.id}
-                onPress={() =>
-                  runAction(reminder.id, () =>
-                    window.api.service.snooze(reminder.id, 30)
-                  )
-                }
-              >
-                <MdSchedule size={16} />
-              </Button>
-            </Tooltip>
-            <Tooltip
-              content="Service hecho (programa el próximo)"
-              color="primary"
-              showArrow
-            >
-              <Button
-                isIconOnly
-                size="sm"
-                color="primary"
-                variant="flat"
-                isDisabled={actioningId === reminder.id}
-                onPress={() =>
-                  runAction(reminder.id, () =>
-                    window.api.service.complete(reminder.id)
-                  )
-                }
-              >
-                <MdCheckCircle size={16} />
-              </Button>
-            </Tooltip>
+            <ReminderActions
+              reminder={reminder}
+              evaluation={evaluation}
+              isBusy={actioningId === reminder.id}
+              onRun={(action) => runAction(reminder.id, action)}
+            />
           </div>
         );
       })}

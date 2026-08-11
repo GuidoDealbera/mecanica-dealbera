@@ -120,6 +120,7 @@ declare global {
         ) => Promise<APIResponse<ServiceReminderView>>;
         complete: (id: string) => Promise<APIResponse<ServiceReminderView>>;
         dismiss: (id: string) => Promise<APIResponse>;
+        reactivate: (id: string) => Promise<APIResponse<ServiceReminderView>>;
         save: (
           body: SaveReminderBody
         ) => Promise<APIResponse<ServiceReminderView>>;

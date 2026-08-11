@@ -1,51 +1,42 @@
 import React from "react";
-import {
-  Button,
-  Dropdown,
-  DropdownItem,
-  DropdownMenu,
-  DropdownTrigger,
-  Tooltip,
-} from "@heroui/react";
+import { Button, Tooltip } from "@heroui/react";
 import { MdPictureAsPdf } from "react-icons/md";
-import { IoChevronDown } from "react-icons/io5";
 import { Cars, Jobs } from "../Types/types";
 import { DocumentType } from "../Types/apiTypes";
 import { useBudgetPDF } from "../Hooks/useBudgetPdf";
 import { useToasts } from "../Hooks/useToasts";
-import { HiDownload } from "react-icons/hi";
+import DocumentModal from "./DocumentModal";
 
 interface BudgetButtonProps {
   car: Cars;
   jobs: Jobs[];
-  compact?: boolean;
   className?: string;
 }
 
+/**
+ * Acceso a la emisión de documentos del vehículo. Abre el modal donde se elige
+ * el tipo (presupuesto o factura) y qué trabajos entran; antes era un desplegable
+ * que emitía de una con todos los trabajos, sin posibilidad de elegir.
+ */
 const BudgetButton: React.FC<BudgetButtonProps> = ({
   car,
   jobs,
-  compact = false,
   className,
 }) => {
   const { generatePDF, isGenerating } = useBudgetPDF();
   const { showToast } = useToasts();
+  const [isOpen, setIsOpen] = React.useState(false);
 
-  const handleGenerate = React.useCallback(
-    async (onlyCompleted: boolean) => {
+  const handleConfirm = React.useCallback(
+    async (type: DocumentType, selected: Jobs[]) => {
       try {
-        const issued = await generatePDF(car, jobs, {
-          title: onlyCompleted
-            ? "Factura de Trabajos"
-            : "Presupuesto de Trabajo",
-          onlyCompleted,
-          type: onlyCompleted ? DocumentType.INVOICE : DocumentType.BUDGET,
-        });
+        const issued = await generatePDF(car, selected, { type });
         showToast(
           `Descargado con éxito — N° ${issued.formatted}`,
           "success",
-          onlyCompleted ? "Factura" : "Presupuesto"
+          type === DocumentType.INVOICE ? "Factura" : "Presupuesto"
         );
+        setIsOpen(false);
       } catch (err) {
         showToast(
           err instanceof Error ? err.message : "Error al generar el PDF",
@@ -54,64 +45,42 @@ const BudgetButton: React.FC<BudgetButtonProps> = ({
         );
       }
     },
-    [car, jobs, generatePDF, showToast]
+    [car, generatePDF, showToast]
   );
 
-  if (compact) {
-    return (
+  return (
+    <>
       <Tooltip
-        content="Imprimir presupuesto"
-        placement="bottom"
+        content={
+          jobs.length === 0
+            ? "El vehículo todavía no tiene trabajos"
+            : "Emitir presupuesto o factura"
+        }
         color="primary"
+        placement="bottom"
         showArrow
       >
-        <Button
-          isIconOnly
-          color="primary"
-          isLoading={isGenerating}
-          className={className}
-          onPress={() => handleGenerate(false)}
-        >
-          {!isGenerating && <MdPictureAsPdf size={20} />}
-        </Button>
-      </Tooltip>
-    );
-  }
-
-  return (
-    <div className={`flex items-center ${className ?? ""}`}>
-      <Dropdown isDisabled={isGenerating || jobs.length === 0} showArrow>
-        <DropdownTrigger>
+        <span className={`inline-flex ${className ?? ""}`}>
           <Button
             color="primary"
-            isLoading={isGenerating}
-            endContent={<IoChevronDown size={14} />}
-            startContent={!isGenerating ? <HiDownload size={14} /> : undefined}
-            isDisabled={isGenerating || jobs.length === 0}
+            startContent={<MdPictureAsPdf size={16} />}
+            isDisabled={jobs.length === 0}
+            onPress={() => setIsOpen(true)}
           >
-            {isGenerating ? "Descargando..." : "Descargar"}
+            Presupuesto / Factura
           </Button>
-        </DropdownTrigger>
-        <DropdownMenu aria-label="Opciones de PDF">
-          <DropdownItem
-            key="all"
-            startContent={<MdPictureAsPdf size={16} />}
-            description="Incluye todos los trabajos"
-            onPress={() => handleGenerate(false)}
-          >
-            Presupuesto completo
-          </DropdownItem>
-          <DropdownItem
-            key="completed"
-            startContent={<MdPictureAsPdf size={16} />}
-            description="Solo trabajos completados y entregados"
-            onPress={() => handleGenerate(true)}
-          >
-            Factura (solo completados)
-          </DropdownItem>
-        </DropdownMenu>
-      </Dropdown>
-    </div>
+        </span>
+      </Tooltip>
+
+      <DocumentModal
+        isOpen={isOpen}
+        onClose={() => setIsOpen(false)}
+        car={car}
+        jobs={jobs}
+        isGenerating={isGenerating}
+        onConfirm={handleConfirm}
+      />
+    </>
   );
 };
 

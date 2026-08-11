@@ -2,11 +2,13 @@ import { In } from "typeorm";
 import { handleIpc } from "../../ipc";
 import { escapeLike, resolvePage } from "../../pagination";
 import { AppDataSource, getRepositories } from "../dataSource";
+import { invalidateDashboardStatsCache } from "../dashboardCache";
 import { ServiceReminder } from "../Entities/serviceReminder.entity";
 import {
   ACTIVE_STATUSES,
   completeAndScheduleNext,
   countDueReminders,
+  findActiveReminder,
   getServiceSettings,
   reactivateExpiredSnoozes,
   saveServiceSettings,
@@ -21,7 +23,11 @@ import {
   type ServiceReminderView,
   type ServiceSettings,
 } from "../../../src/Types/apiTypes";
-import { estimateKmPerDay } from "../../../src/Utils/serviceReminders";
+import {
+  estimateKmPerDay,
+  evaluateReminder,
+  getReminderActions,
+} from "../../../src/Utils/serviceReminders";
 
 // ── Recordatorios de service ────────────────────────────────────────────
 // La bandeja se resuelve en la base (filtro + orden + paginado), igual que el
@@ -84,6 +90,9 @@ handleIpc(
       settings ?? {},
       AppDataSource.manager
     );
+    // Cambiar los umbrales cambia cuántos recordatorios "vencen", así que el
+    // conteo del dashboard queda viejo.
+    invalidateDashboardStatsCache();
     return {
       status: "success",
       message: "Configuración de service actualizada",
@@ -150,10 +159,19 @@ handleIpc(
     }
 
     // Los recordatorios sin fecha (sólo por kilometraje) se ordenan al final.
+    //
+    // Ojo con `offset/limit` en vez de `skip/take`: con `skip/take` TypeORM
+    // resuelve el paginado en dos pasos (subconsulta de ids distintos) y para eso
+    // necesita mapear cada `ORDER BY` a una columna de la entidad. Al no poder
+    // mapear la expresión `reminder.dueDate IS NULL` fallaba con un TypeError
+    // (`Cannot read properties of undefined (reading 'databaseName')`) y el
+    // listado llegaba vacío al renderer. `offset/limit` aplica LIMIT/OFFSET
+    // directo, que acá es correcto porque los joins son *-a-uno (no multiplican
+    // filas).
     qb.orderBy("reminder.dueDate IS NULL", "ASC")
       .addOrderBy("reminder.dueDate", "ASC")
-      .skip(skip)
-      .take(take);
+      .offset(skip)
+      .limit(take);
 
     const [items, total] = await qb.getManyAndCount();
     return { items: items.map(toView), total, page, pageSize };
@@ -182,7 +200,30 @@ handleIpc(
   }
 );
 
-/** Posterga un recordatorio N días (vuelve a aparecer al vencer el plazo). */
+/**
+ * Evalúa un recordatorio con la configuración vigente. Es la misma función que
+ * usa el renderer para pintar la urgencia, así la UI y el backend nunca
+ * discrepan sobre si un recordatorio "vence" o "está al día".
+ */
+const evaluate = async (reminder: ServiceReminder) =>
+  evaluateReminder({
+    status: reminder.status,
+    dueDate: reminder.dueDate,
+    dueKm: reminder.dueKm,
+    snoozedUntil: reminder.snoozedUntil,
+    currentKm: reminder.car?.kilometers ?? 0,
+    kmPerDay: estimateKmPerDay(reminder.car?.kmHistory),
+    settings: await getServiceSettings(AppDataSource.manager),
+  });
+
+/**
+ * Posterga un recordatorio N días (vuelve a aparecer al vencer el plazo).
+ *
+ * Sólo se puede posponer lo que ya venció o está por vencer: posponer un service
+ * al día no cambia su vencimiento (sólo lo esconde), y un postergado hay que
+ * reactivarlo antes de volver a estirarlo. La regla vive en `getReminderActions`
+ * y se valida acá, no sólo en la UI.
+ */
 handleIpc(
   "service:snooze",
   async (
@@ -195,6 +236,19 @@ handleIpc(
       return { status: "failed", message: "Recordatorio no encontrado" };
     }
 
+    const actions = getReminderActions(
+      reminder.status,
+      await evaluate(reminder)
+    );
+    if (!actions.canSnooze) {
+      return {
+        status: "failed",
+        message:
+          actions.snoozeDisabledReason ??
+          "Este recordatorio no se puede posponer",
+      };
+    }
+
     const safeDays = Math.min(Math.max(Math.round(Number(days) || 0), 1), 365);
     const until = new Date();
     until.setDate(until.getDate() + safeDays);
@@ -203,6 +257,7 @@ handleIpc(
     reminder.snoozedUntil = until;
     const saved =
       await getRepositories().serviceReminderRepository.save(reminder);
+    invalidateDashboardStatsCache();
 
     return {
       status: "success",
@@ -252,12 +307,26 @@ handleIpc(
         return { status: "failed", message: "Recordatorio no encontrado" };
       }
 
+      // Un recordatorio cerrado no se vuelve a completar: el hecho ya programó
+      // su siguiente, y completar un descartado generaría uno inesperado.
+      if (
+        !getReminderActions(reminder.status, await evaluate(reminder))
+          .canComplete
+      ) {
+        await qr.rollbackTransaction();
+        return {
+          status: "failed",
+          message: "Este recordatorio ya está cerrado",
+        };
+      }
+
       const next = await completeAndScheduleNext(
         qr.manager,
         reminder.car,
         reminder.type
       );
       await qr.commitTransaction();
+      invalidateDashboardStatsCache();
 
       next.car = reminder.car;
       return {
@@ -279,17 +348,79 @@ handleIpc(
   "service:dismiss",
   async (_event, id: string): Promise<APIResponse> => {
     const repo = getRepositories().serviceReminderRepository;
-    const reminder = await repo.findOne({ where: { id } });
+    const reminder = await findReminder(id);
     if (!reminder) {
       return { status: "failed", message: "Recordatorio no encontrado" };
+    }
+    if (
+      !getReminderActions(reminder.status, await evaluate(reminder)).canDismiss
+    ) {
+      return { status: "failed", message: "Este recordatorio ya está cerrado" };
     }
     reminder.status = ReminderStatus.DISMISSED;
     reminder.snoozedUntil = null;
     await repo.save(reminder);
+    invalidateDashboardStatsCache();
     return {
       status: "success",
       message: "Recordatorio descartado",
       result: undefined,
+    };
+  }
+);
+
+/**
+ * Vuelve a poner vigente un recordatorio postergado o descartado. Es la
+ * contraparte de posponer/descartar: sin esto, esconder un recordatorio era
+ * irreversible desde la interfaz.
+ */
+handleIpc(
+  "service:reactivate",
+  async (_event, id: string): Promise<APIResponse<ServiceReminderView>> => {
+    const repo = getRepositories().serviceReminderRepository;
+    const reminder = await findReminder(id);
+    if (!reminder) {
+      return { status: "failed", message: "Recordatorio no encontrado" };
+    }
+
+    if (
+      !getReminderActions(reminder.status, await evaluate(reminder))
+        .canReactivate
+    ) {
+      return {
+        status: "failed",
+        message:
+          reminder.status === ReminderStatus.DONE
+            ? "El service ya fue registrado como hecho"
+            : "El recordatorio ya está vigente",
+      };
+    }
+
+    // Invariante: un solo recordatorio vigente por vehículo y tipo. Al reactivar
+    // un descartado hay que asegurarse de que no haya otro ocupando su lugar
+    // (por ejemplo, uno generado después al completar un service).
+    if (reminder.status === ReminderStatus.DISMISSED) {
+      const active = await findActiveReminder(
+        AppDataSource.manager,
+        reminder.car.id,
+        reminder.type
+      );
+      if (active) {
+        return {
+          status: "failed",
+          message: "El vehículo ya tiene un recordatorio vigente de este tipo",
+        };
+      }
+    }
+
+    reminder.status = ReminderStatus.PENDING;
+    reminder.snoozedUntil = null;
+    const saved = await repo.save(reminder);
+    invalidateDashboardStatsCache();
+    return {
+      status: "success",
+      message: "Recordatorio reactivado",
+      result: toView(saved),
     };
   }
 );

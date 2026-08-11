@@ -1,229 +1,407 @@
 # Plan de Mejoras — Mecánica Dealbera
 
-Estado de las 33 tareas del plan de mejoras. Un sprint por sesión de trabajo, un commit por tarea.
-Este archivo se actualiza a medida que se avanza para poder retomar en cualquier sesión futura.
+Revisión integral del proyecto al **10/08/2026**, hecha después de cerrar el plan
+anterior (33 tareas, sprints 0 a 7). Este archivo reemplaza ese plan: lo que
+estaba hecho quedó en el historial de git y en los commits; acá queda **sólo lo
+que falta**, ordenado por valor y riesgo.
 
 Estados posibles: `pendiente` · `en progreso` · `a testear` · `hecho`
 
+Convención de trabajo: una tarea por vez → implementar → probar → commitear.
+
 ---
 
-## Sprint 0 — Fixes urgentes
+## Contexto del proyecto
 
-1. **[hecho]** Try-catch en `JSON.parse` de migración `AddPartsToExistingJobs`
-   - Archivo: `electron/DataBase/Migrations/AddPartsToExistingJobs1700000002000.ts`
-   - Cambios: try-catch en `up` y `down` alrededor del `JSON.parse(car.jobs)`; si falla, loguea `carId` + error con `electron-log` y hace `continue` (no aborta la migración completa).
-2. **[hecho]** `car:reassign-owner` sin transacción QueryRunner
-   - Archivo: `electron/DataBase/Endpoints/car.endpoints.ts:322`
-   - Cambios: handler reescrito con QueryRunner (connect/startTransaction/commit/rollback/release) siguiendo el patrón de `car:delete` y `car:create`. Toda validación de fallo hace rollback antes de retornar; catch general loguea y hace rollback.
-3. **[hecho]** `client:update` busca por `fullname` en lugar de `id`
-   - Archivo: `electron/DataBase/Endpoints/client.endpoints.ts:118`
-   - Cambios: nuevo `UpdateClientDto` (id requerido) en `client.dto.ts`; endpoint busca por `id` y permite renombrar con chequeo de duplicado. Nuevo tipo frontend `UpdateClientBody` (`apiTypes.ts`) propagado por `client.service.ts`, `clientAsync.methods.ts`, `useClientQueries.ts`, `global.d.ts` y `preload.ts`. Call sites: `ClientDetailPage` (guard + `id`) y `CarDetailPage` (`id` del owner cargado). Desbloquea renombrar clientes a nivel API.
-4. **[hecho]** Sin debounce en barras de búsqueda
-   - Archivos: `src/Components/SearchBars/FilterLicence.tsx`, `FilterName.tsx`, `GlobalSearch.tsx`
-   - Cambios: nuevo hook `useDebounce<T>(value, delay)` en `src/Hooks/`. FilterLicence/FilterName mantienen input+validación inmediatos y debouncean `onFilterChange` (250ms, skip primer render). Callbacks de CarsPage/ClientPage envueltos en `useCallback`. GlobalSearch migrado del debounce inline (`debounceRef`) al hook compartido (280ms).
+Aplicación de escritorio (Electron + React 18 + Redux Toolkit + TypeORM/SQLite)
+para la gestión de un taller mecánico: vehículos, titulares, trabajos,
+recordatorios de service, documentos (presupuesto/factura) y resguardo de datos.
 
-## Sprint 1 — Fundaciones de calidad
+- **Renderer**: React + HeroUI + Tailwind v4, HashRouter con rutas diferidas,
+  layout de alto fijo (`PageShell`) y tema claro/oscuro (`hero.ts` como fuente de
+  verdad de la paleta).
+- **Main**: endpoints IPC por dominio (`electron/DataBase/Endpoints/*`) envueltos
+  en `handleIpc`, migraciones automáticas al iniciar, logs estructurados
+  (`electron-log`), auto-update y respaldo diario.
+- **Reglas de dominio compartidas** entre main y renderer en `src/Utils/`
+  (`serviceReminders.ts`, `budgetPdf.ts`, `timeline.ts`): son módulos puros y son
+  los únicos con tests.
+- **Verificación**: `npx tsc --noEmit`, `npm run lint`, `npx vitest run`,
+  `npx vite build`, `npm run format:check`.
 
-5. **[hecho]** Setup Vitest + tests de utilidades (formatDate, formatARS, alertas de service)
-   - Archivos: `vitest.config.ts` (nuevo), `src/Utils/serviceAlerts.ts` (nuevo), `src/Utils/utils.test.ts` (nuevo), `src/Utils/serviceAlerts.test.ts` (nuevo), `src/Pages/ServiceAlertsPage.tsx` (refactor), `package.json` (scripts `test`/`test:watch`).
-   - Cambios: instalado `vitest` (dev). Config aislada en `vitest.config.ts` (entorno `node`, sin plugin de Electron). Lógica de urgencia de alertas extraída de `ServiceAlertsPage` a `serviceAlerts.ts` (`getServiceUrgency`, `formatServiceUrgencyLabel`) para poder testearla pura. 36 tests: utilidades (`formatLicence`, `capitalizeWords`, `formatDate`, `formatThousands`, `parseNumber`, `formatARS`, `formatNumbers`, `normalizeText`, `toCsv`) + alertas de service. Correr con `npm test`.
-6. **[hecho]** Índices DB
-   - Archivos: `electron/DataBase/Migrations/AddOwnerIndex1700000003000.ts` (nuevo), `electron/DataBase/Entities/car.entity.ts`, `electron/DataBase/dataSource.ts`.
-   - Cambios: **ajuste de alcance respecto al plan original.** `licensePlate`, `fullname` y `phone` ya tienen índice automático por su restricción `UNIQUE` (verificado: `sqlite_autoindex_car_*`), y las búsquedas con `LIKE '%x%'` no pueden usar índice por el comodín inicial → agregarles `@Index()` sería redundante. El índice que sí faltaba es sobre la FK `ownerId` de `car` (TypeORM no indexa ManyToOne por defecto), usada en listados de autos por dueño, joins con `owner` y reasignación/borrado de clientes. Se crea `IDX_car_owner` vía migración (`migrationsRun: true`), se declara `@Index("IDX_car_owner")` en la entidad para mantener esquema/entidad en sincronía, y se registra la migración en `dataSource.ts`. Migración ejecutada y verificada en la DB de desarrollo.
-7. **[hecho]** Logs estructurados (electron-log con objetos)
-   - Archivos: `electron/logger.ts` (nuevo), `electron/main.ts`, `electron/DataBase/dataSource.ts`, `electron/DataBase/Endpoints/{car,client,backup}.endpoints.ts`, `electron/DataBase/Migrations/AddPartsToExistingJobs1700000002000.ts`.
-   - Cambios: nuevo helper central `logger.ts` con `logError(scope, error, context?)`, `logInfo(scope, message?, context?)` y `logWarn(...)`. `logError` serializa el error a `{ name, message, stack }` (antes se perdía el stack al concatenarlo en string) y emite un único objeto `{ scope, ...context, error }` por entrada. Migrados todos los call sites (14) de `log.error/info("texto:", x)` a llamadas estructuradas con `scope` por operación (ej. `car:create`, `db:init`, `backup:import`). `main.ts` conserva `import log` solo para `initialize()`/`transports`. `electron-log/main` es singleton, así que la config de `main.ts` aplica también al helper.
-8. **[hecho]** Wrapper global de errores para `ipcMain.handle`
-   - Archivos: `electron/ipc.ts` (nuevo), `electron/main.ts`, `electron/DataBase/Endpoints/{car,client,backup,dashboard}.endpoints.ts`.
-   - Cambios: nuevo helper `handleIpc(channel, handler)` que envuelve `ipcMain.handle` con try/catch: ante error no controlado loguea estructurado (`logError` con el canal como `scope`) y **re-lanza** para que el renderer lo reciba como promesa rechazada (contrato ya manejado por los thunks con `rejectWithValue`). Es genérico (`<Args, R>`) para preservar los tipos de argumentos de cada handler sin casts en los call sites. Migrados los 26 handlers `ipcMain.handle` → `handleIpc`. Los handlers con try/catch propio (transacciones) siguen devolviendo su `{status:'failed'}` específico y no llegan al catch del wrapper (sin doble log). `main.ts` conserva `ipcMain` solo para los `.on(...)` de auto-update.
+---
 
-## Sprint 2 — Arquitectura de API
+## Sprint A — Bugs confirmados
 
-9. **[hecho]** Activar validación de DTOs (class-validator ya decorado, falta ejecutar)
-   - Archivos: `electron/validation.ts` (nuevo), `electron/DataBase/Endpoints/car.endpoints.ts` (`car:create`), `electron/DataBase/Endpoints/client.endpoints.ts` (`client:create`, `client:update`).
-   - Cambios: nuevo helper `validateDto(cls, plain)` que hace `plainToInstance` + `validate` (class-validator) y devuelve `{ ok, dto }` o `{ ok:false, message, errors }` con los mensajes aplanados (incluye anidados de `@ValidateNested`, ej. el `owner`). `whitelist: true` descarta props no decoradas (anti asignación masiva). Aplicado a `car:create`, `client:create` y `client:update` al inicio del handler (antes de abrir transacción); ante error devuelve `{status:'failed', message}`. Se quitó el chequeo manual `if(!id)` de `client:update` (ahora lo cubre `@IsNotEmpty` del DTO). **Nota:** no se usa conversión implícita de tipos porque esbuild no emite `design:type`; el frontend ya manda los tipos correctos (verificado con `tsx`: validación, mensajes en español, anidados y `@Transform` de patente funcionan). Endpoints de trabajos (`car:add-job`/`car:update-job`) quedan fuera: su tipo de borde es `CreateCarJob` (frontend), cablear `JobsDto`/`UpdateJobDto` es un cambio aparte.
-10. **[hecho]** `APIResponse<T>` consistente
+Todos están verificados leyendo el código (y varios contra una copia de la base
+real). Son chicos y de bajo riesgo: conviene empezar por acá.
 
-- Archivos: `src/Types/apiTypes.ts`, `electron/DataBase/Types/types.ts`, `global.d.ts`, `src/Services/{car,client}.service.ts`, `src/Store/{carAsync,clientAsync}.methods.ts`, `src/Store/carSlice.ts`, `electron/DataBase/Endpoints/{dashboard,car,backup}.endpoints.ts`.
-- Cambios: `APIResponse<T>` ahora es un **union discriminado por `status`** (`success` con `result: T` | `failed`/`cancelled` sin result), `message` siempre presente, `result` genérico en vez de `any`, y se agregó el estado `'cancelled'` (que ya usaba backup). Se eliminó el tipo duplicado `ApiResponse` de electron (ahora reexporta el canónico del front, con alias por compat). `global.d.ts` tipa todos los endpoints envelope con `APIResponse<ConcreteType>` (Car, Jobs, Client, DashboardStats, ServiceAlert[], string[]) y se corrigió el desfasaje `results`→`result` de `clients.search`. Servicios y thunks propagados con genéricos concretos; `updatedCar` reescrito sin `any`. Se detectó y corrigió una inconsistencia latente que ocultaba `any`: `fetchClientByName`/`updateClient` no formateaban las fechas de los autos del cliente (sí lo hacía el listado) → helper `formatClient` compartido, devuelven `APIResponse<Clients>`. Se agregó `message` a los handlers de solo-lectura (dashboard, service-alerts, backup:list/open-folder) para cumplir el contrato. **Excepciones documentadas** (no usan el envelope, a propósito): `car:get-all`/`client:get-all`/`car:find-jobs` (colecciones crudas) y `global:search` (forma `{status,cars,clients}`). Verificado: `tsc` (src+electron) + lint completo + 36 tests OK.
+1. **[pendiente]** El error del auto-updater nunca llega a la interfaz
+   - Archivo: `electron/main.ts:120` vs `src/Components/Header.tsx:141`.
+   - `autoUpdater.on("error")` emite `{ error: error.message }`, pero el contrato
+     (`UpdateError` en `global.d.ts`) y el consumidor leen `data.message`. El
+     resultado es `setUpdateError(undefined)`: el menú nunca muestra "Error al
+     buscar actualizaciones" y el motivo real se pierde. El otro emisor del mismo
+     canal (`check-for-updates`, `main.ts:268`) sí manda `{ message }`.
+   - Solución: emitir `{ message: error.message }` en el `on("error")` (una
+     línea) y, de paso, mostrar el mensaje en el ítem del menú.
+   - Esfuerzo: mínimo · Riesgo: nulo.
 
-11. **[hecho]** Separar `car.endpoints.ts` por dominio (CRUD/jobs/search)
+2. **[pendiente]** El historial de kilometraje suma un registro aunque el km no cambie
+   - Archivo: `electron/DataBase/Endpoints/car.crud.endpoints.ts:178`.
+   - Sólo se rechaza `kilometers < car.kilometers`; con el **mismo** valor se
+     appendea otro punto al `kmHistory`. Guardar el formulario del vehículo sin
+     tocar el kilometraje ensucia el historial (y el gráfico de KM) con puntos
+     repetidos.
+   - Solución: appendear sólo si `kilometers > car.kilometers`; si es igual,
+     actualizar el resto sin tocar el historial.
+   - Esfuerzo: mínimo · Riesgo: bajo.
 
-- Archivos: `electron/DataBase/Endpoints/car.crud.endpoints.ts` (nuevo), `car.jobs.endpoints.ts` (nuevo), `car.search.endpoints.ts` (nuevo); eliminado `car.endpoints.ts`; `electron/main.ts` (imports).
-- Cambios: se dividió `car.endpoints.ts` (11 handlers, ~455 líneas) en tres módulos por dominio, **sin cambiar el código de los handlers** (solo reubicación + imports acotados a lo que cada archivo usa): CRUD (create, get-all, get-by-license, update, delete, reassign-owner), jobs (add-job, find-jobs, update-job) y search/consultas (service-alerts + global:search, esta última cross-dominio). `main.ts` ahora importa los tres para registrar los handlers. Verificado: 11 canales presentes, `tsc` + lint completo + 36 tests OK.
+3. **[pendiente]** Borrar un vehículo puede borrar al titular sin avisarlo
+   - Archivos: `car.crud.endpoints.ts:214` (borra el `owner` si se quedó sin
+     autos) y `src/Components/DeleteCarDialog.tsx` (no lo menciona).
+   - El diálogo detalla que se eliminan los trabajos y el historial, pero no que
+     el cliente desaparece si era su único vehículo. Es la única operación de la
+     app que borra un registro que el usuario no eligió borrar.
+   - Solución: decidir la regla y hacerla explícita. Recomendado: **no** borrar
+     al titular (dejarlo inactivo o simplemente sin autos, que es un estado
+     válido y ya soportado por el listado de clientes) o, si se conserva el
+     borrado en cascada, decirlo en el diálogo con el nombre del cliente.
+   - Esfuerzo: bajo · Riesgo: medio (cambia una regla de negocio).
 
-12. **[hecho]** Caché de estadísticas del dashboard
+4. **[pendiente]** El recordatorio de service se programa fuera de la transacción del trabajo
+   - Archivo: `electron/DataBase/Endpoints/car.jobs.endpoints.ts:60` y `:137`.
+   - `car:add-job` y `car:update-job` guardan el trabajo y **después** llaman a
+     `completeAndScheduleNext` con `AppDataSource.manager`. Si esa segunda parte
+     falla, el trabajo queda cerrado y el recordatorio sin cerrar (el vehículo
+     sigue apareciendo como que necesita service).
+   - Solución: envolver ambos handlers en un `QueryRunner` y pasarle
+     `qr.manager` (el módulo de dominio ya recibe el `EntityManager` por
+     parámetro justamente para esto).
+   - Esfuerzo: bajo · Riesgo: bajo.
 
-- Archivos: `electron/DataBase/dashboardCache.ts` (nuevo), `electron/DataBase/Endpoints/dashboard.endpoints.ts`, `car.crud.endpoints.ts`, `car.jobs.endpoints.ts`, `client.endpoints.ts`, `backup.endpoints.ts`.
-- Cambios: caché en memoria de `DashboardStats` (`dashboardCache.ts` con get/set/invalidate). `dashboard:get-stats` devuelve la caché si existe y solo recalcula (recorrido de todos los autos + trabajos) cuando fue invalidada. Estrategia: **invalidación ante cualquier mutación** (freshness perfecta sin TTL, válido por ser app single-user donde toda escritura pasa por estos handlers). 11 puntos de invalidación tras mutación exitosa: car create/update/delete/reassign, add-job/update-job, client create/update/toggle-active/delete, y backup:import (reemplaza toda la DB). Verificado: `tsc` + lint + 36 tests OK.
+5. **[pendiente]** `car:find-jobs` es código muerto y su contrato miente
+   - Archivos: `car.jobs.endpoints.ts:87`, `electron/preload.ts:56`,
+     `global.d.ts:78`.
+   - No lo usa ninguna pantalla. Además devuelve `null` cuando no hay resultados
+     pero está tipado como array, y trae **todos** los autos con todos sus
+     trabajos a memoria.
+   - Solución: eliminar el handler, el método del preload y el tipo.
+   - Esfuerzo: mínimo · Riesgo: nulo.
 
-## Sprint 3 — Modelo de datos grande
+6. **[pendiente]** Los trabajos de la ficha no tienen un orden garantizado
+   - Archivo: `car.crud.endpoints.ts:148` (`relations: ["jobs"]` sin `ORDER BY`).
+   - El orden lo decide la base. La tabla permite ordenar por estado y precio,
+     pero el orden inicial (y el del PDF, y el del timeline) queda al azar.
+   - Solución: cargar los trabajos ordenados por `createdAt DESC` (o exponer el
+     orden como parámetro) para que la ficha, el documento y el historial
+     coincidan.
+   - Esfuerzo: bajo · Riesgo: bajo.
 
-13. **[hecho]** Normalizar `jobs` como entidad separada (alta complejidad/riesgo)
+7. **[pendiente]** Robustez del arranque de Electron
+   - Archivo: `electron/main.ts`.
+   - Tres puntos flojos: (a) `uncaughtException` muestra un cuadro de error y
+     **sigue** con la app en estado indefinido; (b) no hay handler de
+     `unhandledRejection`, así que una promesa rechazada en el main desaparece
+     sin log; (c) el splash se cierra en `ready-to-show`, y si la ventana nunca
+     llega a ese evento (error de carga) queda una ventana `alwaysOnTop` sin
+     salida y sin mensaje.
+   - Solución: loguear y cerrar de forma controlada en `uncaughtException`,
+     agregar `process.on("unhandledRejection")` con `logError`, y escuchar
+     `did-fail-load` con un timeout de seguridad que cierre el splash y muestre
+     el error.
+   - Esfuerzo: bajo · Riesgo: bajo.
 
-- Archivos: `electron/DataBase/Entities/job.entity.ts` (nuevo), `Migrations/NormalizeJobs1700000004000.ts` (nuevo), `Entities/car.entity.ts`, `Types/car.dto.ts`, `dataSource.ts`, `Endpoints/{car.jobs,car.crud,car.search,dashboard,backup}.endpoints.ts`, `electron/main.ts`.
-- Cambios: `jobs` deja de ser columna `simple-json` en `Car` y pasa a ser **entidad propia `Job`** con FK a `car` (`@ManyToOne` con `ON DELETE CASCADE`; `Car` tiene `@OneToMany jobs`). `parts` queda como JSON dentro de `Job` (ítems de línea, no ameritan tabla). Migración `NormalizeJobs1700000004000`: crea tabla `job` + índice `IDX_job_car`, transfiere los trabajos del JSON a filas (preserva id/timestamps/parts) y hace `DROP COLUMN car.jobs`; `down` reversible (recrea la columna, repuebla desde `job`, dropea la tabla). Endpoints de lectura cargan `relations: ['jobs']` (get-all, get-by-license, dashboard, service-alerts, export-csv, notificación de arranque). `car:add-job`/`car:update-job` operan sobre `jobRepository` (devuelven el job sin la relación `car` para no serializar el auto completo). Se eliminó el tipo `Jobs` duplicado del backend (fuente de verdad = entidad `Job`; el frontend mantiene su `Jobs`). **Frontend sin cambios**: `car.jobs` sigue siendo un array. Verificado: migración ejecutada en DB dev (`DROP COLUMN` soportado), y prueba end-to-end a nivel datos (relación, parts round-trip, update, cascade delete) + `tsc`/lint/36 tests OK.
+---
 
-14. **[hecho]** Formateo de fechas fuera del store Redux
+## Sprint B — Rendimiento y modelo de datos
 
-- Archivos: `src/Types/types.ts`, `src/Store/carAsync.methods.ts`, `src/Store/clientAsync.methods.ts`, `src/Store/store.ts`, `src/Pages/CarDetailPage.tsx`.
-- Cambios: los thunks dejan de aplicar `formatDate` antes de guardar; guardan los **datos crudos**. Se eliminó el helper `formatClient` (clientAsync) y el mapeo de fechas (carAsync `fetchCars`/`fetchCarByLicence`/`updatedCar`), que quedaron mucho más simples (devuelven la respuesta tal cual). Como ya no hay versión "formateada", los tipos `Cars`/`Clients` pasan a ser **alias** de `Car`/`Client` (fechas `Date`). El único display de fechas del store (`CarDetailPage`, Registrado/Actualizado) ahora formatea con `formatDate()` en el render. `store.ts`: se configura `serializableCheck` con un `isSerializable` que acepta `Date` (sin desactivar el chequeo para otros valores no serializables), ya que el store ahora guarda fechas crudas. Robusto ante IPC que entregue `Date` o `string` (formatDate y new Date manejan ambos). Verificado: `tsc` + lint + 36 tests OK.
+8. **[pendiente]** El dashboard recorre toda la base en memoria
+   - Archivo: `electron/DataBase/Endpoints/dashboard.endpoints.ts:29`.
+   - `carRepository.find({ relations: ["jobs"] })` trae **todos** los vehículos
+     con **todos** sus trabajos al proceso main para contar y sumar en un `for`.
+     Con la base de prueba actual (101 autos / 313 trabajos) no se nota, pero
+     crece de forma lineal y es el único lugar que quedó sin paginar. La caché en
+     memoria lo tapa hasta que una mutación la invalida.
+   - Solución: reemplazar el recorrido por agregados SQL (`COUNT`/`SUM` con
+     `GROUP BY status`, y los ingresos por mes con `strftime`), dejando en
+     memoria sólo los "trabajos recientes" (que ya están limitados a 6).
+   - Esfuerzo: medio · Riesgo: medio (hay que mantener los mismos números; se
+     puede validar comparando la salida vieja y la nueva sobre la misma base).
 
-15. **[hecho]** Paginación server-side en `car:get-all` / `client:get-all`
+9. **[pendiente]** El listado de clientes trae todos los vehículos para mostrar un número
+   - Archivo: `electron/DataBase/Endpoints/client.endpoints.ts:60-88`.
+   - `client:get-all` hace `leftJoinAndSelect("client.cars")` (por eso necesita el
+     paginado en dos pasos de TypeORM) sólo para poder mostrar la cantidad de
+     vehículos y usarla en el diálogo de borrado.
+   - Solución: subconsulta `COUNT` como columna calculada (`loadRelationCountAndMap`
+     o `addSelect` con subquery) en vez de traer las filas.
+   - Esfuerzo: bajo · Riesgo: bajo.
 
-- Archivos: `src/Types/apiTypes.ts`, `electron/DataBase/Types/types.ts`, `electron/pagination.ts` (nuevo), `electron/DataBase/Endpoints/{car.crud,client,car.jobs}.endpoints.ts`, `electron/preload.ts`, `global.d.ts`, `src/Services/{car,client}.service.ts`, `src/Store/{carAsync,clientAsync}.methods.ts`, `src/Store/{carSlice,clientSlice,selectors}.ts`, `src/Types/types.ts`, `src/Hooks/{useCarQueries,useClientQueries}.ts`, `src/Pages/{CarsPage,ClientPage,AddJobPage,CarDetailPage,ClientDetailPage}.tsx`, `src/Pages/Components/ReassingOwnerModal.tsx`, `src/Components/Forms/AddCarForm.tsx`, `src/Components/Tables/{CarsTable,ClientsTable}.tsx`, `src/Components/SearchBars/FilterName.tsx`, `src/Components/Header.tsx`.
-- Cambios: **paginación real en la DB** (elegida sobre la alternativa pragmática). Tipos nuevos `Paginated<T>` + `CarQueryParams`/`ClientQueryParams` (`page`, `pageSize`, `search?`, `sortBy?`, `sortDir?`; clientes además `includeInactive?`). Los endpoints usan QueryBuilder con `skip/take` + `LIKE ESCAPE` (búsqueda) + `orderBy` (orden, mapa de columnas permitidas) + filtro `isActive`, y devuelven `{items,total,page,pageSize}` con `getManyAndCount()`. Helper `electron/pagination.ts` (`resolvePage` con clamp defensivo, `escapeLike`). `car:get-all` **deja de cargar la relación `jobs`** (el listado no la usa). El store guarda una **página** (`state.cars.list`/`state.clients.list`) en vez del dataset completo; `CarsPage`/`ClientPage` suben el estado de page/search/sort/showInactive (search debounced) y disparan el fetch; las tablas pasan a **componentes controlados** (reciben page/total/items + `onPageChange`/`onSortChange`) — el orden y la búsqueda ahora son server-side (antes eran client-side sobre la página). Efecto "guarda" que retrocede de página si quedó vacía (borrado/desactivación del último item). **Consumidores del dataset completo repuntados**: `AddCarForm` y `ReassignOwnerModal` buscan titulares con `client:search` (autocomplete async as-you-type); `AddJobPage` usa el fetch paginado + su propio buscador por patente; `ClientDetailPage` usa `client.cars` (`client:find-by-name` ahora carga `cars.jobs` para el conteo) y ya no trae todos los autos. Nuevo endpoint liviano `car:active-jobs-count` (COUNT sobre `job`) para el badge del `Header`, que reemplaza al selector `selectPendingJobsCount` (eliminado junto con `selectCarsByOwnerId`). `FilterName` manda el término crudo (búsqueda case-insensitive vía `LIKE`, consistente con `client:search`/`global:search`). **Decisiones de alcance**: `pageSize` de los listados = 8 (picker de trabajos = 12); orden server-side por columnas permitidas (patente/año/km/dueño en autos, nombre en clientes); búsqueda **case-insensitive pero accent-sensitive** (SQLite `LIKE`, igual que el resto de las búsquedas del sistema); sin cambios de esquema (no requiere migración). Verificado: `tsc` (src+electron) + `npm run lint` + 36 tests OK.
+10. **[pendiente]** Índices que faltan para las consultas que ya existen
+    - `job.status`: lo usan el badge de trabajos activos (`car:active-jobs-count`)
+      y el dashboard; hoy es un scan completo de `job`.
+    - `job.carId` ya existe (`IDX_job_car`), `service_reminder` tiene sus dos
+      índices y `document(type, number)` su único compuesto.
+    - Solución: migración con `@Index()` sobre `job.status`.
+    - Esfuerzo: mínimo · Riesgo: bajo.
 
-## Sprint 4 — Separación de responsabilidades
+11. **[pendiente]** Revisar el paginado en dos pasos de TypeORM en el resto de los listados
+    - Contexto: el `TypeError` de la bandeja de recordatorios (ver notas de
+      sesión) salió de combinar `skip/take` + joins + un `ORDER BY` con una
+      expresión SQL. `car:get-all` y `client:get-all` también usan `skip/take`
+      con joins, pero ordenan por columnas reales, así que hoy funcionan.
+    - Solución: dejar un comentario/regla en `electron/pagination.ts` — con joins
+      `*-a-uno` conviene `offset/limit`; `skip/take` sólo cuando el join
+      multiplica filas (uno-a-muchos, como `client.cars`) — para que no vuelva a
+      pasar.
+    - Esfuerzo: mínimo · Riesgo: nulo.
 
-16. **[a testear]** Hooks de datos vs UI (`useCarStore`/`useClientStore` puros)
+---
 
-- Archivos: `src/Hooks/useCarStore.ts` (nuevo), `src/Hooks/useClientStore.ts` (nuevo), `src/Hooks/useCarQueries.ts`, `src/Hooks/useClientQueries.ts`.
-- Cambios: se separa **datos** de **UI**. Nuevos hooks puros `useCarStore`/`useClientStore` que solo tocan Redux: exponen el estado (`list`, `car`/`client`, `error`, `loadingStates`) y acciones que despachan los thunks devolviendo la promesa **desenvuelta** (`.unwrap()` → resuelve con el resultado o rechaza con el error). Sin toasts, navegación ni loading local. Los hooks `useCarQueries`/`useClientQueries` pasan a ser la **capa de presentación** construida sobre los store hooks: agregan toasts, navegación y el estado local `loading`/`refreshing`, y **mantienen su API pública idéntica** → los 7 consumidores (CarsPage, ClientPage, CarDetailPage, ClientDetailPage, AddCarPage, AddJobPage, Jobs) no cambian. Detalle de robustez: las callbacks de los store hooks dependen solo de `dispatch` (estable), así las callbacks de la capa UI siguen siendo estables y no disparan loops en los `useEffect` de fetch. Refactor sin cambio de comportamiento. Verificado: `tsc` (src+electron) + `npm run lint` + 36 tests OK.
+## Sprint C — Empaquetado y resguardo de datos
 
-## Sprint 5 — Features rápidas
+Es la recomendación que quedó pendiente al descartar el multi-usuario (tarea 33
+del plan anterior). El objetivo es que un imprevisto —corte de luz, disco lleno,
+una migración a medio aplicar, el usuario moviendo un archivo— no se lleve los
+datos del taller.
 
-17. **[hecho]** WhatsApp directo desde la ficha del auto
+12. **[pendiente]** Mover la base de `Documentos` a `userData`
+    - Archivos: `electron/DataBase/dataSource.ts:38` (`getDBPath`), `main.ts:55`.
+    - Hoy la base productiva vive en `Documentos/taller.db`: una carpeta que el
+      usuario ve, sincroniza con OneDrive y puede mover o borrar sin saber qué
+      es. Peor: OneDrive puede bloquear el archivo mientras SQLite escribe.
+    - Solución: usar `app.getPath("userData")` con **migración automática** (si
+      existe la base vieja y no la nueva, copiarla y renombrar la vieja a
+      `.migrated`), y dejar los backups exportados en Documentos (ahí sí tiene
+      sentido que se vean).
+    - Esfuerzo: medio · Riesgo: alto si se hace mal → hacerlo con la copia de
+      seguridad previa del punto 13 ya implementada.
 
-- Archivos: `src/Utils/utils.ts`, `src/Utils/utils.test.ts`, `electron/main.ts`, `electron/preload.ts`, `global.d.ts`, `src/Pages/CarDetailPage.tsx`.
-- Cambios: botón **"Enviar WhatsApp"** en la card de Titular de la ficha del auto. Abre `wa.me` con el teléfono del cliente y un **mensaje pre-cargado** (editable antes de enviar): _"Hola {nombre}! 👋 Te escribimos de Mecánica Dealbera por tu {marca} {modelo} (patente {patente})."_. Helpers nuevos en `utils.ts`: `toWhatsappNumber(phone)` normaliza teléfonos argentinos al formato de WhatsApp (dígitos + `54 9`, saca el `0` inicial y el `15`; si ya trae `54` lo respeta; autodetecta ambos casos) y `buildWhatsappUrl(phone, message?)` arma el link con el texto codificado. Para abrir el link afuera de Electron: nuevo handler `app:open-external` (`shell.openExternal`, **restringido a `https://`** por seguridad) expuesto como `window.api.global.openExternal`. El botón se deshabilita ("Sin teléfono") si el cliente no tiene teléfono cargado. Es best-effort: WhatsApp muestra el contacto antes de enviar, así que el usuario confirma el número. 12 tests nuevos del normalizador (formatos locales, con/sin 0 y 15, Buenos Aires, ya-internacional, prefijo 00, vacíos). Verificado: `tsc` + `npm run lint` + 48 tests OK.
+13. **[pendiente]** Snapshot previo a migraciones + verificación de integridad
+    - Hoy `migrationsRun: true` corre las migraciones al iniciar sin respaldo
+      previo: una migración que falle a mitad deja la base en un estado
+      intermedio y la única red es el backup diario (que puede ser de ayer).
+    - Solución: antes de `AppDataSource.initialize()`, si hay migraciones
+      pendientes, hacer `VACUUM INTO` a `pre-migration-<version>.db`; después de
+      inicializar, `PRAGMA integrity_check`. Si falla, avisar y ofrecer
+      restaurar el snapshot.
+    - Esfuerzo: medio · Riesgo: bajo (sólo agrega red de seguridad).
 
-18. **[hecho]** Confirmación de borrado descriptiva
+14. **[pendiente]** Respaldos: `VACUUM INTO` en vez de `copyFileSync` y retención por niveles
+    - Archivo: `electron/main.ts:54` (`performAutoBackup`) y
+      `backup.endpoints.ts`.
+    - `fs.copyFileSync` de un `.db` puede capturar un archivo inconsistente si
+      hay una escritura o un journal/WAL en curso, y hoy se conservan 7 copias
+      diarias: un problema que se detecta a los 10 días ya no tiene backup sano.
+    - Solución: usar `VACUUM INTO` (produce una copia consistente y compactada),
+      correr `integrity_check` sobre el resultado y aplicar retención por niveles
+      (7 diarios + 4 semanales + 6 mensuales).
+    - Esfuerzo: medio · Riesgo: bajo.
 
-- Archivos: `src/Components/DeleteCarDialog.tsx`, `src/Pages/CarsPage.tsx`, `src/Pages/ClientPage.tsx`.
-- Cambios: los diálogos de borrado ahora dicen **qué** se elimina y las **consecuencias**. `DeleteCarDialog` recibe el auto completo (antes solo la patente) y muestra patente + marca/modelo/año + titular, más un aviso en caja de peligro: _"Se eliminarán también todos sus trabajos y el historial de kilometraje. Esta acción es irreversible."_ (`CarsPage` pasa a trackear `carToDelete` buscándolo en `list.items`). El borrado de cliente (`ClientPage`, vía `CustomDialog`) ahora incluye el **conteo de vehículos** que se eliminan en cascada, con singular/plural y caso 0: _"¿Eliminar permanentemente a "X"? Se eliminarán también sus N vehículos y todos sus trabajos. Esta acción es irreversible."_ (el conteo sale de `client.cars`, ya cargado por `client:get-all`). Sin cambios de colores/estilos de botones (se respeta la convención existente). Verificado: `tsc` + `npm run lint` + 48 tests OK.
+15. **[pendiente]** Restaurar un respaldo desde la propia pantalla de Gestión de datos
+    - Hoy "Importar base de datos" abre un explorador de archivos: para volver al
+      respaldo de anteayer hay que saber dónde está y cuál es.
+    - Solución: listar los respaldos automáticos con fecha y tamaño y permitir
+      restaurar uno con un click (con la confirmación que ya existe). El listado
+      ya se muestra en la tarjeta "Respaldos automáticos"; falta la acción.
+    - Esfuerzo: bajo · Riesgo: medio (es una operación destructiva → confirmación
+      explícita + respaldo previo, que el endpoint de importación ya hace).
 
-19. **[hecho]** Estado vacío con CTA en listados
+---
 
-- Archivos: `src/Components/EmptyState.tsx` (nuevo), `src/Components/Tables/CarsTable.tsx`, `src/Components/Tables/ClientsTable.tsx`, `src/Pages/CarsPage.tsx`, `src/Pages/ClientPage.tsx`.
-- Cambios: nuevo componente reutilizable `EmptyState` (ícono en círculo + título + descripción + CTA opcional, estilo del empty-state que ya usaba `CarsList`). Las tablas cambian su prop `noRowsLabel: string` por `emptyContent: React.ReactNode` (se renderiza en el `emptyContent` del `TableBody`, ya centrado por el `emptyWrapper`). Cada listado distingue dos casos: **sin datos** → estado con CTA (`CarsPage`: "Nuevo vehículo" → `/cars/new`; `ClientPage`: "Registrar vehículo" → `/cars/new`, ya que los clientes se crean al cargar un auto); **sin resultados de búsqueda** → estado informativo sin CTA. Verificado: `tsc` + `npm run lint` + 48 tests OK.
-- **Tooling (fuera del plan, pedido del usuario):** se agregó Prettier — script `npm run format` (`prettier --write .`) y `format:check`, dependencia `prettier` en devDependencies (falta `npm install`), `.prettierrc.json` (comillas dobles, `;`, 2 espacios, trailing commas) y `.prettierignore` (build/deps/lock). **No se corrió** todavía.
+## Sprint D — Producto y UX
 
-20. **[hecho]** Notas internas por trabajo
+16. **[pendiente]** Definir los tipos de service (o eliminarlos)
+    - Archivos: `src/Types/apiTypes.ts` (`ServiceType`), `AddJobForm`,
+      `Jobs.tsx`, `service.endpoints.ts`.
+    - Hay cinco tipos (general, aceite, correa, frenos, otro) y el modelo soporta
+      un recordatorio vigente **por tipo**, pero en la práctica sólo se usa
+      "general": por eso se quitó el filtro por tipo de la bandeja. Queda una
+      abstracción a medio usar.
+    - Solución: o se definen los intervalos por tipo (correa cada 60.000 km,
+      aceite cada 10.000, etc.) y se aprovecha el modelo, o se reduce el campo a
+      un booleano "es service" y se simplifica todo el circuito.
+    - Esfuerzo: medio · Riesgo: bajo · **Decisión de negocio pendiente.**
 
-- Archivos: `electron/DataBase/Entities/job.entity.ts`, `Migrations/AddNotesToJob1700000005000.ts` (nuevo), `dataSource.ts`, `Types/car.dto.ts`, `Endpoints/car.jobs.endpoints.ts`, `src/Types/apiTypes.ts`, `src/Types/types.ts`, `src/Components/Forms/AddJobForm.tsx`, `src/Pages/Components/Jobs.tsx`, `src/Components/Tables/JobsTable.tsx`.
-- Cambios: campo **`notes`** (notas internas del taller) por trabajo. Entidad `Job` con columna `notes` (`text`, nullable) + migración `AddNotesToJob1700000005000` (`ALTER TABLE job ADD COLUMN notes`; corre sola por `migrationsRun`). DTOs (`JobsDto`/`UpdateJobDto`) y tipos del front (`CreateCarJob`, `UpdateJobBody`, `Jobs`) con `notes?`. Endpoints: `add-job` guarda las notas, `update-job` las actualiza, `toPlainJob` las devuelve (`?? ""`). UI: `AddJobForm` tiene un textarea "Notas internas (opcional)" con aclaración de que no se muestran al cliente; el modal de edición (`Jobs.tsx`) permite editarlas (con detección de cambios); y `JobsTable` muestra un ícono de nota con tooltip del texto cuando el trabajo tiene notas. **No se incluyen en el presupuesto/factura** (el PDF arma las filas con campos específicos, no con `notes`). Verificado: `tsc` + `npm run lint` + 48 tests OK.
+17. **[pendiente]** Editar el próximo service desde la ficha del vehículo
+    - El endpoint `service:save` (y `SaveReminderBody`) ya existe, está expuesto
+      en el preload y no lo usa ninguna pantalla: hoy no hay forma de corregir a
+      mano la fecha o el kilometraje del próximo service, ni de fijar un intervalo
+      propio para un vehículo (`car.serviceIntervalMonths/Km` sólo se puede
+      cambiar por SQL).
+    - Solución: modal "Editar próximo service" en el bloque de la ficha, con
+      fecha, km e intervalo del vehículo.
+    - Esfuerzo: medio · Riesgo: bajo.
 
-21. **[hecho]** Resumen de actividad en la ficha del cliente
+18. **[pendiente]** Historial de documentos emitidos
+    - `document:list` está implementado y expuesto, sin UI. Los documentos se
+      registran con su número correlativo, patente, titular y total, así que ya
+      hay con qué armar el historial; hoy no hay forma de ver qué se emitió.
+    - Solución: pestaña o modal con los documentos del vehículo (número, tipo,
+      fecha, total) y el mismo listado global en Gestión de datos. Ideal:
+      permitir re-descargar el PDF a partir del registro.
+    - Esfuerzo: medio (alto si se quiere reimprimir fiel: habría que guardar los
+      ítems del documento, no sólo el total) · Riesgo: bajo.
 
-- Archivos: `src/Pages/ClientDetailPage.tsx`.
-- Cambios: fila de **stat tiles** debajo del header de la ficha del cliente con el resumen de actividad, calculado sobre los trabajos de todos sus vehículos (`client.cars[].jobs`, ya cargados por `client:find-by-name`): **Vehículos** (cantidad), **Trabajos** (total), **Activos** (pendientes + en progreso), **Facturado** (suma de precios de trabajos completados/entregados, en ARS) y **Último trabajo** (fecha del trabajo más reciente por `updatedAt`/`createdAt`). Componente local `StatTile` (ícono + label + valor con color de acento). El cálculo va en un `useMemo` sobre `clientCars` (que también se memoiza para estabilizar la dependencia). Sin cambios de backend. Verificado: `tsc` + `npm run lint` + 48 tests OK.
+19. **[pendiente]** Filtrar la bandeja por "ya avisado"
+    - `contactedAt` se guarda y se muestra, pero no se puede filtrar. Con 72
+      recordatorios vencidos, lo primero que se necesita es "a quién todavía no
+      le avisé".
+    - Solución: filtro de dos estados (avisados / sin avisar) en la bandeja,
+      resuelto en la consulta.
+    - Esfuerzo: bajo · Riesgo: nulo.
 
-22. **[hecho]** KM history como gráfico de línea
+20. **[pendiente]** Las notas internas nunca salen en el documento
+    - Decisión original (tarea 20 del plan anterior): las notas son internas y no
+      se imprimen. Está bien por defecto, pero a veces hace falta una
+      observación para el cliente.
+    - Solución: campo aparte "observaciones para el cliente" por trabajo, o un
+      check por trabajo en el modal de emisión para incluir su nota.
+    - Esfuerzo: bajo · Riesgo: nulo.
 
-- Archivos: `src/Pages/Components/KmHistoryModal.tsx`.
-- Cambios: el modal de historial de kilometraje pasa de una lista de barras horizontales a un **gráfico de línea** (recharts `LineChart`) con la evolución del KM en el tiempo. Datos ordenados cronológicamente (ascendente) para el eje X (fecha dd/mm/aa), eje Y con KM formateado (`toLocaleString es-AR`) y dominio `[dataMin, dataMax]`, tooltip con el KM del punto. Estilo consistente con los gráficos del dashboard (grid `#374151`, ticks `#9ca3af`, tooltip `#1f2937`, línea/puntos `#3b82f6`). Estado vacío si no hay registros. El footer ahora muestra el kilometraje actual + cantidad de registros. Modal agrandado a `2xl`. Verificado: `tsc` + `npm run lint` + 48 tests OK.
+21. **[pendiente]** Refresco de contadores por evento en vez de por navegación
+    - Los badges de la barra ahora se recalculan en cada cambio de pantalla (ver
+      notas de sesión). Alcanza para un solo usuario, pero sigue siendo un
+      "polling" atado a navegar.
+    - Solución: canal `main → renderer` que emita "datos cambiados" cuando se
+      invalida la caché del dashboard, y que el Header y el dashboard escuchen.
+    - Esfuerzo: bajo · Riesgo: bajo.
 
-23. **[hecho]** Acceso directo desde alerta de service a lista filtrada
+22. **[pendiente]** Emitir un documento consolidado desde la ficha del cliente
+    - Hoy el presupuesto/factura es por vehículo. Un cliente con dos autos en el
+      taller necesita dos documentos.
+    - Solución: reusar el modal de emisión con los trabajos de todos sus
+      vehículos, agrupados por patente en la tabla del PDF.
+    - Esfuerzo: medio · Riesgo: bajo.
 
-- Archivos: `src/Pages/HomePage.tsx`.
-- Cambios: el banner de alertas del dashboard ("N vehículos sin service en los últimos 6 meses") tenía un botón "Ver autos" que llevaba a `/cars` (la lista **completa**). Ahora el botón dice "Ver recordatorios" y navega a `/alerts` (la lista **filtrada** de vehículos que requieren service). Se ajustó el subtítulo a "Revisalos en Recordatorios de service". Verificado: `tsc` + `npm run lint` + 48 tests OK.
+---
 
-24. **[hecho]** Badge de trabajos activos en la barra de navegación
+## Sprint E — Calidad y automatización
 
-- Archivos: `src/Components/Header.tsx`.
-- Cambios: se **separó** el conteo de trabajos activos del badge de alertas de service (antes el badge de `/alerts` mostraba `serviceAlertCount + pendingJobsCount`, mezclando dos conceptos). Ahora el badge de `/alerts` cuenta **solo** las alertas de service, y los **trabajos activos** (pendientes + en progreso, vía `car:active-jobs-count`) tienen su **propio badge** sobre el botón "Autos" de la barra, con tooltip ("N trabajos activos") y tope "99+". Verificado: `tsc` + `npm run lint` + 48 tests OK.
+23. **[pendiente]** No hay tests de componentes ni de endpoints
+    - Los 97 tests actuales cubren **sólo** módulos puros
+      (`serviceReminders`, `budgetPdf`, `timeline`, `utils`). Todo lo que rompió
+      en las últimas sesiones (el paginado de la bandeja, el layout que
+      comprimía las tarjetas, el filtro de trabajos del PDF) está fuera de esa
+      cobertura.
+    - Solución: (a) React Testing Library + jsdom para los componentes con
+      reglas —`DocumentModal` (elegibilidad y totales), `ReminderActions`
+      (botones según estado), tablas paginadas—; (b) tests de endpoints con una
+      base SQLite en memoria y las migraciones aplicadas, que es donde vive la
+      lógica más delicada.
+    - Esfuerzo: alto (setup + primeros casos) · Riesgo: nulo · **Es la mejora con
+      mejor relación costo/beneficio a mediano plazo.**
 
-## Sprint 6 — Features de esfuerzo medio
+24. **[pendiente]** Verificación automática antes de publicar
+    - Hoy `tsc`, `lint`, `vitest` y `build` se corren a mano.
+    - Solución: script `npm run verify` que encadene los cuatro, y un workflow de
+      GitHub Actions que lo ejecute en cada push a `feat/*` y `main`.
+    - Esfuerzo: bajo · Riesgo: nulo.
 
-25. **[hecho]** Quick-actions de estado en listado de trabajos
+25. **[pendiente]** Diferir el stack de PDF
+    - `jsPDF` + `jspdf-autotable` + la fuente embebida pesan ~516 kB y hoy entran
+      en el chunk de la ficha del vehículo, que es la pantalla más usada.
+    - Solución: `import()` dinámico dentro de `useBudgetPDF` (el hook ya es el
+      único punto de entrada), así el peso se paga sólo al emitir un documento.
+    - Esfuerzo: bajo · Riesgo: bajo.
 
-- Archivos: `src/Components/Tables/JobsTable.tsx`, `src/Pages/Components/Jobs.tsx`.
-- Cambios: en el listado de trabajos, el Chip de estado pasa a ser un **Dropdown** para cambiar el estado sin abrir el modal de edición. `JobsTable` acepta `onQuickStatusChange(job, status)` (opcional) e `isUpdating` (deshabilita las quick-actions mientras hay una actualización en curso); el trigger es el Chip con una flechita, y el menú lista los 4 estados (el actual deshabilitado) con sus colores. `Jobs.tsx` implementa `handleQuickStatus` → `updateJob(license, jobId, { status })` (que ya emite el toast y actualiza el trabajo en el store) y pasa `isUpdating={updating}`. Si no se pasa `onQuickStatusChange`, la celda cae al Chip de solo lectura de antes. Verificado: `tsc` + `npm run lint` + 48 tests OK.
-
-26. **[hecho]** Filtros avanzados y ordenamiento en tablas
-
-- Archivos: `src/Types/apiTypes.ts`, `electron/DataBase/Endpoints/{car.crud,client}.endpoints.ts`, `electron/preload.ts`, `global.d.ts`, `src/Pages/{CarsPage,ClientPage}.tsx`, `src/Components/Tables/JobsTable.tsx`.
-- Alcance elegido por el usuario: las **tres** tablas.
-- Cambios:
-  - **Autos** (`car:get-all` + `CarsPage`): filtros avanzados por **marca** (exacta, dropdown desde `BRANDS_OPTIONS`) y **rango de año** (`yearFrom`/`yearTo`, inputs debounceados 350ms). Params nuevos en `CarQueryParams` (`brand`, `yearFrom`, `yearTo`); el endpoint agrega `car.brand = :brand` y `car.year >= / <=`. Botón "Limpiar filtros" y estado vacío "Sin resultados" cuando hay filtros.
-  - **Clientes** (`client:get-all` + `ClientPage`): filtro por **ciudad** (dropdown de ciudades distintas). Param `city` en `ClientQueryParams` (`client.city = :city`). Endpoint nuevo `client:cities` (`SELECT DISTINCT ... ORDER BY city`) expuesto como `window.api.clients.getCities`; el dropdown se muestra solo si hay ciudades. (El filtro activos/inactivos ya existía.)
-  - **Trabajos** (`JobsTable`, client-side): **filtro por estado** (Select "Todos / Sin comenzar / En progreso / Completado / Entregado") y **orden por columnas** Estado (por avance del estado) y Precio (flechas asc→desc→sin orden, igual que autos/clientes). Filtro + orden se aplican antes de paginar; al cambiarlos se resetea a la página 1.
-- Todos los filtros de los listados resetean la página a 1 al cambiar. Verificado: `tsc` + `npm run lint` + 48 tests OK.
-
-27. **[hecho]** Atajos de teclado globales
-
-- Archivos: `src/Hooks/useGlobalShortcuts.ts` (nuevo), `src/Components/ShortcutsModal.tsx` (nuevo), `src/Components/Header.tsx`, `src/Components/SearchBars/GlobalSearch.tsx`.
-- Cambios:
-  - Hook centralizado `useGlobalShortcuts` con un único listener global de `keydown`. Los handlers se leen desde una ref (no re-suscribe el listener en cada render, no pierde la secuencia en curso).
-  - Atajos: **navegación por secuencia** estilo Gmail — `G` y luego la inicial de la sección (`I` Inicio, `C` Clientes, `A` Autos, `R` Recordatorios, `D` Datos), con ventana de 900ms; **acciones** — `Ctrl+K` o `/` búsqueda global, `N` nuevo vehículo, `?` modal de ayuda, `Esc` cerrar (cada modal maneja el suyo).
-  - Se eligió **no usar `Alt`** (revelaría la barra de menú oculta en Windows) ni `Ctrl`+letra de navegación (choca con edición de texto). El único `Ctrl+K` se mantiene y funciona incluso escribiendo en un campo.
-  - Guardas de robustez: los atajos de tecla simple/secuencia se suspenden si el foco está en un campo editable (`input`/`textarea`/`select`/contenteditable) o si hay un modal/diálogo abierto (`[aria-modal="true"]`) — evita navegar "por detrás" de un diálogo. Se le agregó `role="dialog"`/`aria-modal` a `GlobalSearch` (también mejora accesibilidad).
-  - `ShortcutsModal`: modal de ayuda (HeroUI `Modal` + `Kbd`) con las secciones Navegación y Acciones; se abre con `?` y desde el menú del usuario ("Atajos de teclado"). Reemplaza el listener inline de `Ctrl+K` que vivía suelto en `Header`.
-- Verificado: `tsc` + `npm run lint` + 48 tests OK.
-
-28. **[hecho]** Modo claro/oscuro con toggle persistido
-
-- Archivos: `hero.ts`, `index.html`, `src/Theme/{themeContext.ts,ThemeProvider.tsx,useChartTheme.ts}` (nuevos), `src/Store/Providers.tsx`, `src/Components/Header.tsx`, y ~28 archivos de UI (superficies/colores → tokens semánticos).
-- Enfoque elegido por el usuario: theme global centralizado + claro/oscuro completo (refactor de todos los colores hardcodeados).
-- Cambios:
-  - **Fuente única de verdad en `hero.ts`**: se apoya en los temas `light`/`dark` de HeroUI (bien balanceados para contraste de inputs/menús/tablas/botones/toasts) con ajustes puntuales: en `light` el fondo de página es apenas gris (que las tarjetas blancas resalten) y los grises atenuados un poco más oscuros; en `dark` se **fija la escala `primary`** igual que en `light` porque HeroUI invierte las escalas numéricas por tema (si no, `bg-primary-800` sería celeste pálido y el texto blanco de los headers quedaría invisible). **Aprendizaje:** no hay que redefinir `content/background` con los mismos valores que la escala `default` (fondo de inputs/botones/toasts) o esos controles se vuelven invisibles; las tablas usan el mismo token `default-100` que los inputs para "comportarse igual".
-  - **`ThemeProvider` + `themeContext` (hook `useTheme`)**: aplica la clase `light`/`dark` en `<html>`, persiste la preferencia en `localStorage` y setea `color-scheme`. Script anti-FOUC en `index.html` aplica el tema antes del primer render. Default: **oscuro** (look actual).
-  - **Toggle sol/luna** en el Header (junto a la búsqueda) + `body` con `bg-background text-foreground`.
-  - **Refactor a tokens semánticos** en toda la app: superficies `bg-foreground-XXX` → `bg-background`/`bg-content1..3`; bordes → `border-divider`/`border-default-*`; `text-white` sobre superficies → `text-foreground` (se conserva blanco sobre colores saturados: headers `bg-primary-800`, `bg-warning`, `bg-danger`, placa de patente); zebra de tablas y "hoja" de alertas → escala `default` (theme-aware). Se hizo con dos scripts acotados (superficies y `text-white`) + ajustes manuales con criterio.
-  - **Gráficos (recharts) theme-aware**: hook `useChartTheme` para el chrome (grilla, ejes, tooltip, leyenda) en dashboard y modal de KM; los colores de datos quedan fijos.
-- Verificado: `tsc` + `npm run lint` + 48 tests + `vite build` OK.
-
-29. **[hecho]** Presupuesto PDF mejorado con número correlativo
-
-- Archivos: `electron/DataBase/Entities/document.entity.ts` (nuevo), `electron/DataBase/Migrations/CreateDocumentTable1700000006000.ts` (nueva), `electron/DataBase/Endpoints/document.endpoints.ts` (nuevo), `electron/DataBase/dataSource.ts`, `electron/{main,preload}.ts`, `global.d.ts`, `src/Types/apiTypes.ts`, `src/Hooks/useBudgetPdf.ts`, `src/Components/BudgetButton.tsx`.
-- Cambios:
-  - **Antes** el "N°" del PDF era pseudo-aleatorio (`car.id` + timestamp): no era correlativo y cambiaba en cada impresión. Ahora el número lo **asigna la base de datos**.
-  - Entidad **`Document`** = registro de cada emisión, con **numeración correlativa por tipo** (presupuesto y factura llevan series independientes) + _snapshot_ de patente/titular/total. Sin FK a `car` **a propósito**: un documento emitido debe conservar lo que decía y no puede borrarse en cascada (abriría huecos en el correlativo).
-  - Endpoint `document:issue`: calcula `MAX(number)+1` del tipo e inserta **en una transacción**; la tabla tiene índice **único `(type, number)`** como garantía final. `document:discard` borra el registro sólo si es el último de su tipo (se usa si la generación del PDF falla, para no dejar huecos). `document:list` queda disponible para el historial.
-  - Formato del número centralizado en `formatDocumentNumber` (`PRE-000123` / `FAC-000123`), usado por el backend y el PDF.
-  - PDF: el número va en el encabezado y en el pie, y **encabeza el nombre del archivo** (`PRE-000123_Presupuesto_...pdf`) para que queden ordenados. Los totales se calculan antes de emitir (son parte del registro). Se agregó nota de **validez de 15 días** sólo en presupuestos. El toast confirma el número emitido.
-  - De paso se quitó un `as any` (se tipó `lastAutoTable` de `jspdf-autotable`).
-  - **Rediseño visual del documento** (pedido del usuario: consistencia total con el sistema):
-    - `src/Utils/pdfTheme.ts` (nuevo): la paleta del PDF se **deriva de `semanticColors.light` de HeroUI**, el mismo theme que usa la app (variante clara porque se imprime sobre papel). Antes el PDF tenía paleta propia de Tailwind (`#2563eb`, slate) que no coincidía con ningún color de la interfaz. Incluye el mapa de chips por estado (mismos colores semánticos que `STATUS_MAP` de la tabla de trabajos) y la escala tipográfica/medidas.
-    - `src/Utils/budgetPdf.ts` (nuevo): el render se extrajo del hook a un **módulo puro** (recibe datos, devuelve el `jsPDF`), así es testeable en Node; el hook quedó fino (emitir número → render → descargar). Diseño alineado: bandas de encabezado/pie y header de tabla en `primary-800`, título de sección como "pill" `primary-700` (igual que los `h5` de la app), tarjetas con borde `default-200`, zebra `default-100`/`default-50` (igual que las tablas), chips de estado con fondo tenue + texto saturado (look "flat" de HeroUI) y bloque de total en color de marca.
-    - **Tipografía**: la patente se dibuja con **FE-FONT**, la misma fuente que usa la app, embebida en el PDF. Para eso `vite.config.mts` declara `assetsInclude: ["**/*.TTF"]` (la extensión en mayúsculas no entra en los defaults de Vite) y fuerza el inline de los `.ttf` con `assetsInlineLimit`, de modo que la fuente viaje en base64 en el bundle (en producción, con Electron sobre `file://`, leer el asset en runtime no sería confiable). El resto del documento usa Helvetica: Nunito Sans/Michroma se sirven desde Google Fonts y no están como archivo en el repo.
-    - Robustez: si la fuente no se puede usar, el documento cae a la tipografía estándar. `addFont` no valida el contenido (falla más tarde al medir texto), así que se prueba a usarla al registrarla — lo detectó un test.
-    - Tests nuevos (`budgetPdf.test.ts`, 10 casos): totales, filtro por tipo de documento, render con/sin trabajos, paginación, registro de la fuente y fallback con fuente inválida. `pdfPreview.test.ts` genera PDFs de muestra para revisar el diseño a ojo (sólo corre con `PDF_PREVIEW_DIR`).
-- Verificado: `tsc` + `npm run lint` + 48 tests + `vite build`. Además se probó la **migración contra una copia de la DB real**: corre sobre datos existentes, genera el esquema/índice, las series salen `PRE-000001..3` y `FAC-000001..2`, el índice único rechaza duplicados y el `down()` revierte.
-- Fix incidental: en `AddPartsToExistingJobs1700000002000.ts` la corrida de Prettier había desalineado un `eslint-disable-next-line` (rompía `npm run lint`); se reubicó.
-
-30. **[hecho]** Historial cruzado de cliente
-
-- Archivos: `src/Utils/timeline.ts` (nuevo), `src/Utils/timeline.test.ts` (nuevo), `src/Pages/Components/ClientHistory.tsx` (nuevo), `src/Pages/Components/CarTimeline.tsx`, `src/Pages/ClientDetailPage.tsx`.
-- Cambios:
-  - La ficha del cliente ya mostraba el resumen de actividad (tarea 21) y la lista de vehículos, pero para ver _qué pasó_ había que entrar a cada auto. Ahora hay un **historial cruzado**: una sola línea de tiempo con los trabajos y las actualizaciones de kilometraje de **todos** sus vehículos, de lo más reciente a lo más antiguo, y cada evento indica **a qué patente pertenece** (chip con la patente + marca/modelo).
-  - **Sin endpoint nuevo**: `client:find-by-name` ya carga `cars` y `cars.jobs`, y `kmHistory` viaja como columna del auto, así que se arma con los datos que la ficha ya tiene.
-  - `timeline.ts` (nuevo, puro): se **extrajo** de `CarTimeline` el modelo de eventos y el armado/orden, para que lo compartan el timeline del auto y el historial del cliente (cada evento lleva su `car`). Elimina la duplicación y lo vuelve testeable. Mejora de robustez: las fechas inválidas o ausentes ya no producen `Invalid Date` — el evento se conserva con `date: null` (se ordena al final y se muestra "Sin fecha") en vez de descartarse.
-  - `ClientHistory`: filtros por **vehículo** (sólo aparece si el cliente tiene más de uno) y por **tipo** (todo / trabajos / kilometraje), contador de eventos, y revelado incremental con "Ver más" de 8 en 8 para que un cliente con mucha historia no genere una lista interminable. Al cambiar un filtro se vuelve a la primera tanda. Estados vacíos propios (sin actividad / sin coincidencias).
-- Tests nuevos (7): mezcla y orden entre vehículos, referencia al vehículo de cada evento, `updatedAt` por sobre `createdAt`, eventos sin fecha al final, fecha inválida, casos vacíos y tipo de evento.
-
-## Sprint 7 — Features grandes (alta complejidad)
-
-31. **[hecho]** Sistema de recordatorios de service
-   - Archivos nuevos: `src/Utils/serviceReminders.ts` (+ `.test.ts`), `electron/DataBase/Entities/{serviceReminder,appSetting}.entity.ts`, `electron/DataBase/Migrations/CreateServiceReminders1700000007000.ts`, `electron/DataBase/serviceReminders.service.ts`, `electron/DataBase/Endpoints/service.endpoints.ts`, `src/Pages/Components/NextServiceCard.tsx`.
-   - Modificados: `src/Pages/ServiceAlertsPage.tsx` (reescrita), `src/Types/{apiTypes,types}.ts`, `electron/DataBase/Entities/{car,job}.entity.ts`, `electron/DataBase/Types/car.dto.ts`, `electron/DataBase/Endpoints/{car.crud,car.jobs,car.search,dashboard}.endpoints.ts`, `electron/{main,preload}.ts`, `global.d.ts`, `src/Components/{Header,Forms/AddJobForm,Tables/JobsTable}.tsx`, `src/Pages/{CarDetailPage,Components/Jobs}.tsx`.
-   - Eliminados: endpoint `car:service-alerts`, `src/Utils/serviceAlerts.ts` (+ tests), tipo `ServiceAlert`, `cars.getServiceAlerts` del preload.
-   - **Qué resolvía**: la versión anterior medía "días desde cualquier trabajo" (no cuándo toca el próximo service), ignoraba el kilometraje, no tenía estado (no se podía posponer, marcar contactado ni descartar → fatiga de alerta), traía todos los autos a memoria, y la regla estaba **escrita tres veces** (endpoint de alertas, dashboard y notificación de arranque) con umbrales que ni coincidían (`getServiceUrgency` tenía un caso `"default"` inalcanzable).
-   - Cambios:
-     - **Entidad `ServiceReminder`** persistida (no cálculo al vuelo), con `type`, `status` (pending/snoozed/done/dismissed), `dueDate`, `dueKm`, `snoozedUntil`, `contactedAt`, `notes`. Cascada con el vehículo. Invariante: un solo recordatorio vigente por vehículo y tipo.
-     - **Vence por tiempo O por kilómetros, lo que ocurra primero** (criterio real del taller). Intervalos configurables globalmente (tabla `app_setting`, así viajan con el backup) con **override por vehículo** (`car.serviceIntervalMonths/Km`).
-     - **Se mantiene solo**: al pasar un trabajo marcado como service (`job.serviceType`) a completado/entregado, se cierra el recordatorio vigente y **se programa el siguiente**. Sólo en la transición a cerrado (no cada vez que se edita). Al registrar un vehículo se crea su recordatorio inicial.
-     - **Lógica pura compartida** (`src/Utils/serviceReminders.ts`): próximo vencimiento, urgencia, estimación de **km/día** desde `kmHistory` (proyecta cuándo alcanzará el km objetivo) y textos. La usan el backend y el renderer → **una sola fuente de verdad**. La notificación de arranque, el badge y el dashboard ahora cuentan con la misma función (`countDueReminders`).
-     - **Bandeja accionable** (`/alerts`): filtros (alcance, tipo, búsqueda por patente/titular), server-side y paginada, con acciones por fila — avisar por **WhatsApp** con mensaje prellenado (y registro del contacto), **posponer** 7/15/30/90 días, **marcar el service como hecho** (programa el próximo), cargar trabajo y **descartar**. Los postergados se reactivan solos al vencer el plazo.
-     - Bloque **"Próximo service"** en la ficha del vehículo, indicador de service en la tabla de trabajos y selector "¿Es un service?" en alta y edición de trabajos.
-     - Nota de diseño: el módulo de dominio recibe el `EntityManager` por parámetro (no toma `AppDataSource`), así funciona dentro de transacciones y se puede probar sin Electron.
-   - **Migración con backfill**: cada vehículo existente arranca con un recordatorio general cuyo vencimiento se calcula desde su último trabajo (o su alta), replicando el criterio anterior pero como fecha concreta. `dueKm` queda en NULL a propósito (no se sabe el km del último service; no se inventa el dato).
-   - Tests nuevos (28): intervalos, `addMonths` sin desborde de mes, km/día, proyección por km, urgencias por fecha y por km, postergados, umbrales configurados y textos.
-   - Verificado además contra una **copia de la DB real**: migración + backfill, cascada al borrar el vehículo, round-trip de fechas/km, y el ciclo completo (alta → recordatorio inicial → idempotencia → completar → siguiente programado → override por vehículo → reactivación del postergado → conteo).
-32. **[descartada]** Fotos del vehículo (galería)
-   - Decisión del usuario (2026-08-08): no se implementa. Se evaluó el alcance (almacenamiento en disco + entidad `CarPhoto`, thumbnails, protocolo custom para servir imágenes y **cambio del backup a ZIP** porque hoy sólo copia el `.db`) y se concluyó que no justifica el trabajo para este taller.
-33. **[pospuesta]** Multi-usuario básico con PIN
-   - Decisión del usuario (2026-08-08): no se implementa por ahora (hoy opera una sola persona, así que el login agrega fricción sin resolver un problema real). En su lugar se pidió una **recomendación** para robustecer el empaquetado/resguardo ante imprevistos, sin implementar.
+26. **[pendiente]** Documentar las convenciones del proyecto en `CLAUDE.md`/README
+    - Hay reglas aprendidas a fuerza de romper cosas que no están escritas en
+      ningún lado: HeroUI invierte las escalas numéricas entre temas (usar tokens
+      base + transparencia), un contenedor con scroll no debe maquetear (las
+      Cards se comprimen), `min-h-0` en los hijos flex, `PageShell` como
+      contenedor estándar, y el dominio compartido recibe el `EntityManager` por
+      parámetro.
+    - Solución: escribirlas en un `CLAUDE.md` (o `docs/CONVENCIONES.md`).
+    - Esfuerzo: bajo · Riesgo: nulo.
 
 ---
 
 ## Notas de sesión
 
-- 2026-07-18: arranque del plan, definido orden de sprints, confirmado trabajar sobre `feat/news`, un commit por tarea.
-- 2026-07-18: **Sprint 0 completo** (tareas 1-4). Todo testeado y pusheado a `feat/news`. Próxima sesión: Sprint 1 (fundaciones de calidad).
-- 2026-07-18: **Sprint 1 completo** (tareas 5-8). Todo testeado. Notas de alcance: (6) los índices de `licensePlate/fullname/phone` ya existían por `UNIQUE` → se agregó solo `IDX_car_owner`; (8) el wrapper loguea y re-lanza (no traga el error) porque el frontend ya maneja la promesa rechazada. Vitest incorporado como framework de tests (`npm test`, 36 tests). Próxima sesión: Sprint 2 (arquitectura de API).
-- 2026-07-19: **Sprint 2 completo** (tareas 9-12). Todo testeado. Extras de la sesión: fix email vacío en alta/edición de cliente (`@Transform` "" → undefined); fix del botón "Atrás" que requería varios clicks (filtros con `setSearchParams({replace:true})`); y fix de los gráficos del dashboard en casos vacíos (`src/Pages/HomePage.tsx`): estados vacíos explicativos por gráfico (`ChartEmpty`), la grilla se muestra siempre, y se corrigió un bug de colores en la torta (color atado a cada estado en vez de por índice, así no se corre cuando falta un estado). Notas de alcance: (9) validación activada en car:create/client:create/client:update; jobs quedan fuera. (10) `APIResponse<T>` union discriminado; `global:search` y los get-all quedan como excepciones documentadas. (11) `car.endpoints.ts` → 3 archivos por dominio. (12) caché de dashboard con invalidación por mutación. Próxima sesión: Sprint 3 (modelo de datos grande).
-- 2026-07-21: **Sprint 3 en curso.** Tareas 13 (normalizar `jobs` como entidad) y 14 (formateo de fechas fuera del store Redux) **hechas y testeadas**. Task 15 (paginación): se hizo el análisis completo y el usuario decidió **paginación server-side real**; queda planificada con detalle (ver ítem 15) pero **sin código aún** — se implementa la próxima sesión. Único cambio sin commitear al cerrar: `PLAN_MEJORAS.md` (estado de tareas + plan de la 15).
-- 2026-07-26: **Sprint 3 completo** (tareas 13-15). Todo testeado. La Task 15 se implementó como **paginación server-side real** (decisión del usuario sobre la alternativa pragmática): endpoints con QueryBuilder (`skip/take` + `LIKE` + `orderBy` + `isActive`), el store guarda una página en vez del dataset completo, tablas controladas, y se repuntaron los 4 consumidores que dependían de tener todo en memoria (AddCarForm/ReassignOwnerModal → `client:search`; AddJobPage → fetch paginado; ClientDetailPage → `client.cars`) + badge del Header con `car:active-jobs-count`. Cambios de comportamiento intencionales: `pageSize` 8 (antes 5) y búsqueda de nombres accent-sensitive (consistente con el buscador global). Próxima sesión: Sprint 4 (Task 16 — hooks de datos vs UI).
-- 2026-07-31: **Sprint 4 (task 16) y Sprint 5 (tasks 17-24) completos.** Todo testeado. (16) hooks de datos puros `useCarStore`/`useClientStore` con `useCarQueries`/`useClientQueries` como capa UI encima (misma API pública). (17) WhatsApp al titular desde la ficha (helper `toWhatsappNumber` + `app:open-external`). (18) confirmaciones de borrado descriptivas. (19) estado vacío con CTA en listados (`EmptyState`). (20) notas internas por trabajo (`Job.notes` + migración `AddNotesToJob1700000005000`). (21) resumen de actividad (stat tiles) en la ficha del cliente. (22) historial de KM como gráfico de línea (recharts). (23) banner de alertas del dashboard → `/alerts` (lista filtrada). (24) badge dedicado de trabajos activos sobre "Autos" (separado del de alertas). **Extras de la sesión (fuera del plan):** indicador de carga en las tablas (`TableLoadingContent` como `loadingContent` en CarsTable/ClientsTable/JobsTable); fixes de la columna Email en ClientsTable (`||` + `text-center`); y setup de **Prettier** (`npm run format`, config + ignore, dependencia agregada, **falta `npm install` y no se corrió**). Además el usuario refinó los hooks/estado con flags `listLoaded`/`carLoaded`/`clientLoaded` para evitar flashes de estado vacío. **Preferencia nueva:** los commits van sin `Co-Authored-By` ni línea de estado de tests. Próxima sesión: Sprint 6 (task 25 en adelante).
+### 2026-08-10 — Correcciones sobre observaciones de uso (esta sesión)
+
+Cinco observaciones del usuario + una mejora pedida sobre la marcha. Todo
+verificado con `tsc`, `lint`, Prettier, 97 tests y `vite build`.
+
+1. **La bandeja de recordatorios salía vacía y tiraba un `TypeError`** — mismo
+   bug de raíz para las dos cosas. `service:list` combinaba `skip/take` con joins
+   y un `ORDER BY` con expresión (`reminder.dueDate IS NULL`): TypeORM resuelve
+   ese paginado con una subconsulta de ids distintos y necesita mapear cada
+   `ORDER BY` a una columna real, así que fallaba con
+   `Cannot read properties of undefined (reading 'databaseName')`. El rechazo no
+   estaba atendido en la pantalla, así que se veía "Todo al día" con 72
+   recordatorios en la base. Reproducido y corregido contra una copia de la base
+   real (`offset/limit`, correcto acá porque los joins son `*-a-uno`): 72
+   resultados, 9 páginas, los recordatorios sin fecha al final. Se agregó además
+   el `catch` con toast en la pantalla.
+2. **Acciones de los recordatorios** — se definieron las reglas y viven en un
+   solo lugar (`getReminderActions`, en el módulo puro compartido): un service
+   **al día no se puede posponer** (posponer no cambia el vencimiento, sólo lo
+   escondía), un **postergado no se vuelve a posponer** sino que primero se
+   **reactiva** (acción nueva, con endpoint `service:reactivate` que respeta la
+   invariante de un recordatorio vigente por vehículo y tipo), y los estados
+   cerrados no admiten acciones. Las reglas las **valida el backend**, no sólo la
+   UI. La bandeja y la ficha del vehículo ahora comparten la misma barra de
+   acciones (`ReminderActions`) y muestran "Postergado hasta dd/mm/aaaa", que es
+   lo que antes no se reflejaba en ningún lado. También se corrigió el chip de
+   estado: un service ya hecho se mostraba como "Al día" porque la urgencia no
+   evalúa los cerrados (`getReminderBadge`). 10 tests nuevos.
+3. **Presupuesto/factura con selección de trabajos** — los **entregados quedan
+   siempre afuera** (ya se cobraron: su lugar es el historial). Nuevo
+   `DocumentModal`: se elige el tipo y se marcan los trabajos con checkboxes,
+   con el total en vivo y un aviso de cuántos entregados se excluyeron. El
+   presupuesto admite sin comenzar / en progreso / completados; la factura, sólo
+   completados. `filterJobsForDocument(jobs, onlyCompleted)` pasó a ser
+   `eligibleJobsForDocument(jobs, type)` y la regla se reaplica en el hook (no
+   sólo en la UI). El `Dropdown` de "Descargar" se reemplazó por el modal y se
+   eliminó la variante `compact` del botón, que no se usaba.
+4. **Banner del dashboard** — decía "N vehículos sin service en los últimos 6
+   meses", que era la heurística vieja; ahora dice "N vehículos requieren
+   service" con la aclaración de que son vencidos o por vencer, por fecha o por
+   kilometraje (que es lo que realmente cuenta `countDueReminders`). Además los
+   endpoints de recordatorios **invalidan la caché del dashboard**: posponer o
+   completar un service cambiaba el número real pero el banner seguía mostrando
+   el viejo.
+5. **Gestión de datos** — nuevo componente `DataCard` (ícono + título +
+   descripción + aviso + acción, con el botón anclado al pie para que la fila
+   quede pareja) y las cinco tarjetas pasaron a usarlo, en una grilla de tres
+   columnas para que no quede una suelta. Los colores se rehicieron con **tokens
+   base + transparencia** (`text-success`, `bg-warning/10`) en vez de tonos
+   numéricos: HeroUI invierte las escalas entre temas, así que los
+   `text-success-300` / `border-warning-800` se veían lavados o pesados según el
+   tema. La pantalla ahora usa `PageShell` como el resto.
+6. **Filtro "Tipo de service"** — quitado de la bandeja (hoy hay un solo circuito
+   real). El parámetro sigue en el endpoint para cuando los tipos se usen de
+   verdad (ver tarea 16).
+7. **Acciones rápidas fijas en el inicio** (pedido sobre la marcha) — "Ingresar
+   Vehículo" y "Nuevo Trabajo" se movieron a la cabecera fija del dashboard
+   (`PageShell`), así están siempre a la vista sin depender del scroll; antes
+   estaban al pie y se duplicaban en el estado sin datos.
+8. **Extra encontrado en la revisión** — los badges de la barra de navegación se
+   cargaban una única vez al montar, y como el `Header` nunca se desmonta,
+   quedaban congelados toda la sesión (cargar un trabajo o cerrar un service no
+   se reflejaba hasta reiniciar). Ahora se recalculan en cada cambio de pantalla.
+
+Archivos nuevos: `src/Components/DocumentModal.tsx`,
+`src/Components/DataCard.tsx`, `src/Pages/Components/ReminderActions.tsx`.
+Modificados: `electron/DataBase/Endpoints/service.endpoints.ts`,
+`electron/preload.ts`, `global.d.ts`, `src/Utils/serviceReminders.ts` (+ tests),
+`src/Utils/budgetPdf.ts` (+ tests), `src/Utils/pdfPreview.test.ts`,
+`src/Hooks/useBudgetPdf.ts`, `src/Components/BudgetButton.tsx`,
+`src/Components/Header.tsx`, `src/Pages/{HomePage,BackupPage,ServiceAlertsPage}.tsx`,
+`src/Pages/Components/NextServiceCard.tsx`.
+
+### Historial anterior
+
+El plan de 33 tareas (sprints 0 a 7) se completó entre el 18/07/2026 y el
+08/08/2026: fixes urgentes, tests de utilidades, índices, logs estructurados,
+wrapper de IPC, validación de DTOs, `APIResponse` unificada, separación de
+endpoints por dominio, caché del dashboard, normalización de `jobs` como entidad,
+paginación server-side, hooks de datos vs UI, features de taller (WhatsApp,
+notas, historiales, filtros, atajos de teclado, tema claro/oscuro, PDF con
+numeración correlativa, historial cruzado de cliente) y el sistema de
+recordatorios de service. Dos tareas quedaron fuera por decisión del usuario:
+**fotos del vehículo** (descartada) y **multi-usuario con PIN** (pospuesta, y
+reemplazada por las tareas 12 a 15 de este plan).

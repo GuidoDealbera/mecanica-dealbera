@@ -46,7 +46,6 @@ export interface RenderBudgetParams {
   docNumber: string;
   docType: DocumentType;
   title: string;
-  onlyCompleted: boolean;
   /**
    * Fuente de patentes (FE-FONT) en base64, para dibujar la patente igual que
    * en la app. Si no se pasa, se usa la tipografía estándar del documento.
@@ -73,17 +72,24 @@ export const computeTotals = (jobs: Jobs[]): BudgetTotals => {
   };
 };
 
-/** Filtra los trabajos según el tipo de documento (la factura sólo cerrados). */
-export const filterJobsForDocument = (
+/**
+ * Trabajos que pueden entrar en un documento según su tipo.
+ *
+ * Los **entregados quedan siempre afuera**: un trabajo entregado ya se cobró, así
+ * que volver a presupuestarlo o facturarlo sería cobrarlo dos veces. Su lugar es
+ * el historial del vehículo.
+ *
+ * - **Presupuesto**: sin comenzar, en progreso y completados (lo que todavía se
+ *   va a cobrar).
+ * - **Factura**: sólo completados (es lo que ya se hizo y se puede cobrar).
+ */
+export const eligibleJobsForDocument = (
   jobs: Jobs[],
-  onlyCompleted: boolean
+  type: DocumentType
 ): Jobs[] =>
-  onlyCompleted
-    ? jobs.filter(
-        (j) =>
-          j.status === JobStatus.COMPLETED || j.status === JobStatus.DELIVERED
-      )
-    : jobs;
+  type === DocumentType.INVOICE
+    ? jobs.filter((j) => j.status === JobStatus.COMPLETED)
+    : jobs.filter((j) => j.status !== JobStatus.DELIVERED);
 
 export const renderBudgetDocument = ({
   car,
@@ -92,7 +98,6 @@ export const renderBudgetDocument = ({
   docNumber,
   docType,
   title,
-  onlyCompleted,
   plateFontBase64,
 }: RenderBudgetParams): jsPDF => {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
@@ -265,9 +270,9 @@ export const renderBudgetDocument = ({
     doc.setFontSize(T.body);
     doc.setTextColor(...CO.textMuted);
     doc.text(
-      onlyCompleted
-        ? "No hay trabajos completados o entregados para este vehículo."
-        : "No hay trabajos registrados para este vehículo.",
+      docType === DocumentType.INVOICE
+        ? "No hay trabajos completados para facturar."
+        : "No hay trabajos para presupuestar en este vehículo.",
       pageW / 2,
       y + 11,
       { align: "center" }

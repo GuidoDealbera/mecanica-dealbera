@@ -196,6 +196,96 @@ export const evaluateReminder = ({
   return { ...base, urgency: "upcoming", isDue: false };
 };
 
+/** Plazos ofrecidos al posponer un recordatorio. */
+export const SNOOZE_OPTIONS: { days: number; label: string }[] = [
+  { days: 7, label: "1 semana" },
+  { days: 15, label: "15 días" },
+  { days: 30, label: "1 mes" },
+  { days: 90, label: "3 meses" },
+];
+
+/** Qué acciones admite un recordatorio según su estado y su evaluación. */
+export interface ReminderActions {
+  /** Posponer: sólo tiene sentido si ya venció o está por vencer. */
+  canSnooze: boolean;
+  /** Volver a poner vigente uno postergado o descartado. */
+  canReactivate: boolean;
+  /** Registrar el service como hecho (cierra este y programa el siguiente). */
+  canComplete: boolean;
+  canDismiss: boolean;
+  /** Por qué no se puede posponer (para el tooltip y el mensaje del backend). */
+  snoozeDisabledReason: string | null;
+}
+
+/**
+ * Reglas de las acciones de un recordatorio. Única fuente de verdad: la usan la
+ * bandeja y la ficha del vehículo para habilitar/deshabilitar botones, y el
+ * backend para rechazar la operación (la UI no es la que valida).
+ *
+ * El criterio es que la acción tenga sentido en el estado actual:
+ * - **Al día**: no hay nada que posponer (posponer no cambia el vencimiento, así
+ *   que sólo esconde un recordatorio que todavía no molesta).
+ * - **Postergado**: no se vuelve a posponer; primero se reactiva. Así el plazo
+ *   no se estira indefinidamente sin dejar rastro.
+ * - **Hecho / descartado**: son estados cerrados; sólo se puede reactivar el
+ *   descartado (el hecho ya generó el siguiente recordatorio).
+ */
+export const getReminderActions = (
+  status: ReminderStatus,
+  evaluation: ReminderEvaluation
+): ReminderActions => {
+  if (status === ReminderStatus.DONE) {
+    return {
+      canSnooze: false,
+      canReactivate: false,
+      canComplete: false,
+      canDismiss: false,
+      snoozeDisabledReason: "El service ya fue registrado como hecho",
+    };
+  }
+
+  if (status === ReminderStatus.DISMISSED) {
+    return {
+      canSnooze: false,
+      canReactivate: true,
+      canComplete: false,
+      canDismiss: false,
+      snoozeDisabledReason: "El recordatorio está descartado",
+    };
+  }
+
+  // Postergado y todavía dentro del plazo.
+  if (evaluation.urgency === "snoozed") {
+    return {
+      canSnooze: false,
+      canReactivate: true,
+      canComplete: true,
+      canDismiss: true,
+      snoozeDisabledReason:
+        "Ya está postergado: reactivalo si querés volver a tenerlo a la vista",
+    };
+  }
+
+  if (!evaluation.isDue) {
+    return {
+      canSnooze: false,
+      canReactivate: false,
+      canComplete: true,
+      canDismiss: true,
+      snoozeDisabledReason:
+        "El service está al día: no hay nada que posponer todavía",
+    };
+  }
+
+  return {
+    canSnooze: true,
+    canReactivate: false,
+    canComplete: true,
+    canDismiss: true,
+    snoozeDisabledReason: null,
+  };
+};
+
 /** Color semántico de la urgencia (mismo criterio que los Chips de la app). */
 export const URGENCY_COLOR: Record<
   ReminderUrgency,
@@ -212,6 +302,34 @@ export const URGENCY_LABELS: Record<ReminderUrgency, string> = {
   "due-soon": "Vence pronto",
   upcoming: "Al día",
   snoozed: "Postergado",
+};
+
+export interface ReminderBadge {
+  label: string;
+  color: "danger" | "warning" | "default" | "primary" | "success";
+}
+
+/**
+ * Etiqueta y color con los que se muestra el estado de un recordatorio.
+ *
+ * No alcanza con la urgencia: `evaluateReminder` devuelve `upcoming` para los
+ * recordatorios cerrados (no los evalúa), así que un service ya hecho aparecía
+ * como "Al día". Acá el estado cerrado gana sobre la urgencia.
+ */
+export const getReminderBadge = (
+  status: ReminderStatus,
+  evaluation: ReminderEvaluation
+): ReminderBadge => {
+  if (status === ReminderStatus.DONE) {
+    return { label: "Service hecho", color: "success" };
+  }
+  if (status === ReminderStatus.DISMISSED) {
+    return { label: "Descartado", color: "default" };
+  }
+  return {
+    label: URGENCY_LABELS[evaluation.urgency],
+    color: URGENCY_COLOR[evaluation.urgency],
+  };
 };
 
 /**

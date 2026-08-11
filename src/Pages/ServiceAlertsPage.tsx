@@ -2,10 +2,6 @@ import React from "react";
 import {
   Button,
   Chip,
-  Dropdown,
-  DropdownItem,
-  DropdownMenu,
-  DropdownTrigger,
   Input,
   Select,
   SelectItem,
@@ -13,30 +9,26 @@ import {
 } from "@heroui/react";
 import { HiOutlineRefresh } from "react-icons/hi";
 import {
-  MdBuild,
   MdCheckCircle,
-  MdKeyboardArrowDown,
   MdNotificationsActive,
   MdPhone,
   MdSchedule,
   MdSettings,
-  MdWhatsapp,
 } from "react-icons/md";
 import { IoCarSportSharp, IoSearch } from "react-icons/io5";
 import { useNavigate } from "react-router-dom";
 import {
+  APIResponse,
   DEFAULT_SERVICE_SETTINGS,
   ReminderScope,
   SERVICE_TYPE_LABELS,
   ServiceReminderView,
   ServiceSettings,
-  ServiceType,
 } from "../Types/apiTypes";
 import {
   evaluateReminder,
   formatDueSummary,
-  URGENCY_COLOR,
-  URGENCY_LABELS,
+  getReminderBadge,
 } from "../Utils/serviceReminders";
 import { buildWhatsappUrl, formatDate } from "../Utils/utils";
 import LicenceTable from "../Components/Licenses/LicenceTable";
@@ -44,6 +36,7 @@ import TablePagination from "../Components/TablePagination";
 import EmptyState from "../Components/EmptyState";
 import PageShell from "../Components/PageShell";
 import TableLoadingContent from "../Components/TableLoadingContent";
+import ReminderActions from "./Components/ReminderActions";
 import { useToasts } from "../Hooks/useToasts";
 import { useDebounce } from "../Hooks/useDebounce";
 
@@ -53,13 +46,6 @@ const SCOPE_OPTIONS: { key: ReminderScope; label: string }[] = [
   { key: "due", label: "Requieren atención" },
   { key: "pending", label: "Todos los vigentes" },
   { key: "all", label: "Historial completo" },
-];
-
-const SNOOZE_OPTIONS = [
-  { days: 7, label: "1 semana" },
-  { days: 15, label: "15 días" },
-  { days: 30, label: "1 mes" },
-  { days: 90, label: "3 meses" },
 ];
 
 /**
@@ -82,7 +68,6 @@ const ServiceAlertsPage: React.FC = () => {
 
   const [page, setPage] = React.useState(1);
   const [scope, setScope] = React.useState<ReminderScope>("due");
-  const [typeFilter, setTypeFilter] = React.useState<string>("all");
   const [search, setSearch] = React.useState("");
   const debouncedSearch = useDebounce(search, 300);
 
@@ -111,16 +96,28 @@ const ServiceAlertsPage: React.FC = () => {
         page,
         pageSize: PAGE_SIZE,
         scope,
-        type: typeFilter === "all" ? undefined : (typeFilter as ServiceType),
         search: debouncedSearch || undefined,
       });
       setReminders(result.items);
       setTotal(result.total);
+    } catch (error) {
+      // Sin este catch un fallo del listado quedaba como promesa rechazada sin
+      // atender: la pantalla mostraba "Todo al día" como si no hubiera nada,
+      // ocultando el error real.
+      setReminders([]);
+      setTotal(0);
+      showToast(
+        error instanceof Error
+          ? error.message
+          : "No se pudieron cargar los recordatorios",
+        "danger",
+        "Recordatorios"
+      );
     } finally {
       setLoading(false);
       setLoaded(true);
     }
-  }, [page, scope, typeFilter, debouncedSearch]);
+  }, [page, scope, debouncedSearch, showToast]);
 
   React.useEffect(() => {
     fetchSettings();
@@ -141,9 +138,8 @@ const ServiceAlertsPage: React.FC = () => {
   /** Evalúa cada recordatorio con la misma lógica que usa el backend. */
   const evaluated = React.useMemo(
     () =>
-      reminders.map((reminder) => ({
-        reminder,
-        evaluation: evaluateReminder({
+      reminders.map((reminder) => {
+        const evaluation = evaluateReminder({
           status: reminder.status,
           dueDate: reminder.dueDate,
           dueKm: reminder.dueKm,
@@ -151,17 +147,19 @@ const ServiceAlertsPage: React.FC = () => {
           currentKm: reminder.car.kilometers,
           kmPerDay: reminder.kmPerDay,
           settings,
-        }),
-      })),
+        });
+        return {
+          reminder,
+          evaluation,
+          badge: getReminderBadge(reminder.status, evaluation),
+        };
+      }),
     [reminders, settings]
   );
 
   /** Ejecuta una acción sobre un recordatorio y refresca la bandeja. */
   const runAction = React.useCallback(
-    async (
-      id: string,
-      action: () => Promise<{ status: string; message: string }>
-    ) => {
+    async (id: string, action: () => Promise<APIResponse<unknown>>) => {
       setActioningId(id);
       try {
         const res = await action();
@@ -213,7 +211,7 @@ const ServiceAlertsPage: React.FC = () => {
     }
   };
 
-  const hasFilters = !!debouncedSearch || typeFilter !== "all";
+  const hasFilters = !!debouncedSearch;
 
   // Cabecera fija: título, configuración y filtros. El listado scrollea abajo y
   // el paginado queda anclado al pie.
@@ -334,26 +332,10 @@ const ServiceAlertsPage: React.FC = () => {
             <SelectItem key={option.key}>{option.label}</SelectItem>
           ))}
         </Select>
-        <Select
-          label="Tipo de service"
-          size="sm"
-          className="max-w-[200px]"
-          selectedKeys={[typeFilter]}
-          onSelectionChange={(keys) => {
-            const value = Array.from(keys)[0] as string | undefined;
-            if (value) {
-              setTypeFilter(value);
-              setPage(1);
-            }
-          }}
-        >
-          {[
-            <SelectItem key="all">Todos</SelectItem>,
-            ...Object.values(ServiceType).map((type) => (
-              <SelectItem key={type}>{SERVICE_TYPE_LABELS[type]}</SelectItem>
-            )),
-          ]}
-        </Select>
+        {/* No hay filtro por tipo de service: hoy el taller trabaja con un único
+            circuito (service general), así que sería un filtro con una sola
+            opción real. El endpoint mantiene el parámetro para cuando los tipos
+            se usen de verdad. */}
         <Input
           label="Buscar"
           size="sm"
@@ -409,7 +391,7 @@ const ServiceAlertsPage: React.FC = () => {
         )
       ) : (
         <div className="flex flex-col gap-3">
-          {evaluated.map(({ reminder, evaluation }) => (
+          {evaluated.map(({ reminder, evaluation, badge }) => (
             <div
               key={reminder.id}
               className="flex flex-wrap items-center gap-3 p-3 rounded-lg bg-content2 border border-divider"
@@ -428,12 +410,8 @@ const ServiceAlertsPage: React.FC = () => {
                   >
                     {SERVICE_TYPE_LABELS[reminder.type]}
                   </Chip>
-                  <Chip
-                    size="sm"
-                    color={URGENCY_COLOR[evaluation.urgency]}
-                    variant="flat"
-                  >
-                    {URGENCY_LABELS[evaluation.urgency]}
+                  <Chip size="sm" color={badge.color} variant="flat">
+                    {badge.label}
                   </Chip>
                 </div>
                 <p className="text-foreground-400 text-xs mt-0.5">
@@ -443,6 +421,14 @@ const ServiceAlertsPage: React.FC = () => {
                   {reminder.dueKm !== null &&
                     ` · a los ${reminder.dueKm.toLocaleString("es-AR")} km`}
                 </p>
+                {/* El plazo del postergado se muestra explícito: si no, el único
+                    rastro de haberlo pospuesto era el chip. */}
+                {evaluation.urgency === "snoozed" && reminder.snoozedUntil && (
+                  <p className="text-primary-500 text-xs flex items-center gap-1">
+                    <MdSchedule size={12} />
+                    Postergado hasta {formatDate(reminder.snoozedUntil)}
+                  </p>
+                )}
                 <p className="text-foreground-400 text-xs">
                   {reminder.owner.fullname}
                   {reminder.owner.phone && (
@@ -458,101 +444,18 @@ const ServiceAlertsPage: React.FC = () => {
                 </p>
               </div>
 
-              <div className="flex items-center gap-2 flex-wrap">
-                <Tooltip
-                  content="Avisar por WhatsApp"
-                  color="success"
-                  showArrow
-                >
-                  <Button
-                    isIconOnly
-                    size="sm"
-                    className="bg-success-600 text-white"
-                    isDisabled={actioningId === reminder.id}
-                    onPress={() => handleWhatsapp(reminder)}
-                  >
-                    <MdWhatsapp size={18} />
-                  </Button>
-                </Tooltip>
-
-                <Dropdown>
-                  <DropdownTrigger>
-                    <Button
-                      size="sm"
-                      variant="flat"
-                      isDisabled={actioningId === reminder.id}
-                      startContent={<MdSchedule size={16} />}
-                      endContent={<MdKeyboardArrowDown size={16} />}
-                    >
-                      Posponer
-                    </Button>
-                  </DropdownTrigger>
-                  <DropdownMenu
-                    aria-label="Posponer recordatorio"
-                    onAction={(key) =>
-                      runAction(reminder.id, () =>
-                        window.api.service.snooze(reminder.id, Number(key))
-                      )
-                    }
-                  >
-                    {SNOOZE_OPTIONS.map((option) => (
-                      <DropdownItem key={option.days}>
-                        {option.label}
-                      </DropdownItem>
-                    ))}
-                  </DropdownMenu>
-                </Dropdown>
-
-                <Tooltip
-                  content="Service hecho (programa el próximo)"
-                  color="primary"
-                  showArrow
-                >
-                  <Button
-                    isIconOnly
-                    size="sm"
-                    color="primary"
-                    variant="flat"
-                    isDisabled={actioningId === reminder.id}
-                    onPress={() =>
-                      runAction(reminder.id, () =>
-                        window.api.service.complete(reminder.id)
-                      )
-                    }
-                  >
-                    <MdCheckCircle size={18} />
-                  </Button>
-                </Tooltip>
-
-                <Tooltip content="Cargar trabajo" color="primary" showArrow>
-                  <Button
-                    isIconOnly
-                    size="sm"
-                    variant="flat"
-                    onPress={() =>
-                      navigate("/cars/add-job", {
-                        state: { license: reminder.car.licensePlate },
-                      })
-                    }
-                  >
-                    <MdBuild size={18} />
-                  </Button>
-                </Tooltip>
-
-                <Button
-                  size="sm"
-                  variant="light"
-                  color="danger"
-                  isDisabled={actioningId === reminder.id}
-                  onPress={() =>
-                    runAction(reminder.id, () =>
-                      window.api.service.dismiss(reminder.id)
-                    )
-                  }
-                >
-                  Descartar
-                </Button>
-              </div>
+              <ReminderActions
+                reminder={reminder}
+                evaluation={evaluation}
+                isBusy={actioningId === reminder.id}
+                onRun={(action) => runAction(reminder.id, action)}
+                onWhatsapp={() => handleWhatsapp(reminder)}
+                onAddJob={() =>
+                  navigate("/cars/add-job", {
+                    state: { license: reminder.car.licensePlate },
+                  })
+                }
+              />
             </div>
           ))}
         </div>
