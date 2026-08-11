@@ -20,7 +20,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import fs from "node:fs";
 import log from "electron-log/main";
-import { logError, logInfo } from "./logger";
+import { logError, logInfo, logWarn } from "./logger";
 import { handleIpc } from "./ipc";
 import { AppDataSource, initializeDB } from "./DataBase/dataSource";
 import { countDueReminders } from "./DataBase/serviceReminders.service";
@@ -75,18 +75,72 @@ function performAutoBackup(): void {
   }
 }
 
-process.on("uncaughtException", (error) => {
-  logError("uncaught-exception", error);
-  dialog.showErrorBox(
-    "Error Inesperado",
-    `Ocurrió un error inesperado:\n\n${error.message}`
-  );
-});
-
 let win: BrowserWindow | null;
 let splash: BrowserWindow | null;
 
 const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000;
+
+/** Tiempo máximo que se deja el splash esperando a que la ventana esté lista. */
+const SPLASH_TIMEOUT_MS = 20_000;
+
+/** Cierra el splash. Es idempotente: se puede llamar desde varios caminos. */
+function closeSplash(): void {
+  if (splash && !splash.isDestroyed()) splash.close();
+  splash = null;
+}
+
+/** Evita que dos errores encadenados disparen dos cierres (y dos cuadros). */
+let isShuttingDown = false;
+
+/**
+ * Cierra la aplicación de forma controlada ante un error del que no puede
+ * recuperarse.
+ *
+ * Antes `uncaughtException` sólo mostraba un cuadro de error y la ejecución
+ * **seguía**, con la app en un estado indefinido: es el peor escenario posible
+ * para algo que escribe en una base de datos. Acá se registra el error, se cierra
+ * el splash (si quedó abierto) y se sale con código 1.
+ *
+ * @param showDialog `false` cuando quien llama ya avisó al usuario (por ejemplo
+ * `initializeDB`, que muestra su propio cuadro con la ruta de la base).
+ */
+function fatalError(
+  scope: string,
+  error: unknown,
+  { showDialog = true }: { showDialog?: boolean } = {}
+): void {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+
+  logError(scope, error);
+  closeSplash();
+
+  if (showDialog) {
+    const detail = error instanceof Error ? error.message : String(error);
+    dialog.showErrorBox(
+      "Error inesperado",
+      `La aplicación se va a cerrar porque ocurrió un error del que no puede recuperarse.\n\n` +
+        `${detail}\n\n` +
+        `El detalle quedó registrado en los logs.`
+    );
+  }
+
+  // `app.exit` en vez de `app.quit`: no depende de que los handlers de cierre
+  // corran bien, que es justo lo que no se puede dar por sentado acá.
+  app.exit(1);
+}
+
+process.on("uncaughtException", (error) => {
+  fatalError("uncaught-exception", error);
+});
+
+// Una promesa rechazada sin atender no deja ningún rastro por sí sola: se
+// registra para poder diagnosticarla. A diferencia de `uncaughtException`, no
+// cierra la app: casi siempre es una operación puntual que falló y el resto
+// sigue sirviendo.
+process.on("unhandledRejection", (reason) => {
+  logError("unhandled-rejection", reason);
+});
 
 function setupAutoUpdater() {
   if (process.env.NODE_ENV === "development") return;
@@ -143,31 +197,65 @@ function setupAutoUpdater() {
   }, UPDATE_CHECK_INTERVAL_MS);
 }
 
-async function createWindow() {
-  splash = new BrowserWindow({
-    width: 600,
-    height: 600,
-    frame: false,
-    show: true,
-    alwaysOnTop: true,
-  });
-
+/**
+ * Muestra la pantalla de carga. Es puramente cosmética, así que un fallo acá
+ * (por ejemplo que `splash.html` no esté empaquetado) se registra y se sigue: no
+ * puede impedir que la aplicación arranque.
+ */
+function showSplash(): void {
   const splashPath = VITE_DEV_SERVER_URL
     ? path.join(process.env.APP_ROOT, "electron", "splash.html")
     : path.join(process.resourcesPath, "splash.html");
 
-  splash.loadFile(path.join(splashPath));
-
-  if (process.env.NODE_ENV !== "development") {
-    try {
-      performAutoBackup();
-      logInfo("backup:auto", "Auto-backup completado");
-    } catch (err) {
-      logError("backup:auto", err);
-    }
+  try {
+    splash = new BrowserWindow({
+      width: 600,
+      height: 600,
+      frame: false,
+      show: true,
+      alwaysOnTop: true,
+      // Sin esto la ventana se pinta blanca hasta que el HTML carga, y se veía un
+      // fogonazo blanco antes de la pantalla de carga (que es oscura).
+      backgroundColor: "#000000",
+    });
+    splash.loadFile(splashPath).catch((error) => {
+      logWarn("app:splash", "No se pudo cargar la pantalla de carga", {
+        splashPath,
+        error: String(error),
+      });
+      closeSplash();
+    });
+  } catch (error) {
+    logWarn("app:splash", "No se pudo crear la pantalla de carga", {
+      error: String(error),
+    });
+    splash = null;
   }
+}
 
-  await initializeDB();
+async function createWindow() {
+  showSplash();
+
+  try {
+    if (process.env.NODE_ENV !== "development") {
+      try {
+        performAutoBackup();
+        logInfo("backup:auto", "Auto-backup completado");
+      } catch (err) {
+        // El respaldo es best-effort: si falla no impide usar la aplicación.
+        logError("backup:auto", err);
+      }
+    }
+
+    await initializeDB();
+  } catch (error) {
+    // Sin base de datos la aplicación no sirve para nada, y antes este camino
+    // dejaba el splash abierto para siempre y ninguna ventana: `initializeDB`
+    // muestra su propio cuadro de error (con la ruta de la base) y re-lanza, así
+    // que acá sólo se registra y se cierra.
+    fatalError("app:start", error, { showDialog: false });
+    return;
+  }
 
   // Notificación de recordatorios de service al iniciar (solo en producción).
   // El conteo sale de `countDueReminders`, la misma función que alimenta el
@@ -207,18 +295,65 @@ async function createWindow() {
     win?.webContents.send("main-process-message", new Date().toLocaleString());
   });
 
+  // Red de seguridad: si la ventana nunca llega a `ready-to-show`, el splash
+  // quedaría arriba de todo, sin bordes y sin forma de cerrarlo. Pasado el plazo
+  // se cierra igual y se muestra la ventana, aunque esté a medio cargar: es
+  // preferible a una pantalla de carga eterna.
+  const splashTimeout = setTimeout(() => {
+    if (!splash) return;
+    logWarn(
+      "app:splash",
+      "La ventana no estuvo lista en el tiempo esperado; se cierra la pantalla de carga",
+      { timeoutMs: SPLASH_TIMEOUT_MS }
+    );
+    closeSplash();
+    win?.show();
+  }, SPLASH_TIMEOUT_MS);
+
+  win.once("ready-to-show", () => {
+    clearTimeout(splashTimeout);
+    closeSplash();
+    win?.show();
+    win?.maximize();
+  });
+
+  // Si la carga del renderer falla no hay `ready-to-show`, así que hay que
+  // atender este evento o la app queda colgada en la pantalla de carga.
+  win.webContents.on(
+    "did-fail-load",
+    (_event, errorCode, errorDescription, validatedURL) => {
+      // ERR_ABORTED (-3) lo emite una navegación cancelada: pasa de forma normal
+      // con el recargado en caliente del servidor de desarrollo.
+      if (errorCode === -3) return;
+
+      clearTimeout(splashTimeout);
+      closeSplash();
+      logError(
+        "app:window-load",
+        new Error(`${errorDescription} (${errorCode})`),
+        { url: validatedURL }
+      );
+
+      if (VITE_DEV_SERVER_URL) {
+        // En desarrollo se muestra la ventana: Vite reintenta la carga solo
+        // cuando el servidor vuelve.
+        win?.show();
+        return;
+      }
+      fatalError(
+        "app:window-load",
+        new Error(
+          `No se pudo cargar la interfaz de la aplicación: ${errorDescription}`
+        )
+      );
+    }
+  );
+
   if (VITE_DEV_SERVER_URL) {
     win.loadURL(VITE_DEV_SERVER_URL);
   } else {
     win.loadFile(path.join(RENDERER_DIST, "index.html"));
   }
-
-  win.once("ready-to-show", () => {
-    splash?.close();
-    splash = null;
-    win?.show();
-    win?.maximize();
-  });
 }
 
 app.on("second-instance", () => {
@@ -288,6 +423,12 @@ handleIpc("check-for-updates", async () => {
 
 app.whenReady().then(async () => {
   logInfo("app:start", "App iniciando", { version: app.getVersion() });
-  await createWindow();
-  setupAutoUpdater();
+  try {
+    await createWindow();
+    setupAutoUpdater();
+  } catch (error) {
+    // `createWindow` ya atiende sus propios fallos; esto cubre lo que se le
+    // escape, para que un arranque fallido no quede como promesa rechazada.
+    fatalError("app:start", error);
+  }
 });

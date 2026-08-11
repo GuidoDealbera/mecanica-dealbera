@@ -137,7 +137,7 @@ real). Son chicos y de bajo riesgo: conviene empezar por acá.
      **43 handlers registrados, ninguno huérfano y ninguno invocado sin
      registrar**.
 
-6. **[a testear]** Los trabajos de la ficha no tienen un orden garantizado
+6. **[hecho]** Los trabajos de la ficha no tienen un orden garantizado
    - Archivos: `electron/DataBase/Endpoints/car.crud.endpoints.ts`,
      `src/Store/carSlice.ts`.
    - `car:get-by-license` ahora pide `order: { jobs: { createdAt: "DESC" } }`. Se
@@ -155,19 +155,38 @@ real). Son chicos y de bajo riesgo: conviene empezar por acá.
      de "trabajos recientes" tomando los primeros que encuentra, pero eso se
      resuelve con su reescritura a agregados SQL (tarea 8).
 
-7. **[pendiente]** Robustez del arranque de Electron
-   - Archivo: `electron/main.ts`.
-   - Tres puntos flojos: (a) `uncaughtException` muestra un cuadro de error y
-     **sigue** con la app en estado indefinido; (b) no hay handler de
-     `unhandledRejection`, así que una promesa rechazada en el main desaparece
-     sin log; (c) el splash se cierra en `ready-to-show`, y si la ventana nunca
-     llega a ese evento (error de carga) queda una ventana `alwaysOnTop` sin
-     salida y sin mensaje.
-   - Solución: loguear y cerrar de forma controlada en `uncaughtException`,
-     agregar `process.on("unhandledRejection")` con `logError`, y escuchar
-     `did-fail-load` con un timeout de seguridad que cierre el splash y muestre
-     el error.
-   - Esfuerzo: bajo · Riesgo: bajo.
+7. **[a testear]** Robustez del arranque de Electron
+   - Archivos: `electron/main.ts`, `electron/splash.html`.
+   - `uncaughtException` ya no sigue con la app viva: nuevo `fatalError()` que
+     registra, cierra el splash, avisa al usuario y sale con `app.exit(1)`. Es lo
+     correcto para algo que escribe en una base de datos, y el riesgo de cortar
+     de más es bajo porque los errores de los endpoints los captura `handleIpc`
+     (llegan al renderer como promesa rechazada, no como excepción del proceso
+     principal).
+   - Nuevo `process.on("unhandledRejection")` con `logError`: antes una promesa
+     rechazada en el proceso principal no dejaba ningún rastro. **No** cierra la
+     app (suele ser una operación puntual).
+   - **El caso más grave era otro y apareció al implementar**: si
+     `initializeDB()` fallaba —base corrupta o migración a medias, justo el
+     escenario de la actualización— `createWindow` rechazaba, nadie lo atendía y
+     la app quedaba **con el splash abierto para siempre y sin ninguna ventana**.
+     Ahora ese camino cierra el splash y sale (sin duplicar el cuadro de error,
+     porque `initializeDB` ya muestra el suyo con la ruta de la base).
+   - El splash dejó de poder quedar colgado: se creó `closeSplash()` idempotente,
+     un plazo máximo de 20 s que lo cierra y muestra la ventana igual, y un
+     handler de `did-fail-load` (ignorando `ERR_ABORTED`, que es normal con el
+     recargado en caliente). Además su creación es best-effort: si
+     `splash.html` no está empaquetado, se registra y la app arranca igual.
+   - **Pantalla de carga** (pedido del usuario, opcional): era blanca con un azul
+     de Tailwind (`#3b82f6`) que no correspondía a ningún color del sistema, así
+     que se veía un fogonazo blanco antes de la app en oscuro. Ahora usa la
+     paleta de `hero.ts` (`#006FEE`, fondo oscuro con un halo tenue del color de
+     marca) y la ventana se crea con `backgroundColor` oscuro para que no haya
+     flash antes de cargar el HTML. También se corrigió el tamaño del título
+     (había medidas fijas y media queries que nunca se aplicaban, porque la
+     ventana mide 600×600 y el título desbordaba) y el escudo va en una tarjeta
+     redondeada, porque es un JPG sin transparencia y sobre el fondo oscuro se
+     veía como un rectángulo suelto.
 
 ---
 

@@ -3,12 +3,39 @@
   <head>
     <meta charset="UTF-8" />
     <title>Mecánica Dealbera</title>
-    <!-- Fuente Michroma -->
+    <!--
+      Michroma es la tipografía del título de la aplicación. Se sirve desde
+      Google Fonts (no hay un archivo en el repositorio), así que sin conexión no
+      llega: por eso hay una pila de reserva y `display=swap`, para que el texto
+      se vea igual desde el primer momento.
+    -->
     <link
       href="https://fonts.googleapis.com/css2?family=Michroma&display=swap"
       rel="stylesheet"
     />
     <style>
+      /*
+        Paleta alineada con el tema de la aplicación (ver `hero.ts`):
+        `--primary` es el mismo `#006FEE` que usa el sistema —y que está fijado
+        igual en claro y en oscuro— y el fondo es el oscuro de HeroUI, que es el
+        tema por defecto. Antes la pantalla de carga era blanca con un azul de
+        Tailwind (`#3b82f6`) que no correspondía a ningún color de la interfaz:
+        se veía un fogonazo blanco y después arrancaba la app en oscuro.
+
+        La preferencia de tema se guarda en el `localStorage` del renderer, al que
+        esta ventana no tiene acceso, así que se sigue el tema por defecto.
+      */
+      :root {
+        --primary: #006fee;
+        --primary-soft: #338ef7;
+        --background: #000000;
+        --surface: #18181b;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
       body {
         margin: 0;
         height: 100vh;
@@ -16,34 +43,38 @@
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        background: #fff;
+        gap: 8px;
+        padding: 24px;
+        background: var(--background);
+        /* Halo tenue del color de marca, para que el fondo no sea negro plano. */
+        background-image: radial-gradient(
+          circle at 50% 38%,
+          rgba(0, 111, 238, 0.18),
+          transparent 60%
+        );
+        font-family: "Michroma", "Trebuchet MS", "Segoe UI", sans-serif;
+        user-select: none;
+        overflow: hidden;
       }
 
       h1 {
-        font-family: "Michroma", sans-serif;
+        /* La ventana es de 600x600: con un tamaño fijo el título desbordaba. */
+        font-size: clamp(1.5rem, 6.5vw, 2.5rem);
+        line-height: 1.25;
         font-style: italic;
         font-weight: bold;
-        color: #3b82f6; /* HeroUI primary */
+        color: var(--primary);
         text-align: center;
-        font-size: 3.75rem; /* text-6xl */
-        margin: 0 0 30px 0;
-      }
-      @media (min-width: 768px) {
-        h1 {
-          font-size: 4.5rem;
-        } /* text-7xl */
-      }
-      @media (min-width: 1024px) {
-        h1 {
-          font-size: 6rem;
-        } /* text-8xl */
+        letter-spacing: 0.02em;
+        margin: 0 0 28px 0;
+        text-shadow: 0 2px 18px rgba(0, 111, 238, 0.35);
       }
 
       .spinner {
-        width: 60px;
-        height: 60px;
-        border: 6px solid #ccc;
-        border-top-color: #3b82f6;
+        width: 54px;
+        height: 54px;
+        border: 5px solid rgba(255, 255, 255, 0.12);
+        border-top-color: var(--primary);
         border-radius: 50%;
         animation: spin 1s linear infinite;
       }
@@ -52,19 +83,38 @@
           transform: rotate(360deg);
         }
       }
-
-      p {
-        margin-top: 16px;
-        font-size: 1rem;
-        font-weight: 500;
-        color: #3b82f6;
-        font-family: "Michroma", sans-serif;
+      /* Respeta la preferencia del sistema de reducir animaciones. */
+      @media (prefers-reduced-motion: reduce) {
+        .spinner {
+          animation-duration: 3s;
+        }
       }
 
+      p {
+        margin: 14px 0 0 0;
+        font-size: 0.8rem;
+        letter-spacing: 0.08em;
+        color: var(--primary-soft);
+      }
+
+      /*
+        El escudo es un JPG (sin transparencia), así que sobre el fondo oscuro se
+        vería como un rectángulo suelto: va dentro de una tarjeta clara para que
+        se lea como algo intencional.
+      */
+      .logo-card {
+        margin-top: 28px;
+        padding: 6px;
+        border-radius: 12px;
+        background: var(--surface);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        line-height: 0;
+      }
       .logo {
-        margin-top: 24px;
-        width: 120px;
+        width: 96px;
         height: auto;
+        border-radius: 8px;
+        display: block;
       }
     </style>
   </head>
@@ -72,10 +122,12 @@
     <h1>MECÁNICA DEALBERA</h1>
     <div class="spinner"></div>
     <p>Cargando...</p>
-    <img
-      class="logo"
-      src="images/escudo-racing.jpg"
-      alt="Escudo Racing Club de Avellaneda"
-    />
+    <div class="logo-card">
+      <img
+        class="logo"
+        src="images/escudo-racing.jpg"
+        alt="Escudo Racing Club de Avellaneda"
+      />
+    </div>
   </body>
 </html>
