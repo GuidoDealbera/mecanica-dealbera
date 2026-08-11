@@ -126,7 +126,7 @@ real). Son chicos y de bajo riesgo: conviene empezar por acá.
      el trabajo queda completado, el recordatorio anterior pasa a `done` y se
      programa el siguiente.
 
-5. **[a testear]** `car:find-jobs` es código muerto y su contrato miente
+5. **[hecho]** `car:find-jobs` es código muerto y su contrato miente
    - Archivos: `electron/DataBase/Endpoints/car.jobs.endpoints.ts`,
      `electron/preload.ts`, `global.d.ts`, `src/Types/apiTypes.ts`.
    - Eliminado el handler, el método del preload, el tipo y la mención en el
@@ -137,14 +137,23 @@ real). Son chicos y de bajo riesgo: conviene empezar por acá.
      **43 handlers registrados, ninguno huérfano y ninguno invocado sin
      registrar**.
 
-6. **[pendiente]** Los trabajos de la ficha no tienen un orden garantizado
-   - Archivo: `car.crud.endpoints.ts:148` (`relations: ["jobs"]` sin `ORDER BY`).
-   - El orden lo decide la base. La tabla permite ordenar por estado y precio,
-     pero el orden inicial (y el del PDF, y el del timeline) queda al azar.
-   - Solución: cargar los trabajos ordenados por `createdAt DESC` (o exponer el
-     orden como parámetro) para que la ficha, el documento y el historial
-     coincidan.
-   - Esfuerzo: bajo · Riesgo: bajo.
+6. **[a testear]** Los trabajos de la ficha no tienen un orden garantizado
+   - Archivos: `electron/DataBase/Endpoints/car.crud.endpoints.ts`,
+     `src/Store/carSlice.ts`.
+   - `car:get-by-license` ahora pide `order: { jobs: { createdAt: "DESC" } }`. Se
+     eligió `createdAt` sobre `updatedAt` para que las filas no salten de lugar
+     al cambiarle el estado a un trabajo. Se verificó contra una copia de la base
+     que el orden anidado de `find` funciona y que **el orden por defecto no
+     coincidía** con el pedido, así que el problema era real y visible (la tabla
+     pagina de 5 en 5).
+   - También se corrigió el reducer de `addJob`: insertaba el trabajo nuevo **al
+     final** del array, así que hasta el próximo refresco el trabajo recién
+     cargado aparecía en la última página en lugar de arriba.
+   - Se revisaron los otros lectores de `car.jobs`: el CSV calcula el último
+     trabajo con un `reduce` por fecha máxima (no depende del orden) y el
+     historial ordena sus eventos por su cuenta. El dashboard sí arma sus listas
+     de "trabajos recientes" tomando los primeros que encuentra, pero eso se
+     resuelve con su reescritura a agregados SQL (tarea 8).
 
 7. **[pendiente]** Robustez del arranque de Electron
    - Archivo: `electron/main.ts`.
@@ -174,6 +183,10 @@ real). Son chicos y de bajo riesgo: conviene empezar por acá.
    - Solución: reemplazar el recorrido por agregados SQL (`COUNT`/`SUM` con
      `GROUP BY status`, y los ingresos por mes con `strftime`), dejando en
      memoria sólo los "trabajos recientes" (que ya están limitados a 6).
+   - Incluir en esa reescritura: las listas `recentActiveJobs` /
+     `recentCompletedJobs` / `recentDeliveredJobs` **no son "recientes"**, toman
+     los primeros 6 que aparecen al recorrer los autos sin ningún orden. Con la
+     consulta agregada deben salir ordenadas por fecha (`ORDER BY ... LIMIT 6`).
    - Esfuerzo: medio · Riesgo: medio (hay que mantener los mismos números; se
      puede validar comparando la salida vieja y la nueva sobre la misma base).
 

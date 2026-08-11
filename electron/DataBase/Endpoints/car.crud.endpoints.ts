@@ -146,6 +146,13 @@ handleIpc(
         licensePlate: licence,
       },
       relations: ["owner", "jobs"],
+      // Orden explícito: sin esto lo decidía la base, así que la tabla de
+      // trabajos de la ficha, el documento que se emite y el historial podían
+      // mostrar el mismo listado en órdenes distintos (y la tabla pagina de 5 en
+      // 5, así que se notaba). Se ordena por `createdAt` y no por `updatedAt`
+      // para que las filas no salten de lugar al cambiarle el estado a un
+      // trabajo.
+      order: { jobs: { createdAt: "DESC" } },
     });
     if (!car) {
       return {

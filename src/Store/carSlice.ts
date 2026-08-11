@@ -92,7 +92,11 @@ const carSlice = createSlice({
         state.loadingStates.creating = false;
         const newJob = action.payload.result;
         if (state.car && newJob) {
-          state.car.jobs = [...(state.car.jobs || []), newJob];
+          // Al frente, no al final: el backend devuelve los trabajos del más
+          // reciente al más antiguo, y el trabajo recién cargado es el más
+          // reciente. Agregándolo al final, hasta el próximo refresco aparecía
+          // en la última página de la tabla.
+          state.car.jobs = [newJob, ...(state.car.jobs || [])];
         }
       })
       //PATCH's
