@@ -107,7 +107,7 @@ real). Son chicos y de bajo riesgo: conviene empezar por acá.
      (`PRAGMA foreign_keys = 1`), no quedan huérfanos y `foreign_key_check` e
      `integrity_check` salen limpios.
 
-4. **[a testear]** El recordatorio de service se programa fuera de la transacción del trabajo
+4. **[hecho]** El recordatorio de service se programa fuera de la transacción del trabajo
    - Archivos: `electron/DataBase/Endpoints/car.jobs.endpoints.ts`,
      `src/Hooks/useCarQueries.ts`.
    - `car:add-job` y `car:update-job` ahora corren dentro de un `QueryRunner` y
@@ -126,14 +126,16 @@ real). Son chicos y de bajo riesgo: conviene empezar por acá.
      el trabajo queda completado, el recordatorio anterior pasa a `done` y se
      programa el siguiente.
 
-5. **[pendiente]** `car:find-jobs` es código muerto y su contrato miente
-   - Archivos: `car.jobs.endpoints.ts:87`, `electron/preload.ts:56`,
-     `global.d.ts:78`.
-   - No lo usa ninguna pantalla. Además devuelve `null` cuando no hay resultados
-     pero está tipado como array, y trae **todos** los autos con todos sus
-     trabajos a memoria.
-   - Solución: eliminar el handler, el método del preload y el tipo.
-   - Esfuerzo: mínimo · Riesgo: nulo.
+5. **[a testear]** `car:find-jobs` es código muerto y su contrato miente
+   - Archivos: `electron/DataBase/Endpoints/car.jobs.endpoints.ts`,
+     `electron/preload.ts`, `global.d.ts`, `src/Types/apiTypes.ts`.
+   - Eliminado el handler, el método del preload, el tipo y la mención en el
+     comentario de `APIResponse`. No lo usaba ninguna pantalla, devolvía `null`
+     cuando no había resultados aunque estaba tipado como array, y traía **todos**
+     los autos con todos sus trabajos a memoria.
+   - Se verificó el contrato IPC completo con un chequeo cruzado preload ↔ main:
+     **43 handlers registrados, ninguno huérfano y ninguno invocado sin
+     registrar**.
 
 6. **[pendiente]** Los trabajos de la ficha no tienen un orden garantizado
    - Archivo: `car.crud.endpoints.ts:148` (`relations: ["jobs"]` sin `ORDER BY`).

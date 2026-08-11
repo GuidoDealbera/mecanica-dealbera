@@ -78,7 +78,6 @@ declare global {
         getByLicense: (license: string) => Promise<APIResponse<Car>>;
         update: (id: string, kilometers: number) => Promise<APIResponse<Car>>;
         delete: (licence: string) => Promise<APIResponse>;
-        findJobs: () => Promise<{ licensePlate: string; jobs: Jobs[] }[]>;
         addJob: (
           licence: string,
           job: CreateCarJob

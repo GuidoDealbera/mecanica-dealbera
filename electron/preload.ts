@@ -53,7 +53,6 @@ contextBridge.exposeInMainWorld("api", {
       await ipcRenderer.invoke("car:delete", licence),
     addJob: async (licence: string, job: CreateCarJob) =>
       await ipcRenderer.invoke("car:add-job", licence, job),
-    findJobs: async () => await ipcRenderer.invoke("car:find-jobs"),
     updateJob: async (
       licence: string,
       jobId: string,

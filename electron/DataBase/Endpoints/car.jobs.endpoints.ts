@@ -9,7 +9,7 @@ import { Job } from "../Entities/job.entity";
 import { invalidateDashboardStatsCache } from "../dashboardCache";
 import { completeAndScheduleNext } from "../serviceReminders.service";
 
-// ── Trabajos (jobs) de cada vehículo: alta, listado global y actualización.
+// ── Trabajos (jobs) de cada vehículo: alta, conteo de activos y actualización.
 // Los trabajos son una entidad propia (`job`) con FK a `car`.
 
 // Devuelve el trabajo sin la relación `car` cargada, para no serializar el
@@ -106,19 +106,6 @@ handleIpc("car:active-jobs-count", async (): Promise<number> => {
   return await jobRepository.count({
     where: { status: In([JobStatus.PENDING, JobStatus.IN_PROGRESS]) },
   });
-});
-
-handleIpc("car:find-jobs", async () => {
-  const { carRepository } = getRepositories();
-  const cars = await carRepository.find({ relations: ["jobs"] });
-  const response = cars
-    .filter((car) => Array.isArray(car.jobs) && car.jobs.length > 0)
-    .map((car) => ({
-      licensePlate: car.licensePlate,
-      jobs: car.jobs,
-    }));
-  if (response.length === 0) return null;
-  return response;
 });
 
 // Misma transacción única que en el alta: actualizar el trabajo y cerrar el

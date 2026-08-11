@@ -46,8 +46,8 @@ export type ApiStatus = "success" | "failed" | "cancelled";
  * `message` está siempre presente (los consumidores lo muestran en toasts).
  *
  * Los endpoints de solo-lectura que devuelven colecciones crudas
- * (`car:get-all`, `client:get-all`, `car:find-jobs`) y la búsqueda global
- * (`global:search`, forma `{ status, cars, clients }`) NO usan este envelope.
+ * (`car:get-all`, `client:get-all`) y la búsqueda global (`global:search`, forma
+ * `{ status, cars, clients }`) NO usan este envelope.
  */
 export type APIResponse<T = undefined> =
   | { status: "success"; message: string; result: T }
