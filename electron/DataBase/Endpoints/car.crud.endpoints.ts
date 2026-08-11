@@ -234,14 +234,18 @@ handleIpc("car:delete", async (_, license: CreateCarDto["licensePlate"]) => {
       await qr.rollbackTransaction();
       return { status: "failed", message: "Vehículo no encontrado" };
     }
-    const owner = car.owner;
+
+    // Se borra el vehículo y **nada más**: sus trabajos y su recordatorio de
+    // service caen por la cascada de la FK.
+    //
+    // El titular se conserva incluso si este era su único vehículo. Antes se
+    // eliminaba, y era la única operación de la app que destruía un registro que
+    // el usuario no había elegido borrar: perdía teléfono, dirección y correo de
+    // forma irreversible en una acción que era "borrar un auto". Un cliente sin
+    // vehículos es un estado válido (la pantalla de Clientes los lista) y para
+    // darlo de baja de verdad está `client:delete`, que sí lo avisa.
     await qr.manager.remove(car);
-    if (owner) {
-      const remaining = await qr.manager.count(Car, {
-        where: { owner: { id: owner.id } },
-      });
-      if (remaining === 0) await qr.manager.remove(owner);
-    }
+
     await qr.commitTransaction();
     invalidateDashboardStatsCache();
     return { status: "success", message: "Vehículo eliminado correctamente" };

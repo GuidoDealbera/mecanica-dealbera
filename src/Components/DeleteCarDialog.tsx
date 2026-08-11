@@ -8,7 +8,7 @@ import {
   ModalHeader,
 } from "@heroui/react";
 import React from "react";
-import { MdWarning } from "react-icons/md";
+import { MdInfoOutline, MdWarning } from "react-icons/md";
 import LicenceTable from "./Licenses/LicenceTable";
 import { Cars } from "../Types/types";
 
@@ -75,11 +75,29 @@ const DeleteCarDialog: React.FC<DeleteCarDialogProps> = ({
           <div className="flex items-start gap-2 p-3 rounded-lg bg-danger border border-danger-600">
             <MdWarning size={18} className="text-white flex-shrink-0 mt-0.5" />
             <p className="text-white text-sm">
-              Se eliminarán también todos sus trabajos y el historial de
-              kilometraje. Esta acción es{" "}
+              Se eliminarán también todos sus trabajos, el historial de
+              kilometraje y su recordatorio de service. Esta acción es{" "}
               <span className="font-bold">irreversible</span>.
             </p>
           </div>
+          {/* Qué NO se borra: el titular se conserva aunque este sea su único
+              vehículo. Decirlo evita la duda de si borrar el auto se lleva al
+              cliente (antes se lo llevaba, y sin avisar). */}
+          {car?.owner?.fullname && (
+            <div className="flex items-start gap-2 p-3 rounded-lg bg-primary/10 border border-primary/30">
+              <MdInfoOutline
+                size={18}
+                className="text-primary flex-shrink-0 mt-0.5"
+              />
+              <p className="text-foreground-500 text-sm">
+                <span className="text-foreground font-semibold">
+                  {car.owner.fullname}
+                </span>{" "}
+                se conserva como cliente. Si querés darlo de baja, podés hacerlo
+                desde la pantalla de Clientes.
+              </p>
+            </div>
+          )}
         </ModalBody>
         <ModalFooter>
           <Button onPress={onCancel || onClose} color="danger">

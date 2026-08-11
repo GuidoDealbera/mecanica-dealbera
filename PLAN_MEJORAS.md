@@ -58,7 +58,7 @@ real). Son chicos y de bajo riesgo: conviene empezar por acá.
      porque los `ipcRenderer.on` del preload acumulaban un handler por montaje
      (en desarrollo `StrictMode` los duplica siempre).
 
-2. **[a testear]** El historial de kilometraje suma un registro aunque el km no cambie
+2. **[hecho]** El historial de kilometraje suma un registro aunque el km no cambie
    - Archivos: `electron/DataBase/Endpoints/car.crud.endpoints.ts`,
      `src/Utils/apiResponse.ts` (nuevo, + tests), `src/Hooks/useCarQueries.ts`,
      `src/Hooks/useClientQueries.ts`, `src/Pages/CarDetailPage.tsx`,
@@ -84,17 +84,28 @@ real). Son chicos y de bajo riesgo: conviene empezar por acá.
      que devuelve el backend en vez de un "Error al actualizar datos" genérico.
      5 tests nuevos.
 
-3. **[pendiente]** Borrar un vehículo puede borrar al titular sin avisarlo
-   - Archivos: `car.crud.endpoints.ts:214` (borra el `owner` si se quedó sin
-     autos) y `src/Components/DeleteCarDialog.tsx` (no lo menciona).
-   - El diálogo detalla que se eliminan los trabajos y el historial, pero no que
-     el cliente desaparece si era su único vehículo. Es la única operación de la
-     app que borra un registro que el usuario no eligió borrar.
-   - Solución: decidir la regla y hacerla explícita. Recomendado: **no** borrar
-     al titular (dejarlo inactivo o simplemente sin autos, que es un estado
-     válido y ya soportado por el listado de clientes) o, si se conserva el
-     borrado en cascada, decirlo en el diálogo con el nombre del cliente.
-   - Esfuerzo: bajo · Riesgo: medio (cambia una regla de negocio).
+3. **[a testear]** Borrar un vehículo puede borrar al titular sin avisarlo
+   - Archivos: `electron/DataBase/Endpoints/car.crud.endpoints.ts`,
+     `src/Components/DeleteCarDialog.tsx`.
+   - **Decisión del usuario (10/08/2026): el titular se conserva.** `car:delete`
+     ya no elimina al cliente cuando se borra su último vehículo. Era la única
+     operación de la app que destruía un registro que el usuario no había elegido
+     borrar, y se llevaba teléfono, dirección y correo de forma irreversible en
+     una acción que era "borrar un auto". Se midió antes de decidir: en la base
+     de desarrollo **18 de 42 clientes (43%) tienen un solo vehículo**, así que
+     pasaba seguido; y la base con forma de producción **ya tenía un cliente sin
+     vehículos**, o sea que el estado era válido y soportado.
+   - Un cliente sin autos no necesitó trabajo extra de interfaz: `ClientsTable`
+     ya muestra "Sin vehículos" y la ficha del cliente tiene su estado vacío.
+     Para darlo de baja de verdad sigue estando `client:delete` (que avisa su
+     cascada) y el flag activo/inactivo.
+   - El diálogo de borrado ahora dice qué se elimina (trabajos, historial de
+     kilometraje **y el recordatorio de service**) y, en un bloque aparte, qué se
+     conserva: el titular, con su nombre.
+   - Verificado contra una copia de la base: el vehículo se borra, el titular
+     sobrevive, los trabajos y el recordatorio caen por la cascada de la FK
+     (`PRAGMA foreign_keys = 1`), no quedan huérfanos y `foreign_key_check` e
+     `integrity_check` salen limpios.
 
 4. **[pendiente]** El recordatorio de service se programa fuera de la transacción del trabajo
    - Archivo: `electron/DataBase/Endpoints/car.jobs.endpoints.ts:60` y `:137`.
