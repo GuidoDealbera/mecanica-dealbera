@@ -84,7 +84,7 @@ real). Son chicos y de bajo riesgo: conviene empezar por acá.
      que devuelve el backend en vez de un "Error al actualizar datos" genérico.
      5 tests nuevos.
 
-3. **[a testear]** Borrar un vehículo puede borrar al titular sin avisarlo
+3. **[hecho]** Borrar un vehículo puede borrar al titular sin avisarlo
    - Archivos: `electron/DataBase/Endpoints/car.crud.endpoints.ts`,
      `src/Components/DeleteCarDialog.tsx`.
    - **Decisión del usuario (10/08/2026): el titular se conserva.** `car:delete`
@@ -107,16 +107,24 @@ real). Son chicos y de bajo riesgo: conviene empezar por acá.
      (`PRAGMA foreign_keys = 1`), no quedan huérfanos y `foreign_key_check` e
      `integrity_check` salen limpios.
 
-4. **[pendiente]** El recordatorio de service se programa fuera de la transacción del trabajo
-   - Archivo: `electron/DataBase/Endpoints/car.jobs.endpoints.ts:60` y `:137`.
-   - `car:add-job` y `car:update-job` guardan el trabajo y **después** llaman a
-     `completeAndScheduleNext` con `AppDataSource.manager`. Si esa segunda parte
-     falla, el trabajo queda cerrado y el recordatorio sin cerrar (el vehículo
-     sigue apareciendo como que necesita service).
-   - Solución: envolver ambos handlers en un `QueryRunner` y pasarle
-     `qr.manager` (el módulo de dominio ya recibe el `EntityManager` por
-     parámetro justamente para esto).
-   - Esfuerzo: bajo · Riesgo: bajo.
+4. **[a testear]** El recordatorio de service se programa fuera de la transacción del trabajo
+   - Archivos: `electron/DataBase/Endpoints/car.jobs.endpoints.ts`,
+     `src/Hooks/useCarQueries.ts`.
+   - `car:add-job` y `car:update-job` ahora corren dentro de un `QueryRunner` y
+     le pasan `qr.manager` a `completeAndScheduleNext` (el módulo de dominio
+     recibe el `EntityManager` por parámetro justamente para esto). Cerrar un
+     service es **un solo hecho**: el trabajo y el recordatorio se guardan juntos
+     o no se guarda ninguno. La invalidación de la caché del dashboard pasó a
+     ejecutarse **después** del commit.
+   - De paso, en `useCarQueries.updateJob` el color del toast estaba fijo en
+     `"success"`: con los handlers ahora devolviendo `{status:"failed"}` en vez
+     de propagar la excepción, un fallo se habría mostrado como un toast **verde**
+     con un mensaje de error. Ahora el color sale del estado de la respuesta.
+   - Verificado contra una copia de la base, replicando el cuerpo transaccional:
+     con un fallo simulado después de guardar el trabajo, **el trabajo vuelve a
+     su estado anterior** y los recordatorios quedan intactos; en el camino feliz
+     el trabajo queda completado, el recordatorio anterior pasa a `done` y se
+     programa el siguiente.
 
 5. **[pendiente]** `car:find-jobs` es código muerto y su contrato miente
    - Archivos: `car.jobs.endpoints.ts:87`, `electron/preload.ts:56`,

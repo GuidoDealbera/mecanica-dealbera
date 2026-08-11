@@ -227,7 +227,15 @@ export const useCarQueries = () => {
       setLoading(true);
       try {
         const response = await updateJobInStore(licence, jobId, body);
-        showToast(response.message as string, "success", CarActions.JOB_UPDATE);
+        // El color sale del estado de la respuesta: estaba fijo en "success", así
+        // que un rechazo del backend se mostraba como un toast verde con un
+        // mensaje de error. Se devuelve la respuesta (en vez de lanzar) porque
+        // los consumidores deciden según `status` si cierran el formulario.
+        showToast(
+          response.message as string,
+          response.status === "success" ? "success" : "danger",
+          CarActions.JOB_UPDATE
+        );
         return response;
       } catch (error: any) {
         showToast(error.message, "danger", CarActions.JOB_UPDATE);
