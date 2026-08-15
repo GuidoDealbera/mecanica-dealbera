@@ -192,7 +192,7 @@ real). Son chicos y de bajo riesgo: conviene empezar por acá.
 
 ## Sprint B — Rendimiento y modelo de datos
 
-8. **[a testear]** El dashboard recorre toda la base en memoria
+8. **[hecho]** El dashboard recorre toda la base en memoria
    - Archivos: `electron/DataBase/dashboardStats.service.ts` (nuevo),
      `electron/DataBase/Endpoints/dashboard.endpoints.ts`.
    - El cálculo se movió a un módulo de dominio que recibe el `EntityManager` por
@@ -231,7 +231,7 @@ real). Son chicos y de bajo riesgo: conviene empezar por acá.
      invariante—. En la base de desarrollo el número del mes pasa de $1.131.920 a
      $617.585.
 
-9. **[a testear]** El listado de clientes trae todos los vehículos para mostrar un número
+9. **[hecho]** El listado de clientes trae todos los vehículos para mostrar un número
    - Archivos: `electron/DataBase/Endpoints/client.endpoints.ts`,
      `src/Types/types.ts` (documentación del tipo).
    - **La solución planificada no servía**: se había anotado resolverlo con un
@@ -250,13 +250,46 @@ real). Son chicos y de bajo riesgo: conviene empezar por acá.
      que nadie lea de ahí un campo que no viajó. (La ficha del cliente usa
      `client:find-by-name`, que no se tocó.)
 
-10. **[pendiente]** Índices que faltan para las consultas que ya existen
-    - `job.status`: lo usan el badge de trabajos activos (`car:active-jobs-count`)
-      y el dashboard; hoy es un scan completo de `job`.
-    - `job.carId` ya existe (`IDX_job_car`), `service_reminder` tiene sus dos
-      índices y `document(type, number)` su único compuesto.
-    - Solución: migración con `@Index()` sobre `job.status`.
-    - Esfuerzo: mínimo · Riesgo: bajo.
+10. **[a testear]** Índices que faltan para las consultas que ya existen
+    - Archivos: `electron/DataBase/Migrations/AddJobStatusIndex1700000008000.ts`
+      (nueva), `electron/DataBase/Entities/job.entity.ts`,
+      `electron/DataBase/dataSource.ts`,
+      `electron/DataBase/dashboardStats.service.ts`.
+    - **El índice quedó compuesto `(status, updatedAt)`, no sólo `(status)`**:
+      los listados de "trabajos recientes" son
+      `WHERE status = ? ORDER BY updatedAt DESC LIMIT 6`, y con la segunda
+      columna el índice ya entrega las filas ordenadas —SQLite corta a las seis
+      en vez de ordenar todo el subconjunto del estado—. Medido sobre una copia
+      inflada a 20.000 trabajos: 38,9 → 0,2 ms. Un índice de tres columnas
+      `(status, updatedAt, id)` no mejoraba nada y ocupaba el doble (1.556 vs
+      824 KB), así que se descartó.
+    - **Hallazgo del camino: `COUNT(job.id)` era contraproducente.** El PK es un
+      uuid, no el rowid de SQLite, así que nombrar la columna obliga a leer la
+      fila: con el índice puesto, el conteo por estado empeoraba de 6,9 a 88 ms
+      (20.000 lookups). Con `COUNT(*)` el índice alcanza solo y baja a 1,1 ms.
+      Se cambiaron los cuatro conteos del dashboard (son equivalentes: el PK
+      nunca es NULL).
+    - **Segundo hallazgo: el orden de los "recientes" no era determinista.**
+      `updatedAt` no es único y no había desempate, así que el orden lo decidía
+      el plan de ejecución —y cambió al agregar el índice—. Se agregó
+      `addOrderBy("job.id", "DESC")`: SQLite ordena sólo dentro de cada empate
+      ("LAST TERM OF ORDER BY"), 0,21 → 0,26 ms.
+    - Resumen de las mediciones (20.000 trabajos):
+
+      | consulta                          | antes   | después |
+      | --------------------------------- | ------- | ------- |
+      | badge de trabajos activos         | 3,9 ms  | 0,5 ms  |
+      | dashboard: conteo por estado      | 6,9 ms  | 1,1 ms  |
+      | dashboard: cerrados del mes       | 6,6 ms  | 3,2 ms  |
+      | dashboard: 6 recientes por estado | 38,9 ms | 0,2 ms  |
+
+    - Verificado sobre copias de la base de desarrollo y de la de producción: la
+      migración se registra y es idempotente, los planes de ejecución usan el
+      índice, `integrity_check`/`foreign_key_check` siguen sanos y el dashboard
+      devuelve exactamente los mismos datos (los listados de recientes, el mismo
+      conjunto, ahora en orden determinista).
+    - `job.carId` ya tenía su índice (`IDX_job_car`), `service_reminder` sus dos
+      y `document(type, number)` el compuesto: no faltaba ninguno más.
 
 11. **[pendiente]** Normalizar el formato de fecha guardado en `job.createdAt/updatedAt`
     - _(Numerada 30, después del Sprint F, para no renumerar el resto del plan;
@@ -630,6 +663,21 @@ Se agregaron además las tareas 27 a 29 (Sprint F) a partir de observaciones de
 uso: el vehículo preseleccionado que no se ve al cargar un trabajo, el tamaño
 desigual de las tarjetas de vehículos y las tarjetas del dashboard pegadas a la
 cabecera.
+
+### 2026-08-15 — Migración huérfana en la base de desarrollo
+
+Al verificar la tarea 10 apareció que la tabla `migrations` de
+`data/taller.db` tiene una fila **`AddSparePartsToCar1775272596631`** que no
+existe en el repositorio (ni la migración ni ninguna columna `spareParts`):
+sobra de una prueba abandonada. No rompe nada —TypeORM sólo mira qué migraciones
+del código faltan en la tabla, y esa base es descartable— y **la de producción no
+la tiene**. Queda anotado por si aparece una inconsistencia rara de esquema en
+desarrollo: la solución es borrar la fila o regenerar la base.
+
+Además, dato para dimensionar: la copia de producción de este equipo, ya migrada,
+tiene **un solo trabajo** (72 vehículos, pero los trabajos recién empiezan a
+cargarse con la versión nueva). Las optimizaciones del Sprint B no se van a notar
+hoy en el taller; valen para cuando la tabla `job` crezca.
 
 ### Historial anterior
 

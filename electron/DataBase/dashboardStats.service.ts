@@ -75,6 +75,18 @@ const REVENUE_STATUS = JobStatus.DELIVERED;
  */
 const monthOf = (column: string) => `strftime('%Y-%m', ${column})`;
 
+/**
+ * Se cuenta con `COUNT(*)` y no con `COUNT(tabla.id)` a propósito.
+ *
+ * El PK de estas entidades es un uuid, no el rowid de SQLite, así que nombrar la
+ * columna obliga a leer la fila completa por cada registro: con el índice de
+ * `job(status, updatedAt)` presente, el conteo por estado pasaba de recorrer
+ * sólo el índice a hacer 20.000 lookups (1,1 ms → 88 ms medidos). `COUNT(*)` no
+ * pide ninguna columna, así que el índice alcanza solo. Son equivalentes: el PK
+ * nunca es NULL, que es lo único que descartaría `COUNT(columna)`.
+ */
+const COUNT_ALL = "COUNT(*)";
+
 /** Clave `YYYY-MM` de una fecha, en hora local. */
 const monthKey = (date: Date): string =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
@@ -100,6 +112,13 @@ type RecentJob = DashboardStats["recentActiveJobs"][number];
  * Trabajos más recientes de un estado, con los datos del vehículo. Se resuelve
  * con `LIMIT` en la base: antes se tomaban "los primeros seis que aparecían" al
  * recorrer los autos, sin ningún orden, así que no eran los más recientes.
+ *
+ * Desempata por `id` porque `updatedAt` no es único —varios trabajos pueden
+ * quedar con la misma marca de tiempo— y sin criterio de desempate el orden lo
+ * decidía el plan de ejecución: cambió, por ejemplo, al agregar el índice
+ * `IDX_job_status_updated`. El costo es despreciable (SQLite ordena sólo dentro
+ * de cada empate, "LAST TERM OF ORDER BY": 0,21 → 0,26 ms sobre 20.000
+ * trabajos) y a cambio la lista es siempre la misma.
  */
 const findRecentJobs = async (
   manager: EntityManager,
@@ -122,6 +141,7 @@ const findRecentJobs = async (
 
   const rows = await qb
     .orderBy("job.updatedAt", "DESC")
+    .addOrderBy("job.id", "DESC")
     .limit(RECENT_LIMIT)
     .getRawMany<RecentJob>();
 
@@ -148,7 +168,7 @@ export const computeDashboardStats = async (
   ] = await Promise.all([
     manager
       .createQueryBuilder(Car, "car")
-      .select("COUNT(car.id)", "total")
+      .select(COUNT_ALL, "total")
       .addSelect(
         `SUM(CASE WHEN ${monthOf("car.createdAt")} = :currentMonth THEN 1 ELSE 0 END)`,
         "thisMonth"
@@ -158,7 +178,7 @@ export const computeDashboardStats = async (
 
     manager
       .createQueryBuilder(Client, "client")
-      .select("COUNT(client.id)", "total")
+      .select(COUNT_ALL, "total")
       .addSelect("SUM(CASE WHEN client.isActive THEN 1 ELSE 0 END)", "active")
       .addSelect(
         `SUM(CASE WHEN ${monthOf("client.createdAt")} = :currentMonth THEN 1 ELSE 0 END)`,
@@ -170,14 +190,14 @@ export const computeDashboardStats = async (
     manager
       .createQueryBuilder(Job, "job")
       .select("job.status", "status")
-      .addSelect("COUNT(job.id)", "count")
+      .addSelect(COUNT_ALL, "count")
       .groupBy("job.status")
       .getRawMany<{ status: JobStatus; count: number }>(),
 
     manager
       .createQueryBuilder(Job, "job")
       .select("job.status", "status")
-      .addSelect("COUNT(job.id)", "count")
+      .addSelect(COUNT_ALL, "count")
       .addSelect("COALESCE(SUM(job.price), 0)", "total")
       .where("job.status IN (:...closed)", { closed: CLOSED_STATUSES })
       .andWhere(`${monthOf("job.updatedAt")} = :currentMonth`, { currentMonth })

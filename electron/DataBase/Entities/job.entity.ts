@@ -15,6 +15,10 @@ import { JobStatus, ServiceType } from "../../../src/Types/apiTypes";
  * Trabajo realizado (o pendiente) sobre un vehículo. Antes vivía como JSON
  * dentro de `Car.jobs`; ahora es una entidad propia con FK a `car`.
  */
+// El índice se crea en la migración AddJobStatusIndex1700000008000 (ahí está el
+// porqué del compuesto y las mediciones). Se declara acá para mantener la
+// entidad y el esquema en sincronía, con el mismo nombre que la migración.
+@Index("IDX_job_status_updated", ["status", "updatedAt"])
 @Entity({ name: "job" })
 export class Job {
   @PrimaryGeneratedColumn("uuid")
