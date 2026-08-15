@@ -42,8 +42,20 @@ const RECENT_LIMIT = 6;
 /** Meses que abarca el gráfico de ingresos (incluido el actual). */
 const REVENUE_MONTHS = 6;
 
-/** Un trabajo "cerrado" es el que ya se puede contar como facturado. */
+/** Estados en los que un trabajo ya no está en curso. */
 const CLOSED_STATUSES = [JobStatus.COMPLETED, JobStatus.DELIVERED];
+
+/**
+ * Estado que cuenta como ingreso.
+ *
+ * Es **entregado**, no completado: completado significa que el trabajo terminó y
+ * está listo para entregar, pero el que se cobró de verdad es el que se entregó.
+ * Antes los ingresos del mes sumaban los completados mientras el gráfico de seis
+ * meses sumaba completados **y** entregados, así que la tarjeta y el gráfico
+ * medían cosas distintas; encima el subtítulo de la tarjeta ya decía "trabajos
+ * entregados este mes".
+ */
+const REVENUE_STATUS = JobStatus.DELIVERED;
 
 /**
  * Expresión SQL que reduce una fecha a su mes (`YYYY-MM`).
@@ -176,7 +188,7 @@ export const computeDashboardStats = async (
       .createQueryBuilder(Job, "job")
       .select(monthOf("job.updatedAt"), "month")
       .addSelect("COALESCE(SUM(job.price), 0)", "total")
-      .where("job.status IN (:...closed)", { closed: CLOSED_STATUSES })
+      .where("job.status = :revenueStatus", { revenueStatus: REVENUE_STATUS })
       .andWhere(`${monthOf("job.updatedAt")} IN (:...months)`, {
         months: months.map((month) => month.key),
       })
@@ -214,9 +226,10 @@ export const computeDashboardStats = async (
 
     completedThisMonth: Number(closedOf(JobStatus.COMPLETED)?.count ?? 0),
     deliveredThisMonth: Number(closedOf(JobStatus.DELIVERED)?.count ?? 0),
-    // Los ingresos del mes cuentan sólo los trabajos **completados**, no los
-    // entregados: se conserva el criterio que ya tenía el dashboard.
-    revenueThisMonth: Number(closedOf(JobStatus.COMPLETED)?.total ?? 0),
+    // Ver `REVENUE_STATUS`: el ingreso es lo entregado, que es lo cobrado. Con
+    // esto la tarjeta coincide con su propio subtítulo ("N trabajos entregados
+    // este mes") y con la barra del mes actual del gráfico.
+    revenueThisMonth: Number(closedOf(REVENUE_STATUS)?.total ?? 0),
 
     monthlyRevenue: months.map((month) => ({
       month: month.label,
