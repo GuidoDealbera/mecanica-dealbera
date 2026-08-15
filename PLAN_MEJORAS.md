@@ -221,19 +221,34 @@ real). Son chicos y de bajo riesgo: conviene empezar por acá.
      `job.createdAt/updatedAt` **no tiene un único formato** guardado (ver la
      tarea 30). Comparar la clave del mes es equivalente a lo que hacía el código
      anterior y además es inmune al formato.
-   - **Pregunta abierta para el usuario** (no se cambió nada): `revenueThisMonth`
-     suma sólo los trabajos **completados** del mes, no los entregados. Se
-     conservó el criterio anterior, pero un trabajo entregado también se cobró:
-     si la idea es "lo facturado del mes", debería incluirlos.
+   - **Resuelto después (decisión del usuario, 10/08/2026): el ingreso es lo
+     entregado.** Completado significa que el trabajo terminó y está listo para
+     entregar; el que se cobró de verdad es el entregado. Se cambió
+     `revenueThisMonth` (antes sumaba los completados) **y** el gráfico de seis
+     meses (antes sumaba completados + entregados), que medían cosas distintas.
+     Ahora la tarjeta coincide con su propio subtítulo ("N trabajos entregados
+     este mes") y con la barra del mes actual del gráfico —verificado como
+     invariante—. En la base de desarrollo el número del mes pasa de $1.131.920 a
+     $617.585.
 
-9. **[pendiente]** El listado de clientes trae todos los vehículos para mostrar un número
-   - Archivo: `electron/DataBase/Endpoints/client.endpoints.ts:60-88`.
-   - `client:get-all` hace `leftJoinAndSelect("client.cars")` (por eso necesita el
-     paginado en dos pasos de TypeORM) sólo para poder mostrar la cantidad de
-     vehículos y usarla en el diálogo de borrado.
-   - Solución: subconsulta `COUNT` como columna calculada (`loadRelationCountAndMap`
-     o `addSelect` con subquery) en vez de traer las filas.
-   - Esfuerzo: bajo · Riesgo: bajo.
+9. **[a testear]** El listado de clientes trae todos los vehículos para mostrar un número
+   - Archivos: `electron/DataBase/Endpoints/client.endpoints.ts`,
+     `src/Types/types.ts` (documentación del tipo).
+   - **La solución planificada no servía**: se había anotado resolverlo con un
+     `COUNT` como columna calculada, pero la tabla no muestra sólo la cantidad —
+     cuando el cliente tiene **un** vehículo muestra su patente. Así que se
+     conserva la relación y lo que se recorta es **qué columnas viajan**:
+     `leftJoin` + `addSelect(["cars.id", "cars.licensePlate"])` en lugar de
+     `leftJoinAndSelect`, que traía todas las columnas de cada auto por IPC,
+     incluido el historial de kilometraje completo.
+   - Medido sobre una copia, una página de 8 clientes: **16.824 → 4.023 bytes
+     (76% menos)** y 9,5 ms → 2,1 ms. Verificado que no cambia nada de lo que se
+     muestra: mismo total, mismos clientes y orden, misma cantidad de vehículos
+     por cliente y misma patente en el caso de un solo auto.
+   - Se documentó en `Client.cars` que el listado devuelve los vehículos
+     **parciales** (sólo `id` y patente) y la ficha los devuelve completos, para
+     que nadie lea de ahí un campo que no viajó. (La ficha del cliente usa
+     `client:find-by-name`, que no se tocó.)
 
 10. **[pendiente]** Índices que faltan para las consultas que ya existen
     - `job.status`: lo usan el badge de trabajos activos (`car:active-jobs-count`)

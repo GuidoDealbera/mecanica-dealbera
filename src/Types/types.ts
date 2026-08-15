@@ -14,6 +14,13 @@ export interface Client {
   email?: string;
   isActive: boolean;
   createdAt?: string;
+  /**
+   * Vehículos del cliente. **Ojo: cuánto trae cada endpoint es distinto.**
+   * - `client:find-by-name` (ficha): el vehículo completo, con sus trabajos.
+   * - `client:get-all` (listado): sólo `id` y `licensePlate` de cada auto, que
+   *   es lo único que muestra la tabla (la cantidad, y la patente cuando hay uno
+   *   solo). El resto de los campos llega `undefined`.
+   */
   cars?: Car[];
 }
 

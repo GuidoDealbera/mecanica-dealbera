@@ -53,9 +53,15 @@ handleIpc(
     const { page, pageSize, skip, take } = resolvePage(params);
     const repo = getRepositories().clientRepository;
 
+    // Del vehículo sólo se traen `id` y patente: es todo lo que muestra el
+    // listado (la cantidad, y la patente cuando el cliente tiene uno solo) y lo
+    // que necesita el diálogo de borrado para avisar cuántos se eliminan. Con
+    // `leftJoinAndSelect` viajaban todas las columnas de cada auto por IPC,
+    // incluido el historial de kilometraje completo, para mostrar un número.
     const qb = repo
       .createQueryBuilder("client")
-      .leftJoinAndSelect("client.cars", "cars");
+      .leftJoin("client.cars", "cars")
+      .addSelect(["cars.id", "cars.licensePlate"]);
 
     if (!params?.includeInactive) {
       qb.andWhere("client.isActive = :active", { active: true });
