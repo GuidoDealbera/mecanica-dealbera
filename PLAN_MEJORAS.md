@@ -250,7 +250,7 @@ real). Son chicos y de bajo riesgo: conviene empezar por acá.
      que nadie lea de ahí un campo que no viajó. (La ficha del cliente usa
      `client:find-by-name`, que no se tocó.)
 
-10. **[a testear]** Índices que faltan para las consultas que ya existen
+10. **[hecho]** Índices que faltan para las consultas que ya existen
     - Archivos: `electron/DataBase/Migrations/AddJobStatusIndex1700000008000.ts`
       (nueva), `electron/DataBase/Entities/job.entity.ts`,
       `electron/DataBase/dataSource.ts`,
@@ -291,9 +291,47 @@ real). Son chicos y de bajo riesgo: conviene empezar por acá.
     - `job.carId` ya tenía su índice (`IDX_job_car`), `service_reminder` sus dos
       y `document(type, number)` el compuesto: no faltaba ninguno más.
 
-11. **[pendiente]** Normalizar el formato de fecha guardado en `job.createdAt/updatedAt`
-    - _(Numerada 30, después del Sprint F, para no renumerar el resto del plan;
-      pertenece a este sprint por tema.)_
+11. **[a testear]** Revisar el paginado en dos pasos de TypeORM en el resto de los listados
+    - Archivos: `electron/pagination.ts` (la regla),
+      `electron/DataBase/Endpoints/car.crud.endpoints.ts`,
+      `electron/DataBase/Endpoints/client.endpoints.ts`,
+      `electron/DataBase/Endpoints/service.endpoints.ts`.
+    - La regla quedó documentada arriba de `resolvePage()`, que es la función que
+      llaman todos los listados: **joins `*-a-uno` → `offset/limit`; algún join
+      `a-muchos` → `skip/take`**, con las dos trampas que ya se pagaron y su
+      evidencia medida.
+    - Se comprobaron las dos direcciones sobre una copia:
+      - `offset/limit` en un listado con join a-muchos (`client.cars`) pidiendo 8
+        clientes devuelve **4**, y al último de la página le faltan vehículos —el
+        `total` sí sale bien, así que la interfaz mostraría "37 clientes"
+        paginando de a 4—. Por eso `client:get-all` **conserva** `skip/take`.
+      - `offset/limit` en un listado con joins `*-a-uno` (`car.owner`) devuelve
+        exactamente lo mismo que `skip/take` en todas las páginas, con y sin
+        filtros, y en una consulta menos. Por eso `car:get-all` **pasa** a
+        `offset/limit`: de tres consultas por página a dos, y de paso deja de
+        estar expuesto al `TypeError` si algún día se ordena por una expresión.
+    - **Hallazgo del camino: ningún listado desempataba el orden.** `car:get-all`
+      ordena por año, kilómetros o titular, y `service:list` por `dueDate`:
+      columnas con repetidos. Se verificó recorriendo todas las páginas que hoy
+      **no** hay repetidos ni faltantes, así que no era un bug activo, pero el
+      orden entre iguales lo decidía el plan de ejecución —y en la tarea 10 ya se
+      vio que un índice nuevo lo reacomoda—. Ahora los tres desempatan por una
+      columna única y con sentido para quien mira la pantalla: patente en los
+      vehículos, patente del vehículo en los recordatorios, nombre en los
+      clientes.
+    - Verificado: los cuatro órdenes de `car:get-all` en las dos direcciones y
+      con filtros devuelven el mismo conjunto que antes, sin repetidos ni
+      faltantes, y el mismo orden al repetir la lectura; el listado de clientes
+      sigue trayendo las páginas completas con todos sus vehículos; los 113
+      recordatorios se recorren enteros y los que vencen el mismo día quedan
+      ordenados por patente.
+
+Queda una tarea de este sprint sin hacer. Lleva el número **30** —fuera de la
+numeración corrida— porque su lugar en el tiempo no es acá: reescribe datos de
+producción, así que va **después de la tarea 13** (el snapshot previo a
+migraciones), que es la red que le falta.
+
+30. **[pendiente]** Normalizar el formato de fecha guardado en `job.createdAt/updatedAt`
     - Descubierto al implementar la tarea 8. La columna tiene **dos formatos**:
       lo que escribe TypeORM es `YYYY-MM-DD HH:MM:SS.SSS` en hora **local**, pero
       las filas que generó la migración `NormalizeJobs` —los trabajos que ya
@@ -314,19 +352,8 @@ real). Son chicos y de bajo riesgo: conviene empezar por acá.
       (`strftime('%Y-%m-%d %H:%M:%f', columna, 'localtime')` para las que
       terminan en `Z`, dejando intactas las demás). Probar contra una copia
       comparando los instantes antes y después.
-    - Esfuerzo: bajo · Riesgo: medio (toca datos de producción → conviene después
-      de la tarea 13, el snapshot previo a migraciones).
-
-12. **[pendiente]** Revisar el paginado en dos pasos de TypeORM en el resto de los listados
-    - Contexto: el `TypeError` de la bandeja de recordatorios (ver notas de
-      sesión) salió de combinar `skip/take` + joins + un `ORDER BY` con una
-      expresión SQL. `car:get-all` y `client:get-all` también usan `skip/take`
-      con joins, pero ordenan por columnas reales, así que hoy funcionan.
-    - Solución: dejar un comentario/regla en `electron/pagination.ts` — con joins
-      `*-a-uno` conviene `offset/limit`; `skip/take` sólo cuando el join
-      multiplica filas (uno-a-muchos, como `client.cars`) — para que no vuelva a
-      pasar.
-    - Esfuerzo: mínimo · Riesgo: nulo.
+    - Esfuerzo: bajo · Riesgo: medio (toca datos de producción → **después de la
+      tarea 13**).
 
 ---
 

@@ -122,15 +122,22 @@ handleIpc(
       qb.andWhere("car.year <= :yearTo", { yearTo });
     }
 
-    const sortColumn = params?.sortBy
-      ? CAR_SORT_COLUMNS[params.sortBy]
-      : undefined;
-    qb.orderBy(
-      sortColumn ?? "car.licensePlate",
-      params?.sortDir === "desc" ? "DESC" : "ASC"
-    );
+    const sortColumn =
+      (params?.sortBy ? CAR_SORT_COLUMNS[params.sortBy] : undefined) ??
+      "car.licensePlate";
+    qb.orderBy(sortColumn, params?.sortDir === "desc" ? "DESC" : "ASC");
 
-    qb.skip(skip).take(take);
+    // Desempate por patente (única) cuando se ordena por año, kilómetros o
+    // titular, que se repiten: sin esto el orden entre iguales lo elige el plan
+    // de ejecución y cambia solo, por ejemplo al agregar un índice.
+    if (sortColumn !== "car.licensePlate") {
+      qb.addOrderBy("car.licensePlate", "ASC");
+    }
+
+    // `offset/limit` y no `skip/take`: el único join es `car.owner`, que es
+    // *-a-uno y no multiplica filas (ver la regla en `electron/pagination.ts`).
+    // Ahorra la subconsulta de ids: tres consultas por página pasan a dos.
+    qb.offset(skip).limit(take);
 
     const [items, total] = await qb.getManyAndCount();
     return { items, total, page, pageSize };

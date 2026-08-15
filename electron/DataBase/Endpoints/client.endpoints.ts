@@ -80,14 +80,21 @@ handleIpc(
       qb.andWhere("client.city = :city", { city: params.city });
     }
 
-    const sortColumn = params?.sortBy
-      ? CLIENT_SORT_COLUMNS[params.sortBy]
-      : undefined;
-    qb.orderBy(
-      sortColumn ?? "client.fullname",
-      params?.sortDir === "desc" ? "DESC" : "ASC"
-    );
+    const sortColumn =
+      (params?.sortBy ? CLIENT_SORT_COLUMNS[params.sortBy] : undefined) ??
+      "client.fullname";
+    qb.orderBy(sortColumn, params?.sortDir === "desc" ? "DESC" : "ASC");
 
+    // Desempate por nombre (único). Hoy es el único orden posible, así que no
+    // hace falta; queda por si se agrega otra columna a CLIENT_SORT_COLUMNS.
+    if (sortColumn !== "client.fullname") {
+      qb.addOrderBy("client.fullname", "ASC");
+    }
+
+    // `skip/take` es obligatorio acá: `client.cars` es a-muchos, así que cada
+    // cliente ocupa tantas filas como vehículos tenga y un `LIMIT` directo corta
+    // por la mitad (medido: pidiendo 8 devuelve 4 clientes, y al último le
+    // faltan vehículos). Ver la regla en `electron/pagination.ts`.
     qb.skip(skip).take(take);
 
     const [items, total] = await qb.getManyAndCount();

@@ -158,18 +158,19 @@ handleIpc(
       );
     }
 
-    // Los recordatorios sin fecha (sólo por kilometraje) se ordenan al final.
+    // Los recordatorios sin fecha (sólo por kilometraje) se ordenan al final, y
+    // los que vencen el mismo día, por patente: `dueDate` se repite mucho —el
+    // backfill le puso la misma fecha a muchos vehículos— y sin desempate el
+    // orden lo elegiría el plan de ejecución.
     //
-    // Ojo con `offset/limit` en vez de `skip/take`: con `skip/take` TypeORM
-    // resuelve el paginado en dos pasos (subconsulta de ids distintos) y para eso
-    // necesita mapear cada `ORDER BY` a una columna de la entidad. Al no poder
-    // mapear la expresión `reminder.dueDate IS NULL` fallaba con un TypeError
-    // (`Cannot read properties of undefined (reading 'databaseName')`) y el
-    // listado llegaba vacío al renderer. `offset/limit` aplica LIMIT/OFFSET
-    // directo, que acá es correcto porque los joins son *-a-uno (no multiplican
-    // filas).
+    // `offset/limit` y no `skip/take`: los dos joins son *-a-uno, y además
+    // `skip/take` **no puede** con este orden, porque para armar su subconsulta
+    // de ids necesita mapear cada término a una columna real y la expresión
+    // `reminder.dueDate IS NULL` no lo es (era el `TypeError` que dejaba vacía
+    // la bandeja). Ver la regla en `electron/pagination.ts`.
     qb.orderBy("reminder.dueDate IS NULL", "ASC")
       .addOrderBy("reminder.dueDate", "ASC")
+      .addOrderBy("car.licensePlate", "ASC")
       .offset(skip)
       .limit(take);
 
