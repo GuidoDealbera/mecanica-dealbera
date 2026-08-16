@@ -22,7 +22,12 @@ import fs from "node:fs";
 import log from "electron-log/main";
 import { logError, logInfo, logWarn } from "./logger";
 import { handleIpc } from "./ipc";
-import { AppDataSource, initializeDB } from "./DataBase/dataSource";
+import {
+  AppDataSource,
+  getBackupDir,
+  getDBPath,
+  initializeDB,
+} from "./DataBase/dataSource";
 import { countDueReminders } from "./DataBase/serviceReminders.service";
 
 log.initialize();
@@ -47,12 +52,8 @@ if (!gotTheLock) {
   app.quit();
 }
 
-function getBackupDir(): string {
-  return path.join(app.getPath("documents"), "backups");
-}
-
 function performAutoBackup(): void {
-  const dbPath = path.join(app.getPath("documents"), "taller.db");
+  const dbPath = getDBPath();
   if (!fs.existsSync(dbPath)) return;
 
   const today = new Date().toISOString().slice(0, 10);

@@ -291,7 +291,7 @@ real). Son chicos y de bajo riesgo: conviene empezar por acá.
     - `job.carId` ya tenía su índice (`IDX_job_car`), `service_reminder` sus dos
       y `document(type, number)` el compuesto: no faltaba ninguno más.
 
-11. **[a testear]** Revisar el paginado en dos pasos de TypeORM en el resto de los listados
+11. **[hecho]** Revisar el paginado en dos pasos de TypeORM en el resto de los listados
     - Archivos: `electron/pagination.ts` (la regla),
       `electron/DataBase/Endpoints/car.crud.endpoints.ts`,
       `electron/DataBase/Endpoints/client.endpoints.ts`,
@@ -376,15 +376,58 @@ datos del taller.
     - Esfuerzo: medio · Riesgo: alto si se hace mal → hacerlo con la copia de
       seguridad previa del punto 13 ya implementada.
 
-13. **[pendiente]** Snapshot previo a migraciones + verificación de integridad
-    - Hoy `migrationsRun: true` corre las migraciones al iniciar sin respaldo
-      previo: una migración que falle a mitad deja la base en un estado
-      intermedio y la única red es el backup diario (que puede ser de ayer).
-    - Solución: antes de `AppDataSource.initialize()`, si hay migraciones
-      pendientes, hacer `VACUUM INTO` a `pre-migration-<version>.db`; después de
-      inicializar, `PRAGMA integrity_check`. Si falla, avisar y ofrecer
-      restaurar el snapshot.
-    - Esfuerzo: medio · Riesgo: bajo (sólo agrega red de seguridad).
+13. **[a testear]** Snapshot previo a migraciones + verificación de integridad
+    - Archivos: `electron/DataBase/migrationSafety.ts` (nuevo),
+      `electron/DataBase/dataSource.ts`, `electron/main.ts`,
+      `electron/DataBase/Endpoints/backup.endpoints.ts`.
+    - `migrationsRun: true` pasa a **`false`**: las migraciones ya no corren al
+      conectar sino que las lanza `initializeDB` en tres pasos —copia previa con
+      `VACUUM INTO`, migración, `integrity_check`—. La lógica vive en un módulo
+      que recibe el `DataSource` y las rutas por parámetro (mismo patrón que
+      `serviceReminders.service.ts`), así se puede ejercitar contra copias.
+    - Decisiones que conviene tener presentes:
+      - **Sin copia no se migra.** Si no se puede escribir la copia (disco lleno,
+        permisos), la aplicación no arranca y avisa qué hacer. Dejar la base
+        intacta es recuperable; una migración a medias sobre la única copia de
+        los datos del taller, no.
+      - **`integrity_check` sólo cuando hubo migraciones**: recorre el archivo
+        entero, no tiene sentido pagarlo en cada arranque.
+      - **`foreign_key_check` avisa pero no bloquea**: una referencia huérfana
+        puede venir de datos viejos anteriores a la restricción, no es
+        corrupción.
+      - **Restaurar no reintenta**: la aplicación se cierra, porque volver a
+        abrirla correría la misma migración fallida sobre los mismos datos. El
+        cuadro lo dice explícitamente.
+      - `VACUUM INTO` y no `copyFileSync`: el motor escribe una base nueva y
+        consistente, no una foto de un archivo que puede estar a mitad de una
+        escritura. Se escribe a `.parcial` y se renombra al final, así un corte
+        no deja un archivo con nombre de copia buena y contenido incompleto.
+    - Verificado sobre copias reales, incluido el camino de fallo:
+      - Base de **producción** (1.0.3): se detectan las 8 pendientes, se saca la
+        copia (40 KB), migran las 8, `integrity_check` correcto y sin huérfanos.
+        La copia resulta ser del estado previo (sin tabla `job`, sin ninguna
+        migración aplicada) y es una base SQLite válida y sana.
+      - Base ya migrada: no hay pendientes y **no se saca copia**.
+      - Migración que revienta a mitad (inyectada): se restaura y la base queda
+        byte a byte igual a la copia, sin rastro de lo que la migración había
+        alcanzado a hacer, sana y con sus 100 vehículos. La base rota se conserva
+        al lado con sufijo `.rota-<marca>`.
+      - Rotación: se conservan las 3 copias más recientes.
+    - Detalle que apareció verificando: consultar si hay migraciones pendientes
+      **crea la tabla `migrations`** vacía. Es inocuo (al restaurar, cero
+      aplicadas = corren todas igual) y quedó documentado en el código.
+    - También: TypeORM envuelve cada migración en una transacción, así que un
+      fallo limpio ya revierte solo. La copia cubre lo que la transacción no:
+      corte de luz, archivo corrupto, o una migración que "termina bien" pero
+      deja los datos mal.
+    - De paso se unificaron las **tres copias** de `getBackupDir()` (estaba
+      duplicada en `main.ts` y en `backup.endpoints.ts`) en una sola en
+      `dataSource.ts`, derivada de la ruta de la base. En producción resuelve a
+      lo mismo de siempre (`Documentos/backups`); en desarrollo pasa a
+      `data/backups`, así deja de escribir en los Documentos del usuario.
+    - **No verificado**: el cuadro de diálogo que ofrece restaurar sólo corre
+      dentro de Electron. La restauración en sí (`restoreSnapshot`) sí está
+      probada; falta ver el cuadro al armar el instalador.
 
 14. **[pendiente]** Respaldos: `VACUUM INTO` en vez de `copyFileSync` y retención por niveles
     - Archivo: `electron/main.ts:54` (`performAutoBackup`) y
@@ -405,6 +448,38 @@ datos del taller.
       ya se muestra en la tarjeta "Respaldos automáticos"; falta la acción.
     - Esfuerzo: bajo · Riesgo: medio (es una operación destructiva → confirmación
       explícita + respaldo previo, que el endpoint de importación ya hace).
+
+Además, una tarea **urgente** que apareció el 16/08/2026 y que puede invalidar
+todo lo anterior. Lleva el número **31**, fuera de la numeración corrida, para no
+renumerar el resto del plan.
+
+31. **[pendiente]** ⚠️ Verificar que la aplicación empaquetada arranca
+    - Al preparar pruebas de extremo a extremo apareció que **`electron.exe` no
+      puede cargar `dist-electron/main.js`**: falla con
+      `SyntaxError: The requested module 'electron' does not provide an export
+named 'shell'`. El build genera el proceso principal como **ESM** y
+      Electron 30.5.1 no expone exportaciones nombradas del módulo `electron` en
+      ESM. Reproducido también con una aplicación mínima en una carpeta limpia,
+      sin ningún `node_modules` que interfiera: no es un efecto del proyecto.
+    - Por qué es urgente: `package.json` declara `"main": "dist-electron/main.js"`
+      y `"type": "module"`, y el flujo de
+      [release.yml](.github/workflows/release.yml) **arma y publica el instalador
+      en cada push a `main`**. Si el empaquetado no arranca, se vienen publicando
+      instaladores rotos.
+    - Lo que **no** está determinado, y hay que resolver antes de sacar
+      conclusiones:
+      - `npm run dev` **funciona** (hay logs de arranques correctos), así que el
+        plugin de Vite hace algo distinto en desarrollo. Averiguar qué.
+      - El `main.js` dentro del `app.asar` de la 1.0.3 instalada en este equipo
+        **también es ESM** y ese paquete se supone que funciona. O bien Electron
+        resuelve distinto dentro del asar, o bien ese instalador nunca anduvo.
+      - Al lanzar el ejecutable instalado, **salió de inmediato sin abrir
+        ventana**. Es un indicio fuerte, pero la forma de medirlo puede ser mala:
+        hay que confirmarlo bien antes de darlo por cierto.
+    - Salidas posibles, según qué se confirme: forzar el formato CJS para el
+      proceso principal en `vite.config.mts`, quitar `"type": "module"`, o subir
+      Electron a una versión con soporte ESM completo.
+    - Esfuerzo: desconocido · Riesgo: **es el bloqueante del entregable**.
 
 ---
 
@@ -705,6 +780,34 @@ Además, dato para dimensionar: la copia de producción de este equipo, ya migra
 tiene **un solo trabajo** (72 vehículos, pero los trabajos recién empiezan a
 cargarse con la versión nueva). Las optimizaciones del Sprint B no se van a notar
 hoy en el taller; valen para cuando la tabla `job` crezca.
+
+### 2026-08-16 — Pruebas de extremo a extremo: evaluadas y descartadas por ahora
+
+Se evaluó agregar Playwright para probar el arranque y los cuadros de diálogo del
+proceso principal (los que no puede tocar ningún test unitario). Se llegó a tener
+el arnés armado y funcionando en lo suyo, pero **no se incorporó al repositorio**.
+
+Lo que se aprendió, que vale más que la suite:
+
+- **Los cuadros nativos no se pueden clickear desde Playwright.** `showMessageBox`
+  abre una ventana del sistema operativo, fuera de Chromium. La técnica válida es
+  sustituir `dialog` en el proceso principal desde un punto de entrada de prueba:
+  permite verificar qué hace la aplicación con cada respuesta y qué texto muestra,
+  pero **nunca** el aspecto visual. Eso siempre va a requerir abrirlo a mano una
+  vez.
+- **Por qué se descartó**: 545 líneas y una dependencia, para una suite que sólo
+  rinde si algo la ejecuta sola. Y el hallazgo importante de la tarea 31 salió de
+  correr `electron.exe` a mano, sin Playwright. Si más adelante hace falta un
+  chequeo automático antes de publicar, lo natural es un paso chico en
+  `release.yml` que arranque el instalador y verifique que abre, no una suite.
+- Quedó en el proyecto una sola cosa de todo eso: **`MECANICA_DATA_DIR`** en
+  `getDBPath()`, que permite arrancar la aplicación contra una carpeta
+  descartable. Sin eso, cualquier prueba de arranque escribe sobre la base real
+  del usuario.
+- También se agregó **`.npmrc`** con `legacy-peer-deps=true`: hoy cualquier
+  `npm install` local falla con ERESOLVE porque `typeorm` declara `sqlite3@^5` y
+  el proyecto usa el 6. El flujo de CI ya pasaba la bandera a mano; esto arregla
+  el caso local.
 
 ### Historial anterior
 

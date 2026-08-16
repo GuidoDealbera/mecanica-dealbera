@@ -1,14 +1,14 @@
-import { dialog, shell, app } from "electron";
+import { dialog, shell } from "electron";
 import { handleIpc } from "../../ipc";
 import fs from "node:fs";
-import path from "node:path";
 import { logError, logInfo } from "../../logger";
-import { AppDataSource, getDBPath, getRepositories } from "../dataSource";
+import {
+  AppDataSource,
+  getBackupDir,
+  getDBPath,
+  getRepositories,
+} from "../dataSource";
 import { invalidateDashboardStatsCache } from "../dashboardCache";
-
-function getBackupDir(): string {
-  return path.join(app.getPath("documents"), "backups");
-}
 
 function toCsv<T extends object>(
   headers: Partial<Record<keyof T, string>>,
