@@ -364,17 +364,48 @@ del plan anterior). El objetivo es que un imprevisto —corte de luz, disco llen
 una migración a medio aplicar, el usuario moviendo un archivo— no se lleve los
 datos del taller.
 
-12. **[pendiente]** Mover la base de `Documentos` a `userData`
-    - Archivos: `electron/DataBase/dataSource.ts:38` (`getDBPath`), `main.ts:55`.
-    - Hoy la base productiva vive en `Documentos/taller.db`: una carpeta que el
-      usuario ve, sincroniza con OneDrive y puede mover o borrar sin saber qué
-      es. Peor: OneDrive puede bloquear el archivo mientras SQLite escribe.
-    - Solución: usar `app.getPath("userData")` con **migración automática** (si
-      existe la base vieja y no la nueva, copiarla y renombrar la vieja a
-      `.migrated`), y dejar los backups exportados en Documentos (ahí sí tiene
-      sentido que se vean).
-    - Esfuerzo: medio · Riesgo: alto si se hace mal → hacerlo con la copia de
-      seguridad previa del punto 13 ya implementada.
+12. **[a testear]** Mover la base de `Documentos` a `userData`
+    - Archivos: `electron/DataBase/dataLocation.ts` (nuevo),
+      `electron/DataBase/dataSource.ts`.
+    - **La base y los respaldos van ahora a carpetas distintas, a propósito.** La
+      base viva a `userData` (`%APPDATA%/mecanica-dealbera`), que el usuario no ve
+      ni sincroniza; los respaldos **siguen en `Documentos/backups`**, que es
+      donde tienen que estar: son lo que hay que encontrar, copiar a un pendrive
+      o mandar por correo. Para un archivo que se escribe una vez y se cierra, la
+      sincronización de OneDrive deja de ser un riesgo y pasa a ser una ventaja.
+    - El traslado usa **`VACUUM INTO`** y no `copyFileSync`, por el mismo motivo
+      que la copia previa a las migraciones: el motor escribe una base nueva y
+      consistente aunque hubiera un journal pendiente.
+    - Orden pensado para no perder nada: primero se escribe la base nueva
+      completa (a `.parcial`, después se renombra) y **sólo cuando está lista** se
+      aparta la vieja como `taller.db.migrated`. Si el proceso muere en el medio,
+      la vieja sigue en su lugar y el próximo arranque reintenta.
+    - **Un fallo detiene el arranque.** Si no se pudo trasladar, arrancar igual
+      crearía una base nueva y vacía en la ubicación nueva y el usuario vería su
+      taller sin un solo vehículo. Mejor no abrir y decir dónde están los datos
+      (el mensaje sugiere cerrar OneDrive, que es la causa más probable).
+    - Verificado sobre copias, los siete escenarios: traslado de una base 1.0.3
+      real (datos completos, vieja apartada y legible, sin `.parcial`);
+      idempotencia; reaparición de una base con el nombre viejo (**no** pisa la
+      que está en uso); instalación limpia; archivos auxiliares de SQLite;
+      segunda vuelta con una apartada ya existente (usa marca de tiempo, no
+      pisa); y base vieja ilegible (falla sin dejar una base nueva a medias).
+    - Verificado además **sobre el paquete real**, dos arranques seguidos: el
+      primero traslada, saca la copia previa, migra y verifica integridad; el
+      segundo no hace nada. Documentos queda con `taller.db.migrated` y userData
+      con `taller.db` más `backups/`. Los tres archivos —original, trasladada y
+      apartada— tienen los mismos datos.
+    - Se comprobó también que `userData` y `documents` resuelven a carpetas
+      distintas (`%APPDATA%/mecanica-dealbera` y `C:/Users/<usuario>/Documents`).
+    - Nota de implementación: `overrideDir()` e `isDev()` son declaraciones
+      `function` y no constantes. `AppDataSource` se construye al cargar el
+      módulo llamando a `getDBPath()`, que las usa: como `const` quedarían en la
+      zona muerta temporal y el módulo reventaría al importarse, algo que
+      TypeScript no marca.
+    - Se agregó `MECANICA_LEGACY_DB`, hermana de `MECANICA_DATA_DIR`, para poder
+      ejercitar el traslado completo dentro de la aplicación real sin tocar los
+      Documentos de nadie. Es la operación más delicada del arranque; conviene
+      poder probarla de verdad.
 
 13. **[hecho]** Snapshot previo a migraciones + verificación de integridad
     - Archivos: `electron/DataBase/migrationSafety.ts` (nuevo),
@@ -453,6 +484,32 @@ correcta`; con base ya migrada no saca copia. Es la primera vez que este
       ya se muestra en la tarjeta "Respaldos automáticos"; falta la acción.
     - Esfuerzo: bajo · Riesgo: medio (es una operación destructiva → confirmación
       explícita + respaldo previo, que el endpoint de importación ya hace).
+
+Y una tarea que apareció verificando la 12, con el número **31** fuera de la
+numeración corrida para no renumerar el resto.
+
+31. **[pendiente]** ⚠️ Si falla la pantalla de carga, la aplicación se cierra sola al arrancar
+    - Archivo: `electron/main.ts` (`createWindow`, `closeSplash`, el manejador de
+      `window-all-closed`).
+    - Secuencia: `showSplash()` abre el splash, y si `loadFile` falla se registra
+      el aviso y se llama a `closeSplash()`. Pero eso puede pasar **mientras
+      `initializeDB()` todavía está corriendo**, y en ese momento el splash es la
+      **única ventana abierta**: al cerrarse dispara `window-all-closed`, que
+      llama a `app.quit()`. La aplicación se cierra sin ventana y sin explicar
+      nada, en medio del arranque.
+    - Observado de verdad al ejecutar la aplicación sin empaquetar en modo
+      producción (ahí `process.resourcesPath` apunta dentro de
+      `node_modules/electron`, así que `splash.html` no existe). Empaquetada el
+      archivo sí está, con lo cual hoy no se dispara — pero basta un
+      `splash.html` que no se copie, un antivirus que lo bloquee o un arranque
+      lento para que sí.
+    - El splash es deliberadamente _best-effort_ (tarea 7): un fallo suyo no
+      debería poder tumbar la aplicación, y hoy puede.
+    - Solución: que `window-all-closed` no cierre la aplicación mientras el
+      arranque está en curso —basta una bandera que se levante al terminar
+      `createWindow`—, o no cerrar el splash ante un fallo de carga hasta que la
+      ventana principal exista.
+    - Esfuerzo: mínimo · Riesgo: bajo.
 
 ---
 

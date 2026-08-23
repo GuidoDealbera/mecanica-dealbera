@@ -2,6 +2,7 @@ import { DataSource } from "typeorm";
 import path from "path";
 import { app } from "electron";
 import { logError, logInfo, logWarn } from "../logger";
+import { relocateLegacyDatabase } from "./dataLocation";
 import {
   checkDatabaseHealth,
   createPreMigrationSnapshot,
@@ -48,32 +49,119 @@ export const AppDataSource = new DataSource({
 });
 
 /**
- * Carpeta donde viven la base y sus respaldos.
+ * Dónde viven los datos.
  *
- * `MECANICA_DATA_DIR` es el punto de escape para las pruebas de extremo a
- * extremo, que arrancan la aplicación de verdad: sin él, un test escribiría
- * sobre la base real del usuario. En uso normal la variable no existe.
+ * La base y los respaldos van a **carpetas distintas a propósito**:
+ *
+ * - La **base viva** en `userData`, una carpeta de la aplicación que el usuario
+ *   no ve ni sincroniza. Hasta la 1.0.x estaba en `Documentos`, donde OneDrive
+ *   puede tomar el archivo mientras SQLite escribe —y una base bloqueada a mitad
+ *   de una transacción es justo lo que rompe los datos— y donde cualquiera puede
+ *   moverla o borrarla sin saber qué es.
+ * - Los **respaldos** siguen en `Documentos`, que es donde tienen que estar: son
+ *   lo que el usuario necesita encontrar, copiar a un pendrive o mandar por
+ *   correo. Ahí la sincronización de OneDrive deja de ser un problema y pasa a
+ *   ser una ventaja: son archivos que se escriben una vez y se cierran.
+ *
+ * `MECANICA_DATA_DIR` es el punto de escape para las pruebas que arrancan la
+ * aplicación de verdad: sin él, un test escribiría sobre la base real del
+ * usuario. En uso normal la variable no existe.
  */
-function getDataDir(): string {
-  const override = process.env.MECANICA_DATA_DIR;
-  if (override) return override;
+// Declaradas como `function` y no como `const`: `AppDataSource` se construye
+// arriba llamando a `getDBPath()`, que las usa. Con `const` quedarían en la zona
+// muerta temporal y el módulo reventaría al cargarse, algo que TypeScript no
+// marca.
+function overrideDir(): string | undefined {
+  return process.env.MECANICA_DATA_DIR;
+}
 
-  return process.env.NODE_ENV === "development"
-    ? path.join(process.cwd(), "data")
-    : app.getPath("documents");
+function isDev(): boolean {
+  return process.env.NODE_ENV === "development";
+}
+
+function getDataDir(): string {
+  return (
+    overrideDir() ??
+    (isDev() ? path.join(process.cwd(), "data") : app.getPath("userData"))
+  );
 }
 
 export function getDBPath() {
   return path.join(getDataDir(), "taller.db");
 }
 
-/**
- * Carpeta de respaldos: al lado de la base, para que las copias viajen con ella
- * y para que en desarrollo no se escriba en los Documentos del usuario.
- */
 export function getBackupDir() {
-  return path.join(path.dirname(getDBPath()), "backups");
+  const base =
+    overrideDir() ??
+    (isDev() ? path.join(process.cwd(), "data") : app.getPath("documents"));
+  return path.join(base, "backups");
 }
+
+/**
+ * Dónde estaba la base hasta la 1.0.x. `null` cuando no hay traslado posible:
+ * en desarrollo y bajo `MECANICA_DATA_DIR` la base nunca estuvo en Documentos.
+ */
+function getLegacyDBPath(): string | null {
+  // Hermana de `MECANICA_DATA_DIR`: permite ejercitar el traslado completo
+  // dentro de la aplicación real sin tocar los Documentos de nadie. El traslado
+  // es la operación más delicada de todo el arranque —mueve la única copia de
+  // los datos del taller— así que conviene poder probarla de verdad.
+  const override = process.env.MECANICA_LEGACY_DB;
+  if (override) return override;
+
+  if (overrideDir() || isDev()) return null;
+  return path.join(app.getPath("documents"), "taller.db");
+}
+
+/**
+ * Traslada la base desde `Documentos` a `userData` la primera vez que arranca
+ * una versión con el cambio. Es idempotente y silenciosa si no hay nada que
+ * mover.
+ *
+ * Un fallo acá **detiene el arranque**. Si no se pudo trasladar, la base vieja
+ * sigue intacta donde estaba: abrir la aplicación igual crearía una base nueva y
+ * vacía en la ubicación nueva, y el usuario vería su taller sin un solo
+ * vehículo. Es preferible no arrancar y decir dónde están los datos.
+ */
+const relocateDatabaseIfNeeded = async (): Promise<void> => {
+  const legacyPath = getLegacyDBPath();
+  if (!legacyPath) return;
+
+  const targetPath = getDBPath();
+  try {
+    const outcome = await relocateLegacyDatabase({ legacyPath, targetPath });
+
+    if (outcome.status === "trasladada") {
+      logInfo("db:relocate", "Base trasladada a la carpeta de la aplicación", {
+        desde: outcome.legacyPath,
+        hacia: outcome.targetPath,
+        kb: Math.round(outcome.bytes / 1024),
+        anteriorApartadaEn: outcome.retiredPath,
+      });
+    } else if (outcome.status === "ya-trasladada") {
+      // No se toca: la base nueva manda. Se avisa porque un archivo con el
+      // nombre viejo en Documentos invita a confundirlo con los datos actuales.
+      logWarn(
+        "db:relocate",
+        "Quedó una base con el nombre anterior en Documentos; la aplicación usa la de userData",
+        { anterior: outcome.legacyPath, enUso: targetPath }
+      );
+    }
+  } catch (error) {
+    logError("db:relocate", error, { legacyPath, targetPath });
+    throw new Error(
+      [
+        "No se pudieron trasladar los datos a la carpeta de la aplicación.",
+        "",
+        "Los datos siguen intactos en:",
+        legacyPath,
+        "",
+        "Cerrá OneDrive o cualquier programa que pueda tener abierto ese " +
+          "archivo y volvé a abrir la aplicación. No se perdió nada.",
+      ].join("\n")
+    );
+  }
+};
 
 /**
  * Fallo del que **ya se avisó al usuario** con su propio cuadro de diálogo.
@@ -226,6 +314,9 @@ export const initializeDB = async () => {
   try {
     logInfo("db:init", "Inicializando base de datos");
     if (!AppDataSource.isInitialized) {
+      // Antes de abrir nada: si los datos todavía están en la ubicación vieja,
+      // se los trae. Tiene que pasar con la base cerrada.
+      await relocateDatabaseIfNeeded();
       await AppDataSource.initialize();
       await runPendingMigrations();
       logInfo("db:init", "Base de datos inicializada correctamente", {
