@@ -376,7 +376,7 @@ datos del taller.
     - Esfuerzo: medio · Riesgo: alto si se hace mal → hacerlo con la copia de
       seguridad previa del punto 13 ya implementada.
 
-13. **[a testear]** Snapshot previo a migraciones + verificación de integridad
+13. **[hecho]** Snapshot previo a migraciones + verificación de integridad
     - Archivos: `electron/DataBase/migrationSafety.ts` (nuevo),
       `electron/DataBase/dataSource.ts`, `electron/main.ts`,
       `electron/DataBase/Endpoints/backup.endpoints.ts`.
@@ -425,9 +425,14 @@ datos del taller.
       `dataSource.ts`, derivada de la ruta de la base. En producción resuelve a
       lo mismo de siempre (`Documentos/backups`); en desarrollo pasa a
       `data/backups`, así deja de escribir en los Documentos del usuario.
-    - **No verificado**: el cuadro de diálogo que ofrece restaurar sólo corre
-      dentro de Electron. La restauración en sí (`restoreSnapshot`) sí está
-      probada; falta ver el cuadro al armar el instalador.
+    - **Verificado también sobre el paquete real** (23/08/2026): se empaquetó con
+      `electron-builder --dir` y se ejecutó en modo producción contra carpetas de
+      datos descartables. Con base nueva loguea `Copia previa a las migraciones
+creada`, `Migraciones aplicadas (8)` y `Verificación de integridad
+correcta`; con base ya migrada no saca copia. Es la primera vez que este
+      camino corre fuera de un script.
+    - **Lo único no verificado**: el cuadro de diálogo que ofrece restaurar. Se
+      puede provocar su lógica, pero verlo requiere abrirlo a mano.
 
 14. **[pendiente]** Respaldos: `VACUUM INTO` en vez de `copyFileSync` y retención por niveles
     - Archivo: `electron/main.ts:54` (`performAutoBackup`) y
@@ -448,38 +453,6 @@ datos del taller.
       ya se muestra en la tarjeta "Respaldos automáticos"; falta la acción.
     - Esfuerzo: bajo · Riesgo: medio (es una operación destructiva → confirmación
       explícita + respaldo previo, que el endpoint de importación ya hace).
-
-Además, una tarea **urgente** que apareció el 16/08/2026 y que puede invalidar
-todo lo anterior. Lleva el número **31**, fuera de la numeración corrida, para no
-renumerar el resto del plan.
-
-31. **[pendiente]** ⚠️ Verificar que la aplicación empaquetada arranca
-    - Al preparar pruebas de extremo a extremo apareció que **`electron.exe` no
-      puede cargar `dist-electron/main.js`**: falla con
-      `SyntaxError: The requested module 'electron' does not provide an export
-named 'shell'`. El build genera el proceso principal como **ESM** y
-      Electron 30.5.1 no expone exportaciones nombradas del módulo `electron` en
-      ESM. Reproducido también con una aplicación mínima en una carpeta limpia,
-      sin ningún `node_modules` que interfiera: no es un efecto del proyecto.
-    - Por qué es urgente: `package.json` declara `"main": "dist-electron/main.js"`
-      y `"type": "module"`, y el flujo de
-      [release.yml](.github/workflows/release.yml) **arma y publica el instalador
-      en cada push a `main`**. Si el empaquetado no arranca, se vienen publicando
-      instaladores rotos.
-    - Lo que **no** está determinado, y hay que resolver antes de sacar
-      conclusiones:
-      - `npm run dev` **funciona** (hay logs de arranques correctos), así que el
-        plugin de Vite hace algo distinto en desarrollo. Averiguar qué.
-      - El `main.js` dentro del `app.asar` de la 1.0.3 instalada en este equipo
-        **también es ESM** y ese paquete se supone que funciona. O bien Electron
-        resuelve distinto dentro del asar, o bien ese instalador nunca anduvo.
-      - Al lanzar el ejecutable instalado, **salió de inmediato sin abrir
-        ventana**. Es un indicio fuerte, pero la forma de medirlo puede ser mala:
-        hay que confirmarlo bien antes de darlo por cierto.
-    - Salidas posibles, según qué se confirme: forzar el formato CJS para el
-      proceso principal en `vite.config.mts`, quitar `"type": "module"`, o subir
-      Electron a una versión con soporte ESM completo.
-    - Esfuerzo: desconocido · Riesgo: **es el bloqueante del entregable**.
 
 ---
 
@@ -796,10 +769,9 @@ Lo que se aprendió, que vale más que la suite:
   pero **nunca** el aspecto visual. Eso siempre va a requerir abrirlo a mano una
   vez.
 - **Por qué se descartó**: 545 líneas y una dependencia, para una suite que sólo
-  rinde si algo la ejecuta sola. Y el hallazgo importante de la tarea 31 salió de
-  correr `electron.exe` a mano, sin Playwright. Si más adelante hace falta un
-  chequeo automático antes de publicar, lo natural es un paso chico en
-  `release.yml` que arranque el instalador y verifique que abre, no una suite.
+  rinde si algo la ejecuta sola. Si más adelante hace falta un chequeo automático
+  antes de publicar, lo natural es un paso chico en `release.yml` que arranque el
+  instalador y verifique que abre, no una suite.
 - Quedó en el proyecto una sola cosa de todo eso: **`MECANICA_DATA_DIR`** en
   `getDBPath()`, que permite arrancar la aplicación contra una carpeta
   descartable. Sin eso, cualquier prueba de arranque escribe sobre la base real
@@ -808,6 +780,34 @@ Lo que se aprendió, que vale más que la suite:
   `npm install` local falla con ERESOLVE porque `typeorm` declara `sqlite3@^5` y
   el proyecto usa el 6. El flujo de CI ya pasaba la bandera a mano; esto arregla
   el caso local.
+
+### 2026-08-23 — Falsa alarma: "la aplicación no arranca"
+
+Se abrió una tarea urgente dando por hecho que la aplicación no arrancaba —ni en
+desarrollo ni empaquetada— por un `SyntaxError: The requested module 'electron'
+does not provide an export named 'BrowserWindow'`. **Era un artefacto del entorno
+desde el que se ejecutaban las pruebas, no un problema del proyecto**, y la tarea
+se eliminó.
+
+La causa: la variable **`ELECTRON_RUN_AS_NODE=1`**, que define el host de
+extensiones de VS Code. Cualquier binario de Electron lanzado con esa variable
+heredada corre como **Node puro**, y ahí el especificador `electron` resuelve al
+paquete de npm —que exporta la ruta del binario, no la API—, así que todo import
+nombrado falla. La aplicación estaba perfecta; el arranque estaba contaminado.
+
+Queda anotado porque es una trampa cara: el error apunta al formato del módulo
+(ESM contra CJS) y manda a investigar la configuración de Vite, el `type` del
+`package.json` y la versión de Electron, que no tienen nada que ver. **Antes de
+lanzar Electron desde cualquier script o herramienta, limpiar
+`ELECTRON_RUN_AS_NODE`.**
+
+Del episodio salió algo aprovechable: se empaquetó la aplicación con
+`electron-builder --dir` y se la ejecutó en modo producción contra carpetas de
+datos descartables, lo que **verificó la tarea 13 sobre el paquete real**. Con
+base nueva registra `Copia previa a las migraciones creada` (12 KB), `Migraciones
+aplicadas (8)` y `Verificación de integridad correcta`; con base ya migrada no
+saca copia. Es la primera vez que el camino de producción se ejecuta desde que se
+escribió.
 
 ### Historial anterior
 
