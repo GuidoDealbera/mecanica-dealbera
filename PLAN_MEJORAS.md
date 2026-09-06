@@ -1049,6 +1049,48 @@ aplicadas (8)` y `Verificación de integridad correcta`; con base ya migrada no
 saca copia. Es la primera vez que el camino de producción se ejecuta desde que se
 escribió.
 
+### 2026-09-06 — Tanda completa: todo lo pendiente salvo una decisión
+
+Se cerraron **13 tareas** en una sola sesión, con un commit por tarea. El plan
+queda con **12 hechas**, **18 a testear** y **una sola pendiente**: la 16, que
+no es trabajo sino una **decisión de negocio**.
+
+Lo que se hizo, por orden:
+
+- **31** — un fallo del splash ya no cierra la aplicación en medio del arranque.
+- **14** — respaldos con `VACUUM INTO`, verificados, y retención por niveles: de
+  7 archivos y 7 días de alcance a 14 archivos y 129 días.
+- **15** — restaurar un respaldo desde la pantalla, con verificación de
+  integridad del archivo entrante (que la importación tampoco hacía).
+- **30** — formato de fecha unificado en `job.createdAt/updatedAt`.
+- **27, 28, 29** — el vehículo preseleccionado que no se veía, las tarjetas de
+  anchos distintos y las del dashboard con la sombra recortada.
+- **24** — `npm run verify` y flujo de GitHub Actions en cada push.
+- **19** — filtro por aviso al cliente en la bandeja.
+- **25** — el stack de PDF (460 kB) se carga sólo al emitir; la ficha del
+  vehículo baja a 76 kB.
+- **21** — los contadores se refrescan cuando cambian los datos, no al navegar.
+- **20** — observación para el cliente, en un campo aparte de las notas internas.
+- **17** — editar el próximo service (endpoint que existía sin ninguna pantalla).
+- **18** — historial de documentos emitidos (ídem).
+- **22** — documento consolidado de todos los vehículos de un cliente.
+- **23** — tests de componentes y de base: de 102 a 122.
+- **26** — `CLAUDE.md` con las convenciones aprendidas rompiendo cosas.
+
+**Todo esto está sin probar a mano.** Los 122 tests, los scripts de verificación
+contra copias de la base y el empaquetado dicen que funciona a nivel código,
+pero nadie usó la aplicación. Lo que más conviene mirar con la app abierta:
+
+1. Restaurar un respaldo desde Gestión de datos (circuito destructivo).
+2. Editar y programar el próximo service desde la ficha del vehículo.
+3. Emitir un documento consolidado de un cliente con dos autos, y **mirar el
+   PDF**: la maquetación del consolidado no se puede verificar con un test. Hay
+   una vista previa con
+   `PDF_PREVIEW_DIR=<carpeta> npx vitest run src/Utils/pdfPreview.test.ts`.
+4. El primer arranque después de actualizar: traslada la base a `userData` y
+   corre dos migraciones nuevas. Conviene copiar `Documents/taller.db` antes,
+   aunque el traslado deje la vieja apartada como `taller.db.migrated`.
+
 ### Historial anterior
 
 El plan de 33 tareas (sprints 0 a 7) se completó entre el 18/07/2026 y el
