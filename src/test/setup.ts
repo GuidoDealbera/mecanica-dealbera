@@ -12,4 +12,18 @@ if (typeof document !== "undefined") {
   await import("@testing-library/jest-dom/vitest");
   const { cleanup } = await import("@testing-library/react");
   afterEach(() => cleanup());
+
+  // jsdom no implementa `ResizeObserver`, y varios componentes de HeroUI lo
+  // usan para medirse (las Tabs, por ejemplo). Sin esto el componente revienta
+  // al montarse y el test falla por una carencia del entorno, no por el código.
+  //
+  // Alcanza con un doble que no hace nada: los tests verifican reglas de
+  // negocio y qué se muestra, no medidas.
+  if (!("ResizeObserver" in globalThis)) {
+    globalThis.ResizeObserver = class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    } as unknown as typeof ResizeObserver;
+  }
 }
