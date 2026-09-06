@@ -6,6 +6,19 @@
   productName: "Mecánica Dealbera",
   asar: true,
 
+  // No recompilar los módulos nativos al empaquetar.
+  //
+  // El único que hay es `better-sqlite3`, y su versión 13 trae binarios
+  // **N-API** dentro del paquete, que son estables entre Node y Electron: no
+  // necesitan recompilarse. electron-builder no lo sabe y lo intenta igual, lo
+  // que hace fallar el build con `node-gyp failed to rebuild` en cualquier
+  // máquina sin toolchain de C++ instalado.
+  //
+  // Si algún día entra un módulo nativo que **sí** dependa del ABI, hay que
+  // volver a poner esto en true y asegurarse de que el runner tenga el
+  // toolchain.
+  npmRebuild: false,
+
   publish: {
     provider: "github",
     owner: "GuidoDealbera",

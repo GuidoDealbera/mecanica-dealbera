@@ -74,7 +74,7 @@ beforeAll(async () => {
   dir = fs.mkdtempSync(path.join(os.tmpdir(), "dealbera-stats-"));
 
   ds = new DataSource({
-    type: "sqlite",
+    type: "better-sqlite3",
     database: path.join(dir, "taller.db"),
     synchronize: false,
     migrationsRun: true,

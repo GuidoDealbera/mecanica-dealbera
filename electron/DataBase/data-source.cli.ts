@@ -2,7 +2,7 @@ import { DataSource } from "typeorm";
 import path from "path";
 
 export default new DataSource({
-  type: "sqlite",
+  type: "better-sqlite3",
   database: path.join(process.cwd(), "data", "taller.db"),
   entities: [
     path.join(process.cwd(), "./electron/DataBase/Entities/*.entity.ts"),

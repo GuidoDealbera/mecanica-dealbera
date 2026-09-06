@@ -29,7 +29,7 @@ import { AddClientNoteToJob1700000010000 } from "./Migrations/AddClientNoteToJob
 import { SimplifyServiceType1700000011000 } from "./Migrations/SimplifyServiceType1700000011000";
 
 export const AppDataSource = new DataSource({
-  type: "sqlite",
+  type: "better-sqlite3",
   database: getDBPath(),
   entities: [Car, Client, Job, Document, ServiceReminder, AppSetting],
   synchronize: false,

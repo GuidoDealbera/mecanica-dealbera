@@ -75,6 +75,13 @@ El PK es un uuid, no el rowid de SQLite: nombrar la columna obliga a leer la
 fila entera. Con un índice presente, el conteo por estado pasaba de 1,1 ms a
 88 ms. Son equivalentes porque el PK nunca es NULL.
 
+### El driver es `better-sqlite3`, y por qué importa la versión
+
+Se pasó de `sqlite3` a `better-sqlite3` porque TypeORM 1.x eliminó el primero.
+Las tres operaciones de las que depende el resguardo de datos se verificaron una
+por una: `VACUUM INTO ?` con parámetro, `VACUUM INTO` literal y
+`PRAGMA integrity_check`. Las tres andan igual.
+
 ### Copiar una base: `VACUUM INTO`, nunca `copyFileSync`
 
 Copiar el archivo puede capturarlo a mitad de una escritura o sin el journal que
@@ -165,8 +172,14 @@ de impedirlo.
 
 ### `npm install` falla sin `.npmrc`
 
-`typeorm` declara `sqlite3@^5` como peer y el proyecto usa el 6. El `.npmrc` con
-`legacy-peer-deps=true` está justamente para eso.
+`typeorm` declara `better-sqlite3@^8 … ^12` como peer y el proyecto usa la 13.
+El `.npmrc` con `legacy-peer-deps=true` está para eso.
+
+**No "arreglarlo" bajando a la 12.** La 12 descarga un binario atado al ABI de
+Node, así que dentro de Electron falla con `NODE_MODULE_VERSION 137` y habría
+que recompilarla en cada instalación para poder correr `npm run dev`. La 13 trae
+binarios **N-API** dentro del paquete, estables entre Node y Electron. Se probó:
+con la 12 la aplicación no abre la base.
 
 ---
 

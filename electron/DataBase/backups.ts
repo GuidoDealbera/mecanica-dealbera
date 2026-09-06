@@ -167,7 +167,7 @@ export const createDailyBackup = async (
   await dataSource.query("VACUUM INTO ?", [temp]);
 
   const verificacion = new DataSource({
-    type: "sqlite",
+    type: "better-sqlite3",
     database: temp,
     synchronize: false,
     migrationsRun: false,

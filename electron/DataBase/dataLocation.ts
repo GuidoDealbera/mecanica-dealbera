@@ -95,7 +95,7 @@ export const relocateLegacyDatabase = async ({
   fs.rmSync(temp, { force: true });
 
   const source = new DataSource({
-    type: "sqlite",
+    type: "better-sqlite3",
     database: legacyPath,
     synchronize: false,
     migrationsRun: false,
