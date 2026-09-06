@@ -733,19 +733,38 @@ numeración corrida para no renumerar el resto.
 
 ## Sprint E — Calidad y automatización
 
-23. **[pendiente]** No hay tests de componentes ni de endpoints
-    - Los 97 tests actuales cubren **sólo** módulos puros
-      (`serviceReminders`, `budgetPdf`, `timeline`, `utils`). Todo lo que rompió
-      en las últimas sesiones (el paginado de la bandeja, el layout que
-      comprimía las tarjetas, el filtro de trabajos del PDF) está fuera de esa
-      cobertura.
-    - Solución: (a) React Testing Library + jsdom para los componentes con
-      reglas —`DocumentModal` (elegibilidad y totales), `ReminderActions`
-      (botones según estado), tablas paginadas—; (b) tests de endpoints con una
-      base SQLite en memoria y las migraciones aplicadas, que es donde vive la
-      lógica más delicada.
-    - Esfuerzo: alto (setup + primeros casos) · Riesgo: nulo · **Es la mejora con
-      mejor relación costo/beneficio a mediano plazo.**
+23. **[a testear]** Tests de componentes y de base de datos
+    - Archivos: `vitest.config.ts`, `src/test/setup.ts` (nuevo),
+      `src/Pages/Components/ReminderActions.test.tsx` (nuevo),
+      `src/Components/DocumentModal.test.tsx` (nuevo),
+      `electron/DataBase/dashboardStats.test.ts` (nuevo).
+    - Los tests pasaron de **102 a 122**, y ahora cubren las dos cosas que antes
+      quedaban afuera: componentes con reglas de negocio y consultas contra la
+      base.
+    - **Dos entornos conviviendo en el mismo comando**: Node por defecto, y jsdom
+      por archivo con `// @vitest-environment jsdom`. Global sería pagar el
+      arranque del DOM en todos los tests que no lo necesitan. El `setup.ts`
+      carga los matchers del DOM **de forma condicional**: con un import
+      estático, `@testing-library/react` explota en los tests de Node al no
+      encontrar `document`.
+    - `ReminderActions` (5 tests): que la barra respete las reglas de
+      `getReminderActions`. Es donde se rompió antes —la interfaz ofrecía
+      posponer un service al día, y posponer no mueve el vencimiento, sólo lo
+      escondía—. Al escribirlos se comprobó que el componente **deshabilita** las
+      acciones en vez de ocultarlas, y el test fija ese invariante: ninguna se
+      puede ejecutar sobre un recordatorio cerrado.
+    - `DocumentModal` (5 tests): que un trabajo **entregado nunca aparezca**, que
+      el presupuesto admita los tres estados abiertos y la factura sólo
+      completados, que el aviso de excluidos se muestre y que el total sea el de
+      lo seleccionado.
+    - `computeDashboardStats` (6 tests) contra una base **SQLite real con las 10
+      migraciones aplicadas** —en un archivo temporal y no en `:memory:`, así el
+      esquema lo crean las migraciones y se prueban de paso—. Fija el criterio
+      que se decidió y es fácil de revertir sin querer: **el ingreso es lo
+      entregado, no lo completado**, y la tarjeta coincide con la barra del mes
+      en el gráfico (la invariante que ya se rompió una vez).
+    - Dependencias nuevas de desarrollo: `@testing-library/react`, `/dom`,
+      `/user-event`, `/jest-dom` y `jsdom`.
 
 24. **[a testear]** Verificación automática antes de publicar
     - Archivos: `package.json`, `.github/workflows/verify.yml` (nuevo).
