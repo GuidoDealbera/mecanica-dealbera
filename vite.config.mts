@@ -25,7 +25,17 @@ export default defineConfig({
         entry: "electron/main.ts",
         vite: {
           build: {
-            rollupOptions: {
+            // `rolldownOptions` y no `rollupOptions`: Vite 8 empaqueta con
+            // Rolldown y renombró la opción. Con el nombre viejo la
+            // configuración se ignora **en silencio**, que fue exactamente lo
+            // que pasó al actualizar: typeorm, sqlite3 y electron-log se
+            // metieron dentro del bundle (720 kB → 2,2 MB) y la aplicación
+            // dejó de arrancar con `__dirname is not defined in ES module
+            // scope`, porque uno de esos módulos CJS lo usa.
+            //
+            // Estos paquetes tienen que quedar afuera sí o sí: `sqlite3` es un
+            // módulo nativo y typeorm resuelve drivers con `require` dinámico.
+            rolldownOptions: {
               external: (id) => {
                 return (
                   id === "typeorm" ||
