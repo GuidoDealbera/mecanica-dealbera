@@ -780,15 +780,20 @@ numeración corrida para no renumerar el resto.
       emitir un documento. El trozo de la ficha del vehículo —la pantalla más
       usada— queda en **76 kB**.
 
-26. **[pendiente]** Documentar las convenciones del proyecto en `CLAUDE.md`/README
-    - Hay reglas aprendidas a fuerza de romper cosas que no están escritas en
-      ningún lado: HeroUI invierte las escalas numéricas entre temas (usar tokens
-      base + transparencia), un contenedor con scroll no debe maquetear (las
-      Cards se comprimen), `min-h-0` en los hijos flex, `PageShell` como
-      contenedor estándar, y el dominio compartido recibe el `EntityManager` por
-      parámetro.
-    - Solución: escribirlas en un `CLAUDE.md` (o `docs/CONVENCIONES.md`).
-    - Esfuerzo: bajo · Riesgo: nulo.
+26. **[a testear]** Documentar las convenciones del proyecto en `CLAUDE.md`
+    - Archivo: `CLAUDE.md` (nuevo).
+    - Quedaron escritas las reglas que se aprendieron rompiendo cosas, que es el
+      criterio para que algo entre: si no costó una sesión de depuración, no va.
+    - Cubre: el dominio compartido que recibe el `EntityManager` por parámetro;
+      que los thunks **resuelven** con `failed` y por eso existe `ensureSuccess`;
+      la regla de paginado; `COUNT(*)` contra `COUNT(columna)`; `VACUUM INTO`
+      contra `copyFileSync`; el filtro `IS NOT NULL` en las migraciones que
+      reescriben datos; dónde vive cada cosa (base en `userData`, respaldos en
+      Documentos); las escalas invertidas de HeroUI; que un contenedor que
+      scrollea no puede maquetear; `PageShell`; la limpieza de suscripciones
+      IPC; y las dos trampas del entorno (`ELECTRON_RUN_AS_NODE` y el `.npmrc`).
+    - También el estilo acordado: comentarios y commits en español, explicando
+      el problema antes que la solución, sin `Co-Authored-By`.
 
 ---
 
