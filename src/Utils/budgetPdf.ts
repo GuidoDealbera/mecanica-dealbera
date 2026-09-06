@@ -257,8 +257,14 @@ export const renderBudgetDocument = ({
           (acc, p) => acc + p.price,
           0
         );
+        // La observación para el cliente va debajo de la descripción, en la
+        // misma celda: como fila aparte rompería la grilla de la tabla y el
+        // cálculo de totales por columna.
+        const clientNote = job.clientNote?.trim();
         return [
-          job.description ?? "",
+          clientNote
+            ? `${job.description ?? ""}\n${clientNote}`
+            : (job.description ?? ""),
           "",
           job.isThirdParty ? "Sí" : "No",
           partsTotal > 0 ? formatARS(partsTotal) : "---",

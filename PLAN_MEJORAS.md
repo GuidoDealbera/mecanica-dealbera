@@ -614,13 +614,31 @@ numeración corrida para no renumerar el resto.
       "avisados" tienen fecha de contacto y ninguno de los "sin avisar" la tiene,
       y el paginado y el join con el vehículo siguen funcionando.
 
-20. **[pendiente]** Las notas internas nunca salen en el documento
-    - Decisión original (tarea 20 del plan anterior): las notas son internas y no
-      se imprimen. Está bien por defecto, pero a veces hace falta una
-      observación para el cliente.
-    - Solución: campo aparte "observaciones para el cliente" por trabajo, o un
-      check por trabajo en el modal de emisión para incluir su nota.
-    - Esfuerzo: bajo · Riesgo: nulo.
+20. **[a testear]** Las notas internas nunca salen en el documento
+    - Archivos:
+      `electron/DataBase/Migrations/AddClientNoteToJob1700000010000.ts` (nueva),
+      `electron/DataBase/Entities/job.entity.ts`,
+      `electron/DataBase/Types/car.dto.ts`,
+      `electron/DataBase/Endpoints/car.jobs.endpoints.ts`,
+      `src/Types/{types,apiTypes}.ts`, `src/Components/Forms/AddJobForm.tsx`,
+      `src/Utils/budgetPdf.ts`, `electron/DataBase/dataSource.ts`.
+    - De las dos opciones planteadas se eligió el **campo aparte** y no un check
+      sobre las notas internas. Reutilizar `notes` significaría que un descuido
+      imprime algo escrito justamente para no mostrarlo ("el cliente regatea",
+      "cobrar aparte"), y la decisión original de que las notas son internas
+      sigue en pie.
+    - Nueva columna `job.clientNote`, nullable: los trabajos que ya existen
+      quedan sin observación, no hay backfill que inventar.
+    - En el formulario es un `Textarea` propio, con acento visual distinto
+      (`shadow-success`) y una descripción que dice explícitamente que **sí** se
+      imprime, al lado del de notas internas que dice que no.
+    - En el PDF va **dentro de la misma celda** que la descripción, en una línea
+      nueva: como fila aparte rompería la grilla de la tabla y el cálculo de
+      totales por columna.
+    - Verificado sobre una copia: la columna se crea, las notas internas siguen
+      intactas, los 312 trabajos existentes quedan con la observación en NULL,
+      los dos campos conviven sin pisarse y la celda del documento incluye la
+      observación **y no** la nota interna.
 
 21. **[a testear]** Refresco de contadores por evento en vez de por navegación
     - Archivos: `electron/DataBase/dashboardCache.ts`, `electron/main.ts`,

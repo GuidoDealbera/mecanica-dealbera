@@ -19,6 +19,7 @@ const INITIAL_VALUES: Partial<Jobs> = {
   description: "",
   parts: [],
   notes: "",
+  clientNote: "",
   serviceType: null,
 };
 
@@ -267,6 +268,28 @@ const AddJobForm: React.FC<AddJobFormProps> = ({
                 isDisabled={isLoading || !license}
                 label="Notas internas (opcional)"
                 description="Solo para uso del taller. No se incluyen en el presupuesto ni se muestran al cliente."
+                fullWidth
+                minRows={2}
+              />
+            )}
+          />
+        </div>
+
+        {/* ── Observación para el cliente (opcional) ──
+            Campo aparte de las notas internas y no un check sobre ellas: si
+            fuera lo mismo, un descuido imprimiría algo escrito justamente para
+            no mostrarlo. */}
+        <div className="mt-4 p-4 rounded-lg shadow shadow-success">
+          <Controller
+            control={control}
+            name="clientNote"
+            render={({ field }) => (
+              <Textarea
+                {...field}
+                value={field.value ?? ""}
+                isDisabled={isLoading || !license}
+                label="Observación para el cliente (opcional)"
+                description="Sale impresa en el presupuesto y en la factura, debajo del trabajo."
                 fullWidth
                 minRows={2}
               />

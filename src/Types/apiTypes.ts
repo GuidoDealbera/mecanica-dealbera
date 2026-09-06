@@ -279,6 +279,8 @@ export interface CreateCarJob {
     price: number;
   }[];
   notes?: string;
+  /** Observación para el cliente: **sí** sale impresa en el documento. */
+  clientNote?: string;
   /** Si el trabajo es un service, de qué tipo (programa el próximo). */
   serviceType?: ServiceType | null;
 }

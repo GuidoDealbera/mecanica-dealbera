@@ -73,6 +73,10 @@ export class JobsDto {
   @IsString()
   notes?: string;
 
+  @IsOptional()
+  @IsString()
+  clientNote?: string;
+
   // Marca el trabajo como un service de este tipo (cierra el recordatorio
   // vigente y programa el siguiente). `null`/ausente = trabajo común.
   @IsOptional()
@@ -110,6 +114,10 @@ export class UpdateJobDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @IsOptional()
+  @IsString()
+  clientNote?: string;
 
   @IsOptional()
   @IsEnum(ServiceType)

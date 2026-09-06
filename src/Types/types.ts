@@ -56,6 +56,8 @@ export interface Jobs {
     price: number;
   }[];
   notes?: string;
+  /** Observación para el cliente: **sí** se imprime en el documento. */
+  clientNote?: string;
   /** Tipo de service si el trabajo es un service; `null` si es un trabajo común. */
   serviceType?: ServiceType | null;
   createdAt?: string;

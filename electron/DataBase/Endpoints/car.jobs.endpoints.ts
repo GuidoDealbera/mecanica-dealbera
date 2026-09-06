@@ -23,6 +23,7 @@ function toPlainJob(job: Job) {
     status: job.status,
     parts: job.parts ?? [],
     notes: job.notes ?? "",
+    clientNote: job.clientNote ?? "",
     serviceType: job.serviceType ?? null,
     createdAt: job.createdAt,
     updatedAt: job.updatedAt,
@@ -63,6 +64,7 @@ handleIpc("car:add-job", async (_, license: string, jobDto: CreateCarJob) => {
       status: jobDto.status,
       parts: jobDto.parts,
       notes: jobDto.notes,
+      clientNote: jobDto.clientNote,
       serviceType: jobDto.serviceType ?? null,
       car,
     });
@@ -145,6 +147,8 @@ handleIpc(
       if (updateJobDto.price !== undefined) job.price = updateJobDto.price;
       if (updateJobDto.parts !== undefined) job.parts = updateJobDto.parts;
       if (updateJobDto.notes !== undefined) job.notes = updateJobDto.notes;
+      if (updateJobDto.clientNote !== undefined)
+        job.clientNote = updateJobDto.clientNote;
       if (updateJobDto.serviceType !== undefined) {
         job.serviceType = updateJobDto.serviceType;
       }

@@ -46,6 +46,12 @@ export class Job {
   @Column("text", { nullable: true })
   notes?: string;
 
+  // Observación **para el cliente**: sí se imprime en el presupuesto y en la
+  // factura, debajo de la descripción del trabajo. Es un campo aparte de
+  // `notes` justamente para que nunca se filtre lo interno.
+  @Column("text", { nullable: true })
+  clientNote?: string;
+
   // Si el trabajo es un service, de qué tipo. Al pasarlo a completado/entregado
   // se cierra el recordatorio vigente de ese tipo y se genera el siguiente.
   // `null` = trabajo común (no afecta los recordatorios).
