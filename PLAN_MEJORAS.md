@@ -1032,12 +1032,13 @@ real: un upgrade sin forma de verificarlo es una apuesta.
       `release.yml` y el publicado declara `needs: verify`. `verify.yml` dejó de
       dispararse en `main` para no pagar dos veces lo mismo; sigue corriendo en
       `feat/**`, `fix/**` y en los pull requests.
-    - **Ojo con el nombre del artefacto al publicar**: el archivo local se llama
-      `Mecánica Dealbera-Windows-1.0.3-Setup.exe` pero `latest.yml` apunta a
-      `mecanica-dealbera-setup-1.0.3.exe`. Es el nombre "seguro" que
-      electron-builder usa para subir a GitHub, porque la URL no tolera acentos
-      ni espacios. Conviene **confirmarlo en el primer release real**: si los dos
-      nombres no coincidieran, el auto-update fallaría en silencio.
+    - **El nombre del artefacto: confirmado, no era un problema.** El archivo
+      local se llama `Mecánica Dealbera-Windows-2.0.0-Setup.exe` y `latest.yml`
+      apunta a `mecanica-dealbera-setup-2.0.0.exe` —el nombre "seguro" que
+      electron-builder usa porque la URL no tolera acentos ni espacios—. En el
+      release real los dos coinciden: electron-builder sube con ese mismo nombre
+      seguro. Verificado además bajando el `.exe` publicado y comparando su
+      sha512 contra el de `latest.yml`: idénticos.
     - **La versión ya subió a `2.0.0`.** El instalador se había armado como
       `1.0.3`, la misma que está instalada: publicado así ninguna aplicación
       habría visto la actualización. Va una mayor y no una menor porque entre
@@ -1426,6 +1427,47 @@ vulnerabilidades y andando con React 19, así que no hay nada que fuerce la mano
 
 TypeScript 7 sigue igual que en la evaluación anterior: `typescript-eslint`
 todavía declara `typescript <6.1.0`.
+
+### 2026-09-06 — El primer release de la 2.0.0, y el susto del `latest.yml`
+
+`feat/news` entró a `main` por fast-forward —105 commits, 177 archivos— y el
+push disparó el flujo de publicación. **La verificación pasó y el publicado
+falló**, pero de la peor manera posible: alcanzó a subir el instalador de 156 MB
+y a publicar el release, y recién ahí se cayó. Quedó un **v2.0.0 público con el
+`.exe` pero sin `latest.yml` ni `.blockmap`**.
+
+Eso es exactamente el modo de falla silencioso que se venía anotando: el release
+se ve perfecto en GitHub y **ninguna aplicación instalada se entera de que hay
+una versión nueva**, porque el updater lo primero que busca es `latest.yml`. Se
+comprobó corriendo el paquete: `Cannot find latest.yml in the latest release
+artifacts (…/v2.0.0/latest.yml): HttpError: 404`. La aplicación lo registra y
+sigue andando —el manejo de errores del updater hace su trabajo—, pero se queda
+en la versión vieja para siempre.
+
+Volver a publicar lo arregló: electron-builder reemplaza los assets que ya
+existen, así que el segundo intento dejó los tres archivos consistentes entre
+sí. **No alcanza con ver que estén los tres**: lo que rompe el auto-update en
+silencio es que el sha512 de `latest.yml` no corresponda al `.exe` que está
+publicado, cosa perfectamente posible si cada archivo viene de un build
+distinto. Se verificó bajando el `.exe` publicado y calculándole el sha512:
+coincide con el de `latest.yml`. Y corriendo el paquete otra vez, el updater ya
+responde `latest version: 2.0.0` en vez del 404.
+
+**Cómo revisar esto en el próximo release**, en ese orden:
+
+1. Que el release tenga **tres** assets, no uno.
+2. Que el `size` de `latest.yml` coincida con el del `.exe` publicado.
+3. Que el **sha512** coincida. Es el único que falla en silencio.
+
+De paso quedó confirmado lo que estaba anotado como duda en la tarea 40: el
+nombre "seguro" (`mecanica-dealbera-setup-2.0.0.exe`) es el mismo con el que
+electron-builder sube el artefacto, así que la diferencia con el nombre local
+—con acento y espacios— nunca fue un problema.
+
+También se arregló algo que apareció mirando el historial de ejecuciones: con un
+pull request abierto, cada push corría la verificación **dos veces**, una por el
+evento `push` y otra por el `pull_request`. Lo resuelve un grupo de concurrencia
+con `head_ref || ref_name`.
 
 ### Historial anterior
 

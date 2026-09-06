@@ -171,6 +171,31 @@ updater.
 
 ---
 
+## Publicar
+
+### Un release a medio subir rompe el auto-update en silencio
+
+El flujo puede fallar **después** de subir el instalador y publicar el release.
+Queda un release que en GitHub se ve perfecto y del que **ninguna aplicación
+instalada se entera**, porque el updater lo primero que busca es `latest.yml`.
+Ya pasó con la 2.0.0. Volver a publicar lo arregla: electron-builder reemplaza
+los assets que ya existen.
+
+Revisar siempre, y en este orden:
+
+1. Que el release tenga **tres** assets: `.exe`, `.exe.blockmap` y `latest.yml`.
+2. Que el `size` de `latest.yml` coincida con el del `.exe` publicado.
+3. Que el **sha512** coincida. Es el único que falla en silencio, y es
+   perfectamente posible que no coincida si cada archivo quedó de un build
+   distinto.
+
+El nombre no es problema: el `.exe` local lleva acento y espacios
+(`Mecánica Dealbera-Windows-X-Setup.exe`) y `latest.yml` apunta al nombre
+"seguro" (`mecanica-dealbera-setup-X.exe`), que es con el que electron-builder
+sube. Coinciden.
+
+---
+
 ## Trampas del entorno
 
 ### `ELECTRON_RUN_AS_NODE`
