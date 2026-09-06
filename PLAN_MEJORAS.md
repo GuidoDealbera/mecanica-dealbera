@@ -488,9 +488,17 @@ correcta`; con base ya migrada no saca copia. Es la primera vez que este
 Y una tarea que apareció verificando la 12, con el número **31** fuera de la
 numeración corrida para no renumerar el resto.
 
-31. **[pendiente]** ⚠️ Si falla la pantalla de carga, la aplicación se cierra sola al arrancar
-    - Archivo: `electron/main.ts` (`createWindow`, `closeSplash`, el manejador de
-      `window-all-closed`).
+31. **[a testear]** ⚠️ Si falla la pantalla de carga, la aplicación se cierra sola al arrancar
+    - Archivo: `electron/main.ts`.
+    - **Resuelto** con una bandera `isStartingUp` que arranca en `true` y se baja
+      justo antes de crear la ventana principal. Mientras está levantada,
+      `window-all-closed` no cierra la aplicación: durante el arranque "no quedan
+      ventanas" significa "el splash se fue", no "el usuario terminó".
+    - Verificado reproduciendo el escenario exacto: aplicación sin empaquetar en
+      modo producción (donde `splash.html` no existe). Antes se cerraba sola en
+      medio del arranque; ahora el splash falla, queda registrado, y la
+      aplicación completa el traslado, la copia previa, las migraciones y la
+      verificación de integridad, y sigue viva.
     - Secuencia: `showSplash()` abre el splash, y si `loadFile` falla se registra
       el aviso y se llama a `closeSplash()`. Pero eso puede pasar **mientras
       `initializeDB()` todavía está corriendo**, y en ese momento el splash es la

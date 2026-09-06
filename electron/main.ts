@@ -90,6 +90,20 @@ function closeSplash(): void {
   splash = null;
 }
 
+/**
+ * `true` hasta que la ventana principal existe.
+ *
+ * Sirve para que `window-all-closed` no cierre la aplicación en medio del
+ * arranque. El splash es la única ventana abierta mientras corre `initializeDB`
+ * —que puede tardar: traslado de la base, copia previa, migraciones—, así que si
+ * se cierra en ese lapso Electron considera que no quedan ventanas y dispara el
+ * cierre. Pasaba de verdad cuando `splash.html` no se podía cargar: el manejador
+ * de fallos llama a `closeSplash()` y la aplicación se cerraba sola, sin ventana
+ * y sin explicar nada. El splash es best-effort por diseño; un fallo suyo no
+ * puede tumbar la aplicación.
+ */
+let isStartingUp = true;
+
 /** Evita que dos errores encadenados disparen dos cierres (y dos cuadros). */
 let isShuttingDown = false;
 
@@ -277,6 +291,10 @@ async function createWindow() {
     }
   }
 
+  // A partir de acá ya hay una ventana propia: el cierre por "no quedan
+  // ventanas" vuelve a significar lo que tiene que significar.
+  isStartingUp = false;
+
   win = new BrowserWindow({
     icon: path.join(process.env.VITE_PUBLIC, "logo-grande.png"),
     title: "Mecánica Dealbera",
@@ -365,6 +383,11 @@ app.on("second-instance", () => {
 });
 
 app.on("window-all-closed", () => {
+  // Durante el arranque la única ventana es el splash: si se cierra (por ejemplo
+  // porque `splash.html` no cargó) esto se dispararía y mataría la aplicación
+  // antes de que exista la ventana principal. Ver `isStartingUp`.
+  if (isStartingUp) return;
+
   if (process.platform !== "darwin") {
     app.quit();
     win = null;
