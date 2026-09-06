@@ -645,11 +645,20 @@ numeración corrida para no renumerar el resto.
     - Esfuerzo: alto (setup + primeros casos) · Riesgo: nulo · **Es la mejora con
       mejor relación costo/beneficio a mediano plazo.**
 
-24. **[pendiente]** Verificación automática antes de publicar
-    - Hoy `tsc`, `lint`, `vitest` y `build` se corren a mano.
-    - Solución: script `npm run verify` que encadene los cuatro, y un workflow de
-      GitHub Actions que lo ejecute en cada push a `feat/*` y `main`.
-    - Esfuerzo: bajo · Riesgo: nulo.
+24. **[a testear]** Verificación automática antes de publicar
+    - Archivos: `package.json`, `.github/workflows/verify.yml` (nuevo).
+    - Nuevo `npm run verify`, que encadena **tipos → lint → formato → tests →
+      build del renderer** y corta en el primero que falle. Es exactamente lo que
+      se venía corriendo a mano comando por comando.
+    - Se agregaron `npm run typecheck` y `npm run build:renderer` como pasos
+      nombrados: `npm run build` sigue siendo el que arma el instalador con
+      electron-builder, que no tiene sentido correr en cada push.
+    - Nuevo flujo de GitHub Actions que corre `verify` en cada push a `main`,
+      `feat/**` y `fix/**`, y en los pull requests contra `main`. Corre en
+      `windows-latest`, igual que el de release, porque `sqlite3` es un módulo
+      nativo y conviene verificarlo en el sistema donde se usa.
+    - El build del instalador **no** entra acá: es lento y ya lo hace
+      `release.yml` en `main`.
 
 25. **[pendiente]** Diferir el stack de PDF
     - `jsPDF` + `jspdf-autotable` + la fuente embebida pesan ~516 kB y hoy entran
