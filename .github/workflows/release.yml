@@ -43,19 +43,81 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Sin esto, **cualquier** push a `main` vuelve a publicar: un commit de
+      # documentación rearmaba el instalador y reemplazaba los assets de un
+      # release que ya estaba bien. Y ahí está el riesgo, porque un publicado
+      # que falla a mitad deja el release sin `latest.yml` y **ninguna
+      # aplicación instalada se entera de que hay una versión nueva**. Ya pasó
+      # con la 2.0.0.
+      #
+      # Así que la versión de `package.json` es la que manda: si ya tiene
+      # release, no se toca nada. Para publicar, subir la versión.
+      - name: ¿Esta versión ya está publicada?
+        id: publicada
+        shell: bash
+        run: |
+          version=$(node -p "require('./package.json').version")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          codigo=$(curl -s -o /dev/null -w '%{http_code}'             -H "Authorization: Bearer ${{ secrets.GH_TOKEN }}"             "https://api.github.com/repos/${{ github.repository }}/releases/tags/v$version")
+          if [ "$codigo" = "200" ]; then
+            echo "La v$version ya está publicada. No se rearma nada."
+            echo "existe=si" >> "$GITHUB_OUTPUT"
+          else
+            echo "La v$version no existe todavía (HTTP $codigo). Se publica."
+            echo "existe=no" >> "$GITHUB_OUTPUT"
+          fi
+
       # Misma versión que la verificación (`.nvmrc`): si el instalador se armara
       # con un Node distinto del que se verifica, el visto bueno diría menos de
       # lo que parece.
       - name: Setup Node.js
+        if: steps.publicada.outputs.existe == 'no'
         uses: actions/setup-node@v4
         with:
           node-version-file: ".nvmrc"
           cache: "npm"
 
       - name: Install dependencies
+        if: steps.publicada.outputs.existe == 'no'
         run: npm ci --legacy-peer-deps
 
       - name: Build & Publish
+        if: steps.publicada.outputs.existe == 'no'
         run: npm run release -- --config.directories.output=release
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
+
+      # El publicado puede fallar **después** de subir el instalador: el release
+      # queda con el `.exe` pero sin `latest.yml`, se ve perfecto en GitHub y el
+      # updater nunca lo encuentra. Por eso se revisa acá y no a ojo.
+      #
+      # El sha512 es el que importa: que estén los tres archivos no alcanza si
+      # cada uno quedó de un build distinto, y ése es el único de los tres que
+      # falla sin decir nada.
+      - name: Verificar que el release quedó completo
+        if: steps.publicada.outputs.existe == 'no'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          version="${{ steps.publicada.outputs.version }}"
+          base="https://github.com/${{ github.repository }}/releases/download/v$version"
+          curl -sfL "$base/latest.yml" -o latest.yml || {
+            echo "::error::El release v$version no tiene latest.yml: el auto-update no vería la versión nueva."
+            exit 1
+          }
+          esperado=$(grep -m1 '^  *sha512:' latest.yml | sed 's/.*sha512: *//')
+          tamanio=$(grep -m1 '^  *size:' latest.yml | sed 's/.*size: *//')
+          nombre=$(grep -m1 '^path:' latest.yml | sed 's/path: *//')
+          curl -sfL "$base/$nombre" -o instalador.exe
+          real=$(openssl dgst -sha512 -binary instalador.exe | openssl base64 -A)
+          real_tam=$(stat -c%s instalador.exe)
+          if [ "$real" != "$esperado" ] || [ "$real_tam" != "$tamanio" ]; then
+            echo "::error::latest.yml no corresponde al instalador publicado. El auto-update fallaría al verificar la descarga."
+            echo "  sha512 en latest.yml: $esperado"
+            echo "  sha512 del .exe     : $real"
+            echo "  size en latest.yml  : $tamanio"
+            echo "  size del .exe       : $real_tam"
+            exit 1
+          fi
+          echo "Release v$version completo y consistente ($real_tam bytes)."

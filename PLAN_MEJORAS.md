@@ -1464,6 +1464,18 @@ nombre "seguro" (`mecanica-dealbera-setup-2.0.0.exe`) es el mismo con el que
 electron-builder sube el artefacto, así que la diferencia con el nombre local
 —con acento y espacios— nunca fue un problema.
 
+Y se cerró la puerta por la que había entrado el problema: **`release.yml`
+republicaba en cada push a `main`**. Se comprobó sin querer, con un commit de
+documentación que rearmó el instalador entero y reemplazó los tres assets de un
+release que ya estaba bien —sha512 nuevo incluido—. Cada una de esas vueltas es
+otra oportunidad de quedar a mitad de camino, y a cambio de nada.
+
+Ahora la versión de `package.json` es la que manda: si ya existe el release de
+esa versión, no se rearma nada. Para publicar hay que subir la versión. Y cuando
+sí publica, un paso nuevo **baja el instalador publicado y le compara el sha512
+contra `latest.yml`**: si no coinciden, el flujo falla en vez de dejar un release
+roto que se ve bien.
+
 También se arregló algo que apareció mirando el historial de ejecuciones: con un
 pull request abierto, cada push corría la verificación **dos veces**, una por el
 evento `push` y otra por el `pull_request`. Lo resuelve un grupo de concurrencia
