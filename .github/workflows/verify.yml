@@ -19,6 +19,22 @@ on:
     branches:
       - main
 
+# Con un pull request abierto, un push a la rama disparaba **dos** ejecuciones:
+# una por el `push` y otra por el `pull_request`. Se veía en el historial, dos
+# corridas idénticas con el mismo commit y el mismo segundo de arranque.
+#
+# El grupo usa `head_ref || ref_name` justamente para que las dos caigan en el
+# mismo: en un pull request `head_ref` es el nombre de la rama y en un push está
+# vacío, así que `ref_name` —que también es el nombre pelado, sin `refs/heads/`—
+# lo cubre. Con `github.ref` no alcanzaba: en un pull request vale
+# `refs/pull/N/merge` y nunca coincidiría.
+#
+# `cancel-in-progress` además descarta la corrida anterior cuando se pushea dos
+# veces seguidas: lo que importa es el estado del último commit.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
 jobs:
   verify:
     runs-on: windows-latest
