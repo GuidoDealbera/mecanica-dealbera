@@ -78,12 +78,7 @@ const Header = () => {
   const [pendingJobsCount, setPendingJobsCount] = React.useState(0);
   const isHome = location.pathname === "/";
 
-  // Los contadores se refrescan en cada cambio de pantalla. El Header no se
-  // desmonta nunca (vive en el Layout), así que con un efecto de montaje los
-  // badges quedaban congelados con el valor del arranque: cargar un trabajo o
-  // marcar un service como hecho no se reflejaba hasta reiniciar la app. Son dos
-  // COUNT en la base, así que navegar sale barato.
-  React.useEffect(() => {
+  const refreshCounters = React.useCallback(() => {
     // Recordatorios que requieren atención (misma regla que la bandeja, el
     // dashboard y la notificación de arranque).
     window.api.service
@@ -95,7 +90,19 @@ const Header = () => {
       .getActiveJobsCount()
       .then(setPendingJobsCount)
       .catch(() => {});
-  }, [location.pathname]);
+  }, []);
+
+  // Los contadores se refrescan cuando **cambian los datos**, no cuando se
+  // navega. El proceso principal avisa por `data-changed` en cada mutación, así
+  // que un trabajo cargado o un service cerrado se ve al instante, sin moverse
+  // de la pantalla. Antes esto colgaba de `location.pathname`: alcanzaba, pero
+  // era un sondeo atado a navegar.
+  //
+  // Se mantiene una carga al montar, que es la del arranque.
+  React.useEffect(() => {
+    refreshCounters();
+    return window.api.onDataChanged(refreshCounters);
+  }, [refreshCounters]);
 
   // Atajos de teclado globales (navegación, búsqueda, ayuda, nuevo vehículo).
   useGlobalShortcuts({

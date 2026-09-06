@@ -118,6 +118,19 @@ contextBridge.exposeInMainWorld("api", {
     list: async (type: DocumentType, limit?: number) =>
       await ipcRenderer.invoke("document:list", type, limit),
   },
+  /**
+   * Aviso de "los datos cambiaron", que emite el proceso principal cada vez que
+   * una mutación invalida la caché del dashboard. Devuelve la función para
+   * desuscribirse: sin eso, cada montaje del componente dejaba un listener
+   * colgado (y en desarrollo StrictMode monta dos veces).
+   */
+  onDataChanged: (callback: () => void) => {
+    const handler = () => callback();
+    ipcRenderer.on("data-changed", handler);
+    return () => {
+      ipcRenderer.removeListener("data-changed", handler);
+    };
+  },
   backup: {
     export: async () => await ipcRenderer.invoke("backup:export"),
     import: async () => await ipcRenderer.invoke("backup:import"),

@@ -27,6 +27,7 @@ import {
   initializeDB,
 } from "./DataBase/dataSource";
 import { createDailyBackup } from "./DataBase/backups";
+import { onDashboardStatsInvalidated } from "./DataBase/dashboardCache";
 import { countDueReminders } from "./DataBase/serviceReminders.service";
 
 log.initialize();
@@ -85,6 +86,14 @@ async function performAutoBackup(): Promise<void> {
 
 let win: BrowserWindow | null;
 let splash: BrowserWindow | null;
+
+// Cada vez que una mutación invalida la caché del dashboard se le avisa al
+// renderer. Antes los contadores de la barra se recalculaban en cada cambio de
+// pantalla: alcanzaba, pero seguía siendo un sondeo atado a navegar, y un
+// cambio hecho sin moverse de la pantalla no se veía.
+onDashboardStatsInvalidated(() => {
+  win?.webContents.send("data-changed");
+});
 
 const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000;
 

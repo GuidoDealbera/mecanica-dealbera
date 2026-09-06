@@ -96,8 +96,12 @@ const HomePage: React.FC = () => {
     [showToast]
   );
 
+  // El dashboard se recarga al entrar y cada vez que el proceso principal avisa
+  // que cambiaron los datos: dejarlo abierto en otra ventana mientras se carga
+  // un trabajo ya no muestra números viejos.
   React.useEffect(() => {
     fetchStats();
+    return window.api.onDataChanged(() => fetchStats());
   }, [fetchStats]);
 
   // Datos de la torta con el color atado a cada estado (así el color no se

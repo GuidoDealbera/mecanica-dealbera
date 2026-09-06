@@ -622,13 +622,27 @@ numeración corrida para no renumerar el resto.
       check por trabajo en el modal de emisión para incluir su nota.
     - Esfuerzo: bajo · Riesgo: nulo.
 
-21. **[pendiente]** Refresco de contadores por evento en vez de por navegación
-    - Los badges de la barra ahora se recalculan en cada cambio de pantalla (ver
-      notas de sesión). Alcanza para un solo usuario, pero sigue siendo un
-      "polling" atado a navegar.
-    - Solución: canal `main → renderer` que emita "datos cambiados" cuando se
-      invalida la caché del dashboard, y que el Header y el dashboard escuchen.
-    - Esfuerzo: bajo · Riesgo: bajo.
+21. **[a testear]** Refresco de contadores por evento en vez de por navegación
+    - Archivos: `electron/DataBase/dashboardCache.ts`, `electron/main.ts`,
+      `electron/preload.ts`, `global.d.ts`, `src/Components/Header.tsx`,
+      `src/Pages/HomePage.tsx`.
+    - **La señal ya existía**: invalidar la caché del dashboard es exactamente
+      "algo cambió en los datos", y esa llamada ya está puesta en cada mutación.
+      En vez de agregar un aviso nuevo en cada endpoint —que alguien se iba a
+      olvidar de poner— se enganchó ahí: `invalidateDashboardStatsCache()` avisa
+      a sus listeners.
+    - `dashboardCache.ts` sigue **sin importar Electron**: expone
+      `onDashboardStatsInvalidated`, y quien conoce la ventana (`main.ts`) es
+      quien manda el `data-changed` al renderer.
+    - El Header y el dashboard escuchan ese canal. Los badges dejan de depender
+      de `location.pathname`: cargar un trabajo o cerrar un service se ve al
+      instante, sin moverse de la pantalla.
+    - El preload devuelve la función para desuscribirse y los efectos la usan al
+      desmontar. Sin eso cada montaje dejaba un listener colgado, y en desarrollo
+      `StrictMode` monta dos veces — es el mismo error que ya se había pagado con
+      los listeners del auto-updater.
+    - Avisar es best-effort: si un listener falla, no puede hacer fallar la
+      mutación que se acaba de guardar.
 
 22. **[pendiente]** Emitir un documento consolidado desde la ficha del cliente
     - Hoy el presupuesto/factura es por vehículo. Un cliente con dos autos en el
