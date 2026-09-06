@@ -1,0 +1,27 @@
+# Finales de línea: LF en el repositorio **y en el directorio de trabajo**.
+#
+# Sin esto, en Windows `core.autocrlf=true` convierte a CRLF al hacer checkout.
+# Da igual mientras se programa, pero rompe el flujo de verificación: el
+# repositorio guarda LF, el runner de GitHub Actions también es Windows, y
+# `prettier --check` —que espera LF por configuración— rechaza **todos** los
+# archivos. Se reprodujo clonando el repositorio: 162 archivos marcados, con los
+# tipos y el lint pasando, porque a ésos los finales de línea no les importan.
+#
+# Con `eol=lf` el checkout no convierte nada y el archivo es igual en todas las
+# máquinas. De paso desaparece el aviso "LF will be replaced by CRLF" en cada
+# `git add`.
+* text=auto eol=lf
+
+# Binarios: nunca tocar su contenido.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+*.svg text eol=lf
+*.TTF binary
+*.ttf binary
+*.woff binary
+*.woff2 binary
+*.db binary
+*.pdf binary
+*.exe binary
