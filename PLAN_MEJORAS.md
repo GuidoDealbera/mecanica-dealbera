@@ -596,13 +596,23 @@ numeración corrida para no renumerar el resto.
     - Esfuerzo: medio (alto si se quiere reimprimir fiel: habría que guardar los
       ítems del documento, no sólo el total) · Riesgo: bajo.
 
-19. **[pendiente]** Filtrar la bandeja por "ya avisado"
-    - `contactedAt` se guarda y se muestra, pero no se puede filtrar. Con 72
-      recordatorios vencidos, lo primero que se necesita es "a quién todavía no
-      le avisé".
-    - Solución: filtro de dos estados (avisados / sin avisar) en la bandeja,
-      resuelto en la consulta.
-    - Esfuerzo: bajo · Riesgo: nulo.
+19. **[a testear]** Filtrar la bandeja por "ya avisado"
+    - Archivos: `src/Types/apiTypes.ts`,
+      `electron/DataBase/Endpoints/service.endpoints.ts`,
+      `src/Pages/ServiceAlertsPage.tsx`.
+    - Nuevo filtro "Aviso al cliente" con tres opciones: Todos / Sin avisar / Ya
+      avisados. Se resuelve en la consulta, no en memoria.
+    - No hizo falta ninguna columna nueva: "ya avisado" es exactamente "tiene
+      `contactedAt`". El parámetro del endpoint es un booleano opcional y se
+      compara contra `undefined`, porque `false` es un filtro válido —justamente
+      el más útil: a quién falta avisarle—.
+    - En la pantalla el filtro es una clave de texto y no un booleano, porque son
+      **tres** estados contando "no filtrar" y `undefined` no sirve como
+      `selectedKeys` de un Select.
+    - Verificado sobre una copia marcando la mitad de los recordatorios como
+      avisados: los dos subconjuntos suman el total (39 + 74 = 113), todos los
+      "avisados" tienen fecha de contacto y ninguno de los "sin avisar" la tiene,
+      y el paginado y el join con el vehículo siguen funcionando.
 
 20. **[pendiente]** Las notas internas nunca salen en el documento
     - Decisión original (tarea 20 del plan anterior): las notas son internas y no

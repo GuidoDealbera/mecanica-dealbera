@@ -200,6 +200,12 @@ export interface ReminderQueryParams extends PaginationParams {
   scope?: ReminderScope;
   /** Filtra por tipo de service. */
   type?: ServiceType;
+  /**
+   * Filtra por si ya se contactó al cliente. `undefined` no filtra.
+   * Con 70 recordatorios vencidos, lo primero que se necesita saber es a quién
+   * todavía no se le avisó.
+   */
+  contacted?: boolean;
 }
 
 /** Body para crear o actualizar a mano el recordatorio de un vehículo. */

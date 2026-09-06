@@ -149,6 +149,17 @@ handleIpc(
       qb.andWhere("reminder.type = :type", { type: params.type });
     }
 
+    // "Ya avisado" es exactamente "tiene fecha de contacto": no hace falta una
+    // columna nueva. Se compara contra `undefined` y no con un truthy porque
+    // `false` es un filtro válido (los que faltan avisar).
+    if (params?.contacted !== undefined) {
+      qb.andWhere(
+        params.contacted
+          ? "reminder.contactedAt IS NOT NULL"
+          : "reminder.contactedAt IS NULL"
+      );
+    }
+
     const search = params?.search?.trim();
     if (search) {
       const term = `%${escapeLike(search)}%`;

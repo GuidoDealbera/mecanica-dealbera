@@ -49,6 +49,25 @@ const SCOPE_OPTIONS: { key: ReminderScope; label: string }[] = [
 ];
 
 /**
+ * Filtro por aviso al cliente. Se usa una clave de texto y no un booleano
+ * porque son **tres** estados —incluido "no filtrar"— y `undefined` no sirve
+ * como `selectedKeys` de un Select.
+ */
+type ContactedFilter = "todos" | "sin-avisar" | "avisados";
+
+const CONTACTED_OPTIONS: { key: ContactedFilter; label: string }[] = [
+  { key: "todos", label: "Todos" },
+  { key: "sin-avisar", label: "Sin avisar" },
+  { key: "avisados", label: "Ya avisados" },
+];
+
+const CONTACTED_VALUE: Record<ContactedFilter, boolean | undefined> = {
+  todos: undefined,
+  "sin-avisar": false,
+  avisados: true,
+};
+
+/**
  * Bandeja de recordatorios de service.
  *
  * Reemplaza el listado de "alertas" anterior, que era de sólo lectura: al no
@@ -68,6 +87,7 @@ const ServiceAlertsPage: React.FC = () => {
 
   const [page, setPage] = React.useState(1);
   const [scope, setScope] = React.useState<ReminderScope>("due");
+  const [contacted, setContacted] = React.useState<ContactedFilter>("todos");
   const [search, setSearch] = React.useState("");
   const debouncedSearch = useDebounce(search, 300);
 
@@ -96,6 +116,7 @@ const ServiceAlertsPage: React.FC = () => {
         page,
         pageSize: PAGE_SIZE,
         scope,
+        contacted: CONTACTED_VALUE[contacted],
         search: debouncedSearch || undefined,
       });
       setReminders(result.items);
@@ -117,7 +138,7 @@ const ServiceAlertsPage: React.FC = () => {
       setLoading(false);
       setLoaded(true);
     }
-  }, [page, scope, debouncedSearch, showToast]);
+  }, [page, scope, contacted, debouncedSearch, showToast]);
 
   React.useEffect(() => {
     fetchSettings();
@@ -329,6 +350,23 @@ const ServiceAlertsPage: React.FC = () => {
           }}
         >
           {SCOPE_OPTIONS.map((option) => (
+            <SelectItem key={option.key}>{option.label}</SelectItem>
+          ))}
+        </Select>
+        <Select
+          label="Aviso al cliente"
+          size="sm"
+          className="max-w-[200px]"
+          selectedKeys={[contacted]}
+          onSelectionChange={(keys) => {
+            const value = Array.from(keys)[0] as ContactedFilter | undefined;
+            if (value) {
+              setContacted(value);
+              setPage(1);
+            }
+          }}
+        >
+          {CONTACTED_OPTIONS.map((option) => (
             <SelectItem key={option.key}>{option.label}</SelectItem>
           ))}
         </Select>
