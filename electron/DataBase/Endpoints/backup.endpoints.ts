@@ -9,6 +9,9 @@ import {
   getRepositories,
 } from "../dataSource";
 import { invalidateDashboardStatsCache } from "../dashboardCache";
+import { listBackups } from "../backups";
+import { checkDatabaseHealth } from "../migrationSafety";
+import type { APIResponse, BackupEntry } from "../../../src/Types/apiTypes";
 
 function toCsv<T extends object>(
   headers: Partial<Record<keyof T, string>>,
@@ -126,16 +129,100 @@ handleIpc("backup:open-folder", () => {
   return { status: "success", message: "Carpeta de backups abierta" };
 });
 
-handleIpc("backup:list", () => {
-  const backupDir = getBackupDir();
-  if (!fs.existsSync(backupDir))
-    return { status: "success", message: "Sin backups", result: [] };
-  const files = fs
-    .readdirSync(backupDir)
-    .filter((f) => f.startsWith("taller_") && f.endsWith(".db"))
-    .sort()
-    .reverse();
-  return { status: "success", message: "Backups listados", result: files };
+// Los respaldos se listan con fecha y tamaño, no sólo el nombre: es lo que
+// necesita la pantalla para que el usuario elija cuál restaurar sin tener que
+// interpretar un nombre de archivo.
+handleIpc("backup:list", (): APIResponse<BackupEntry[]> => {
+  const result = listBackups(getBackupDir()).map((backup) => ({
+    name: backup.name,
+    date: backup.date.toISOString(),
+    sizeKb: Math.max(1, Math.round(fs.statSync(backup.path).size / 1024)),
+  }));
+  return { status: "success", message: "Backups listados", result };
+});
+
+/**
+ * Reemplaza la base en uso por el archivo indicado.
+ *
+ * Lo comparten la importación (archivo elegido por el usuario) y la
+ * restauración (respaldo automático). Antes de tocar nada guarda la base actual
+ * al lado, con sufijo `_pre_import_<marca>`: si el archivo nuevo resulta
+ * ilegible, se vuelve solo.
+ */
+const replaceDatabaseWith = async (sourcePath: string, scope: string) => {
+  const destPath = getDBPath();
+  let previousPath: string | null = null;
+
+  try {
+    if (AppDataSource.isInitialized) {
+      await AppDataSource.destroy();
+    }
+
+    if (fs.existsSync(destPath)) {
+      previousPath = destPath.replace(".db", `_pre_import_${Date.now()}.db`);
+      fs.copyFileSync(destPath, previousPath);
+    }
+
+    fs.copyFileSync(sourcePath, destPath);
+    await AppDataSource.initialize();
+
+    // Un archivo que no supera la verificación no sirve como base: se vuelve a
+    // la anterior en vez de dejar al taller trabajando sobre algo dañado.
+    const health = await checkDatabaseHealth(AppDataSource);
+    if (!health.ok) {
+      throw new Error(
+        `El archivo no superó la verificación de integridad: ${health.problems
+          .slice(0, 3)
+          .join(" | ")}`
+      );
+    }
+
+    invalidateDashboardStatsCache();
+    logInfo(scope, "Base de datos reemplazada", { sourcePath, previousPath });
+
+    return {
+      status: "success",
+      message: "Base de datos restaurada. Los datos se actualizarán.",
+    };
+  } catch (error) {
+    logError(scope, error, { sourcePath });
+
+    if (AppDataSource.isInitialized) {
+      await AppDataSource.destroy().catch(() => {});
+    }
+    if (previousPath && fs.existsSync(previousPath)) {
+      try {
+        fs.copyFileSync(previousPath, destPath);
+        logInfo(scope, "Base restaurada desde la copia previa al reemplazo");
+      } catch (restoreError) {
+        logError(`${scope}:restore`, restoreError);
+      }
+    }
+    try {
+      await AppDataSource.initialize();
+    } catch (initError) {
+      logError(`${scope}:reinit`, initError);
+    }
+
+    return {
+      status: "failed",
+      message: `No se pudo restaurar: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    };
+  }
+};
+
+// Restaura uno de los respaldos automáticos, elegido desde la pantalla. Recibe
+// sólo el **nombre** y lo resuelve contra la carpeta de respaldos: si aceptara
+// una ruta, el renderer podría pedir que se copie cualquier archivo del disco
+// encima de la base.
+handleIpc("backup:restore", async (_event, name: string) => {
+  const backup = listBackups(getBackupDir()).find((b) => b.name === name);
+  if (!backup) {
+    return { status: "failed", message: "No se encontró ese respaldo" };
+  }
+  return await replaceDatabaseWith(backup.path, "backup:restore");
 });
 
 handleIpc("backup:export", async () => {
@@ -206,56 +293,5 @@ handleIpc("backup:import", async () => {
     return { status: "cancelled", message: "Operación cancelada" };
   }
 
-  const sourcePath = result.filePaths[0];
-  const destPath = getDBPath();
-  let preImportBackupPath: string | null = null;
-
-  try {
-    if (AppDataSource.isInitialized) {
-      await AppDataSource.destroy();
-    }
-
-    if (fs.existsSync(destPath)) {
-      preImportBackupPath = destPath.replace(
-        ".db",
-        `_pre_import_${Date.now()}.db`
-      );
-      fs.copyFileSync(destPath, preImportBackupPath);
-    }
-
-    fs.copyFileSync(sourcePath, destPath);
-    await AppDataSource.initialize();
-    invalidateDashboardStatsCache();
-
-    return {
-      status: "success",
-      message: "Base de datos importada. Los datos se actualizarán.",
-    };
-  } catch (error) {
-    logError("backup:import", error);
-
-    if (!AppDataSource.isInitialized) {
-      if (preImportBackupPath && fs.existsSync(preImportBackupPath)) {
-        try {
-          fs.copyFileSync(preImportBackupPath, destPath);
-          logInfo(
-            "backup:import",
-            "DB restaurada desde backup previo al import"
-          );
-        } catch (restoreError) {
-          logError("backup:import:restore", restoreError);
-        }
-      }
-      try {
-        await AppDataSource.initialize();
-      } catch (initError) {
-        logError("backup:import:reinit", initError);
-      }
-    }
-
-    return {
-      status: "failed",
-      message: `Error al importar: ${error instanceof Error ? error.message : String(error)}`,
-    };
-  }
+  return await replaceDatabaseWith(result.filePaths[0], "backup:import");
 });

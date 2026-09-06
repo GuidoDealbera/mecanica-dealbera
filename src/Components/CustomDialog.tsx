@@ -43,7 +43,10 @@ const CustomDialog: React.FC<CustomDialogProps> = ({
     >
       <ModalContent>
         <ModalHeader className="text-xl font-bold">{title}</ModalHeader>
-        <ModalBody>{content}</ModalBody>
+        {/* `whitespace-pre-line` para que los saltos de línea del texto se
+            respeten: varios diálogos separan la acción de su advertencia en dos
+            párrafos y sin esto quedaban pegados en un bloque. */}
+        <ModalBody className="whitespace-pre-line">{content}</ModalBody>
         <ModalFooter>
           <Button onPress={onCancel || onClose} color="danger">
             {cancelText}

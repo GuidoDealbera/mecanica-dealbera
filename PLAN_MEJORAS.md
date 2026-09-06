@@ -493,14 +493,30 @@ correcta`; con base ya migrada no saca copia. Es la primera vez que este
       mismo día no rehace nada y al día siguiente sí; aplicar la retención dos
       veces no borra de más.
 
-15. **[pendiente]** Restaurar un respaldo desde la propia pantalla de Gestión de datos
-    - Hoy "Importar base de datos" abre un explorador de archivos: para volver al
-      respaldo de anteayer hay que saber dónde está y cuál es.
-    - Solución: listar los respaldos automáticos con fecha y tamaño y permitir
-      restaurar uno con un click (con la confirmación que ya existe). El listado
-      ya se muestra en la tarjeta "Respaldos automáticos"; falta la acción.
-    - Esfuerzo: bajo · Riesgo: medio (es una operación destructiva → confirmación
-      explícita + respaldo previo, que el endpoint de importación ya hace).
+15. **[a testear]** Restaurar un respaldo desde la propia pantalla de Gestión de datos
+    - Archivos: `electron/DataBase/Endpoints/backup.endpoints.ts`,
+      `electron/preload.ts`, `global.d.ts`, `src/Types/apiTypes.ts`,
+      `src/Pages/BackupPage.tsx`, `src/Components/CustomDialog.tsx`.
+    - `backup:list` ya no devuelve nombres de archivo sino **fecha y tamaño**
+      (tipo `BackupEntry`), y la tarjeta los muestra como "Sábado 6 de
+      septiembre · 340 KB" con un botón **Restaurar** al lado. Nadie tiene que
+      interpretar `taller_2026-09-06.db`.
+    - Nuevo endpoint `backup:restore`. Recibe **sólo el nombre** y lo resuelve
+      contra la carpeta de respaldos: si aceptara una ruta, el renderer podría
+      pedir que se copie cualquier archivo del disco encima de la base.
+    - La restauración y la importación comparten ahora `replaceDatabaseWith`,
+      que además **verifica la integridad del archivo nuevo** y vuelve solo a la
+      base anterior si no la pasa. Antes la importación aceptaba cualquier
+      archivo `.db` sin comprobar nada.
+    - Confirmación explícita antes de restaurar, diciendo de qué día es el
+      respaldo y que lo cargado después se pierde. Se aclara que la base actual
+      se guarda al lado, así que la operación se puede deshacer.
+    - De paso, `CustomDialog` respeta los saltos de línea del texto
+      (`whitespace-pre-line`): varios diálogos separan la acción de su
+      advertencia en dos párrafos y quedaban pegados en un bloque.
+    - **Falta probarlo a mano**: la lógica de listado está verificada, pero el
+      circuito completo (click → confirmación → reemplazo → recarga) sólo se
+      puede ver usando la aplicación.
 
 Y una tarea que apareció verificando la 12, con el número **31** fuera de la
 numeración corrida para no renumerar el resto.

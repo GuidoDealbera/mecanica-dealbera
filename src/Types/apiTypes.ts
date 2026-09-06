@@ -276,3 +276,13 @@ export interface CreateCarJob {
   /** Si el trabajo es un service, de qué tipo (programa el próximo). */
   serviceType?: ServiceType | null;
 }
+
+/**
+ * Un respaldo automático, tal como lo lista la pantalla de Gestión de datos.
+ * La fecha viaja como ISO porque cruza el puente IPC (que serializa a JSON).
+ */
+export interface BackupEntry {
+  name: string;
+  date: string;
+  sizeKb: number;
+}

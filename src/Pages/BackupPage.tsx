@@ -10,9 +10,22 @@ import {
   MdBugReport,
   MdWarningAmber,
 } from "react-icons/md";
+import CustomDialog from "../Components/CustomDialog";
 import DataCard from "../Components/DataCard";
 import PageShell from "../Components/PageShell";
 import { useToasts } from "../Hooks/useToasts";
+import type { BackupEntry } from "../Types/apiTypes";
+
+/** "sábado 6 de septiembre" — más legible que `taller_2026-09-06.db`. */
+const formatBackupDate = (iso: string): string => {
+  const date = new Date(iso);
+  const texto = date.toLocaleDateString("es-AR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
+  return texto.charAt(0).toUpperCase() + texto.slice(1);
+};
 
 /** Aviso con ícono, el formato que usan todas las tarjetas de la pantalla. */
 const Note: React.FC<{ icon: React.ReactNode; children: React.ReactNode }> = ({
@@ -30,9 +43,11 @@ const BackupPage: React.FC = () => {
   const [exporting, setExporting] = React.useState(false);
   const [importing, setImporting] = React.useState(false);
   const [exportingCsv, setExportingCsv] = React.useState(false);
-  const [autoBackups, setAutoBackups] = React.useState<string[]>([]);
+  const [autoBackups, setAutoBackups] = React.useState<BackupEntry[]>([]);
+  const [restoring, setRestoring] = React.useState<string | null>(null);
+  const [toRestore, setToRestore] = React.useState<BackupEntry | null>(null);
 
-  React.useEffect(() => {
+  const loadBackups = React.useCallback(() => {
     window.api.backup
       .list()
       .then((res) => {
@@ -42,6 +57,28 @@ const BackupPage: React.FC = () => {
       // rechazo se atiende (si no, queda una promesa rechazada sin manejar).
       .catch(() => setAutoBackups([]));
   }, []);
+
+  React.useEffect(() => loadBackups(), [loadBackups]);
+
+  const handleRestore = async () => {
+    if (!toRestore) return;
+    const name = toRestore.name;
+    setToRestore(null);
+    setRestoring(name);
+    try {
+      const res = await window.api.backup.restore(name);
+      showToast(
+        res.status === "success"
+          ? `${res.message} Reiniciá la app para ver los cambios.`
+          : res.message,
+        res.status === "success" ? "success" : "danger",
+        "Restaurar respaldo"
+      );
+      if (res.status === "success") loadBackups();
+    } finally {
+      setRestoring(null);
+    }
+  };
 
   const handleExportCsv = async () => {
     setExportingCsv(true);
@@ -112,8 +149,8 @@ const BackupPage: React.FC = () => {
           description="Genera una copia del archivo de base de datos y te permite guardarla donde prefieras. Sirve para respaldos manuales y para llevar la información a otra computadora."
           note={
             <Note icon={<MdInfo size={16} className="text-primary" />}>
-              Los respaldos automáticos diarios se guardan en la carpeta de la
-              aplicación y se conservan por 7 días.
+              Los respaldos automáticos se guardan en la carpeta Documentos y se
+              conservan por días, semanas y meses.
             </Note>
           }
           action={
@@ -165,7 +202,7 @@ const BackupPage: React.FC = () => {
               ? `${autoBackups.length} respaldo${autoBackups.length !== 1 ? "s" : ""} guardado${autoBackups.length !== 1 ? "s" : ""}`
               : "Sin respaldos aún"
           }
-          description="La aplicación genera un respaldo diario automático al iniciar. Se conservan los últimos 7 en la carpeta de Documentos."
+          description="La aplicación genera un respaldo diario automático al iniciar, verificado antes de guardarlo. Se conservan los de los últimos días, semanas y meses."
           action={
             <Button
               color="secondary"
@@ -179,17 +216,32 @@ const BackupPage: React.FC = () => {
           }
         >
           {autoBackups.length > 0 && (
-            <div className="flex flex-col gap-1 max-h-28 overflow-y-auto">
-              {autoBackups.map((name) => (
+            <div className="flex flex-col gap-1 max-h-36 overflow-y-auto">
+              {autoBackups.map((backup) => (
                 <div
-                  key={name}
+                  key={backup.name}
                   className="flex items-center gap-2 text-xs text-foreground-500 bg-content1 rounded px-2 py-1"
                 >
                   <MdBackup
                     size={12}
                     className="text-secondary flex-shrink-0"
                   />
-                  <span className="truncate">{name}</span>
+                  <span className="truncate flex-1">
+                    {formatBackupDate(backup.date)}
+                  </span>
+                  <span className="flex-shrink-0 tabular-nums text-foreground-400">
+                    {backup.sizeKb} KB
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="light"
+                    color="secondary"
+                    className="h-6 min-w-0 px-2"
+                    isLoading={restoring === backup.name}
+                    onPress={() => setToRestore(backup)}
+                  >
+                    Restaurar
+                  </Button>
                 </div>
               ))}
             </div>
@@ -240,6 +292,22 @@ const BackupPage: React.FC = () => {
           }
         />
       </div>
+
+      <CustomDialog
+        isOpen={toRestore !== null}
+        onClose={() => setToRestore(null)}
+        onConfirm={handleRestore}
+        title="Restaurar respaldo"
+        content={
+          toRestore
+            ? `Se van a reemplazar todos los datos actuales por los del respaldo del ${formatBackupDate(
+                toRestore.date
+              ).toLowerCase()}. Todo lo cargado después de esa fecha se pierde.\n\nAntes de reemplazar se guarda una copia de la base actual, así que la operación se puede deshacer.`
+            : ""
+        }
+        confirmText="Restaurar"
+        isLoading={restoring !== null}
+      />
     </PageShell>
   );
 };

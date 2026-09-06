@@ -6,6 +6,7 @@ import {
 import { CreateClientDto } from "./electron/DataBase/Types/client.dto";
 import {
   APIResponse,
+  BackupEntry,
   CarQueryParams,
   ClientQueryParams,
   CreateCarJob,
@@ -143,7 +144,8 @@ declare global {
         import: () => Promise<APIResponse>;
         exportCsv: () => Promise<APIResponse>;
         openFolder: () => Promise<APIResponse>;
-        list: () => Promise<APIResponse<string[]>>;
+        list: () => Promise<APIResponse<BackupEntry[]>>;
+        restore: (name: string) => Promise<APIResponse>;
       };
       global: {
         search: (query: string) => Promise<{ status: string } & SearchResult>;

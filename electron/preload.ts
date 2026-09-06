@@ -124,6 +124,8 @@ contextBridge.exposeInMainWorld("api", {
     exportCsv: async () => await ipcRenderer.invoke("data:export-csv"),
     openFolder: async () => await ipcRenderer.invoke("backup:open-folder"),
     list: async () => await ipcRenderer.invoke("backup:list"),
+    restore: async (name: string) =>
+      await ipcRenderer.invoke("backup:restore", name),
   },
   global: {
     search: async (query: string) =>
