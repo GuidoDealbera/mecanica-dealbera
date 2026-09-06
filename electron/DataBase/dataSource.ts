@@ -24,6 +24,7 @@ import { AddNotesToJob1700000005000 } from "./Migrations/AddNotesToJob1700000005
 import { CreateDocumentTable1700000006000 } from "./Migrations/CreateDocumentTable1700000006000";
 import { CreateServiceReminders1700000007000 } from "./Migrations/CreateServiceReminders1700000007000";
 import { AddJobStatusIndex1700000008000 } from "./Migrations/AddJobStatusIndex1700000008000";
+import { NormalizeJobDates1700000009000 } from "./Migrations/NormalizeJobDates1700000009000";
 
 export const AppDataSource = new DataSource({
   type: "sqlite",
@@ -44,6 +45,7 @@ export const AppDataSource = new DataSource({
     CreateDocumentTable1700000006000,
     CreateServiceReminders1700000007000,
     AddJobStatusIndex1700000008000,
+    NormalizeJobDates1700000009000,
   ],
   subscribers: [],
 });

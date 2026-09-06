@@ -331,29 +331,37 @@ numeración corrida— porque su lugar en el tiempo no es acá: reescribe datos 
 producción, así que va **después de la tarea 13** (el snapshot previo a
 migraciones), que es la red que le falta.
 
-30. **[pendiente]** Normalizar el formato de fecha guardado en `job.createdAt/updatedAt`
-    - Descubierto al implementar la tarea 8. La columna tiene **dos formatos**:
-      lo que escribe TypeORM es `YYYY-MM-DD HH:MM:SS.SSS` en hora **local**, pero
-      las filas que generó la migración `NormalizeJobs` —los trabajos que ya
-      existían, tomados del JSON de `car.jobs`— quedaron en ISO con `T` y `Z`
-      (hora UTC). Verificado sobre la copia de producción migrada: **todos** sus
-      trabajos históricos están en ISO.
-    - Por qué importa: cualquier comparación SQL sobre esas columnas es una
-      comparación de **texto** entre formatos distintos. Hoy no rompe nada (la
-      tarea 8 quedó escrita de forma tolerante y el resto de los consumidores usan
-      `new Date()`, que lee ambos), pero es una trampa para cualquier consulta
-      futura, y el mes de las filas en `Z` se interpreta en UTC (un trabajo de las
-      últimas 3 horas del mes puede caer en el mes siguiente).
-    - Se comprobó que el problema **no** afecta a `car.createdAt`,
-      `client.createdAt` ni a `service_reminder.dueDate` (que sí se compara con
-      `<=` en SQL): esas están todas en el formato canónico.
-    - Solución: migración que reescriba las dos columnas al formato canónico,
-      convirtiendo de UTC a hora local sólo las que estén en ISO
-      (`strftime('%Y-%m-%d %H:%M:%f', columna, 'localtime')` para las que
-      terminan en `Z`, dejando intactas las demás). Probar contra una copia
-      comparando los instantes antes y después.
-    - Esfuerzo: bajo · Riesgo: medio (toca datos de producción → **después de la
-      tarea 13**).
+30. **[a testear]** Normalizar el formato de fecha guardado en `job.createdAt/updatedAt`
+    - Archivos:
+      `electron/DataBase/Migrations/NormalizeJobDates1700000009000.ts` (nueva),
+      `electron/DataBase/dataSource.ts`.
+    - La columna tenía **dos formatos conviviendo**: lo que escribe TypeORM
+      (`2026-08-03 20:51:15.174`, hora local) y lo que dejó la migración
+      `NormalizeJobs` al pasar los trabajos del JSON de `car.jobs`
+      (`2026-03-26T20:45:17.611Z`, ISO en UTC).
+    - La migración reescribe **sólo** las filas en el formato viejo, convirtiendo
+      el instante de UTC a hora local. No cambia a qué momento apunta cada fecha,
+      sólo cómo está escrita.
+    - Detalle que evita un desastre: la condición incluye
+      `strftime(...) IS NOT NULL`. Si el texto no se puede interpretar `strftime`
+      devuelve NULL, y sin ese filtro la migración **vaciaría una columna
+      `NOT NULL`**. Ante una fila rara es mejor dejarla como está.
+    - También contempla ISO **sin** zona horaria: a esas sólo se les saca la `T`,
+      porque convertirlas con `localtime` les restaría tres horas de más. No se
+      vio ninguna, pero el caso existe.
+    - `down()` es un no-op documentado: una vez unificado el formato no queda
+      registro de qué filas venían en ISO, y para volver atrás está la copia
+      previa que se saca antes de migrar.
+    - Verificado sobre copias: en la base de **producción** la única fila en ISO
+      pasa de `2026-03-26T20:45:17.611Z` a `2026-03-26 17:45:17.611` —**el mismo
+      instante**, comprobado comparando `getTime()` antes y después— y el mes que
+      ve SQL pasa a coincidir con el mes real, que era el error concreto. En la
+      base de **desarrollo** (312 trabajos ya canónicos) no se toca ni una fila.
+      Reabrir no vuelve a cambiar nada. Y en las filas raras inyectadas a
+      propósito: una fecha ilegible se deja intacta en vez de vaciarse, y una ISO
+      sin zona sólo pierde la `T`.
+    - El `strftime` de la tarea 8 puede quedarse como está: sigue siendo la forma
+      natural de agrupar por mes, y ahora además ya no es un parche.
 
 ---
 
