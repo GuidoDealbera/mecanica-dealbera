@@ -1,7 +1,7 @@
 import jsPDF from "jspdf";
 import autotable from "jspdf-autotable";
 import { Cars, Jobs } from "../Types/types";
-import { DocumentType, JobStatus, STATUS_LABELS } from "../Types/apiTypes";
+import { DocumentType, STATUS_LABELS } from "../Types/apiTypes";
 import { formatARS, formatLicence } from "../Utils/utils";
 import {
   PDF_COLORS as CO,
@@ -27,16 +27,17 @@ type WithLastAutoTable = jsPDF & { lastAutoTable?: { finalY?: number } };
 /** Nombre interno de la fuente de patentes una vez registrada en el documento. */
 const PLATE_FONT = "FEFONT";
 
-/** Días de validez que se imprimen en los presupuestos. */
-export const BUDGET_VALIDITY_DAYS = 15;
-
-export interface BudgetTotals {
-  laborTotal: number;
-  partsGrandTotal: number;
-  thirdPartyTotal: number;
-  ownTotal: number;
-  total: number;
-}
+// Las reglas puras (totales y elegibilidad) viven en `documentRules.ts` para
+// que las pantallas puedan usarlas sin arrastrar jsPDF. Se reexportan porque
+// forman parte del mismo contrato de dominio.
+export {
+  BUDGET_VALIDITY_DAYS,
+  computeTotals,
+  eligibleJobsForDocument,
+} from "./documentRules";
+export type { BudgetTotals } from "./documentRules";
+import { BUDGET_VALIDITY_DAYS } from "./documentRules";
+import type { BudgetTotals } from "./documentRules";
 
 export interface RenderBudgetParams {
   car: Cars;
@@ -52,44 +53,6 @@ export interface RenderBudgetParams {
    */
   plateFontBase64?: string;
 }
-
-/** Calcula los totales del documento a partir de los trabajos incluidos. */
-export const computeTotals = (jobs: Jobs[]): BudgetTotals => {
-  const laborTotal = jobs.reduce((acc, j) => acc + (j.price ?? 0), 0);
-  const partsGrandTotal = jobs.reduce(
-    (acc, j) => acc + (j.parts ?? []).reduce((s, p) => s + p.price, 0),
-    0
-  );
-  const thirdPartyTotal = jobs
-    .filter((j) => j.isThirdParty)
-    .reduce((acc, j) => acc + (j.price ?? 0), 0);
-  return {
-    laborTotal,
-    partsGrandTotal,
-    thirdPartyTotal,
-    ownTotal: laborTotal - thirdPartyTotal,
-    total: laborTotal + partsGrandTotal,
-  };
-};
-
-/**
- * Trabajos que pueden entrar en un documento según su tipo.
- *
- * Los **entregados quedan siempre afuera**: un trabajo entregado ya se cobró, así
- * que volver a presupuestarlo o facturarlo sería cobrarlo dos veces. Su lugar es
- * el historial del vehículo.
- *
- * - **Presupuesto**: sin comenzar, en progreso y completados (lo que todavía se
- *   va a cobrar).
- * - **Factura**: sólo completados (es lo que ya se hizo y se puede cobrar).
- */
-export const eligibleJobsForDocument = (
-  jobs: Jobs[],
-  type: DocumentType
-): Jobs[] =>
-  type === DocumentType.INVOICE
-    ? jobs.filter((j) => j.status === JobStatus.COMPLETED)
-    : jobs.filter((j) => j.status !== JobStatus.DELIVERED);
 
 export const renderBudgetDocument = ({
   car,

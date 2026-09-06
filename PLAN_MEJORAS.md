@@ -670,12 +670,23 @@ numeración corrida para no renumerar el resto.
     - El build del instalador **no** entra acá: es lento y ya lo hace
       `release.yml` en `main`.
 
-25. **[pendiente]** Diferir el stack de PDF
-    - `jsPDF` + `jspdf-autotable` + la fuente embebida pesan ~516 kB y hoy entran
-      en el chunk de la ficha del vehículo, que es la pantalla más usada.
-    - Solución: `import()` dinámico dentro de `useBudgetPDF` (el hook ya es el
-      único punto de entrada), así el peso se paga sólo al emitir un documento.
-    - Esfuerzo: bajo · Riesgo: bajo.
+25. **[a testear]** Diferir el stack de PDF
+    - Archivos: `src/Utils/documentRules.ts` (nuevo), `src/Utils/budgetPdf.ts`,
+      `src/Hooks/useBudgetPdf.ts`, `src/Components/DocumentModal.tsx`.
+    - El `import()` dinámico solo no alcanzaba: `budgetPdf.ts` mezclaba el
+      **dibujo** (jsPDF + autotable + la fuente embebida) con las **reglas
+      puras** (`computeTotals`, `eligibleJobsForDocument`), y el modal necesita
+      las reglas para armar la lista de trabajos elegibles. Cualquier import de
+      ese módulo se llevaba el stack entero puesto.
+    - Se separaron: `documentRules.ts` no importa jsPDF y es lo que usan las
+      pantallas; `budgetPdf.ts` quedó sólo con el renderizado y reexporta las
+      reglas para no romper el contrato de dominio (ni los tests).
+    - El hook carga el renderizador y la fuente con `import()` **en el momento de
+      emitir**, los dos en paralelo.
+    - Resultado medido en el build: el stack de PDF quedó en su propio trozo de
+      **437 kB** más **23 kB** de la fuente de patentes, que se descargan sólo al
+      emitir un documento. El trozo de la ficha del vehículo —la pantalla más
+      usada— queda en **76 kB**.
 
 26. **[pendiente]** Documentar las convenciones del proyecto en `CLAUDE.md`/README
     - Hay reglas aprendidas a fuerza de romper cosas que no están escritas en

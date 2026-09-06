@@ -1,12 +1,7 @@
 import { useCallback, useState } from "react";
 import { Cars, Jobs } from "../Types/types";
 import { DocumentType, type IssuedDocument } from "../Types/apiTypes";
-import {
-  computeTotals,
-  eligibleJobsForDocument,
-  renderBudgetDocument,
-} from "../Utils/budgetPdf";
-import { getPlateFontBase64 } from "../Utils/plateFont";
+import { computeTotals, eligibleJobsForDocument } from "../Utils/documentRules";
 
 /** Título impreso según el tipo de documento. */
 export const DOCUMENT_TITLES: Record<DocumentType, string> = {
@@ -24,6 +19,11 @@ export interface BudgetOptions {
 /**
  * Orquesta la emisión de un documento: pide el número correlativo a la DB,
  * delega el dibujo en `renderBudgetDocument` (módulo puro) y lo descarga.
+ *
+ * El dibujo se carga con `import()` **en el momento de emitir**: jsPDF,
+ * jspdf-autotable y la fuente de patentes embebida pesan ~500 kB, y con el
+ * import estático entraban en el bundle de la ficha del vehículo, que es la
+ * pantalla más usada. Ahora ese peso lo paga sólo quien emite un documento.
  */
 export const useBudgetPDF = () => {
   const [isGenerating, setIsGenerating] = useState(false);
@@ -69,6 +69,12 @@ export const useBudgetPDF = () => {
         }
         issuedId = issued.result.id;
         const docNumber = issued.result.formatted;
+
+        const [{ renderBudgetDocument }, { getPlateFontBase64 }] =
+          await Promise.all([
+            import("../Utils/budgetPdf"),
+            import("../Utils/plateFont"),
+          ]);
 
         const doc = renderBudgetDocument({
           car,

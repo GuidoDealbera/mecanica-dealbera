@@ -21,7 +21,7 @@ import {
   STATUS_LABELS,
   type IssuedDocument,
 } from "../Types/apiTypes";
-import { computeTotals, eligibleJobsForDocument } from "../Utils/budgetPdf";
+import { computeTotals, eligibleJobsForDocument } from "../Utils/documentRules";
 import { formatARS } from "../Utils/utils";
 import EmptyState from "./EmptyState";
 
