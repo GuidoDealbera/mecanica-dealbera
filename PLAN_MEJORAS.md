@@ -929,16 +929,34 @@ real: un upgrade sin forma de verificarlo es una apuesta.
       - **Informativos**: `watch()` de react-hook-form no se puede memoizar.
       - **17 × `set-state-in-effect`**: renders en cascada. Ver la tarea 36.
 
-36. **[pendiente]** Migrar los 17 `setState` dentro de efectos
-    - El compilador de React marca 17 casos de `setState` síncrono dentro de un
-      efecto, casi todos correcciones del tipo "la página quedó fuera de rango".
-      Provocan un render en cascada: no son bugs, pero son un olor real.
-    - Está como **aviso y no como error** a propósito: reescribir diecisiete
-      efectos de una sola vez, sin poder probar cada pantalla, es la mejor forma
-      de introducir una regresión.
-    - Solución: migrarlos a estado derivado durante el render, **de a uno y
-      probando la pantalla**.
-    - Esfuerzo: medio · Riesgo: medio si se hace en bloque, bajo de a uno.
+36. **[a testear]** Los 17 `setState` dentro de efectos: 9 migrados, 8 documentados
+    - De los 17 que marcaba el compilador de React, **nueve eran correcciones
+      de estado disfrazadas de efecto** y se migraron a estado derivado. Los
+      **ocho restantes son efectos legítimos** —traen datos del proceso
+      principal o se suscriben a sus avisos— y quedan silenciados en el lugar,
+      cada uno con el motivo escrito. Con eso la regla **pasó a error**: ya no
+      hay ruido que ignorar, así que una cascada nueva traba el lint.
+    - **La página fuera de rango se acota al leer** (`clampPage`, con tests) en
+      vehículos, clientes, recordatorios y la tabla de trabajos. El efecto viejo
+      retrocedía **de a una página por vuelta**: estando en la 6 y filtrando a
+      algo que deja 3 resultados encadenaba cinco consultas, repintando la tabla
+      vacía en cada una. Ahora la respuesta que trae el total nuevo ya alcanza
+      para ir a la última página buena.
+    - **`useResetOn`** reemplaza al patrón "recargar los campos al abrir el
+      modal": actualiza el estado durante el render —lo que documenta React—, y
+      así el modal no pinta una vez con los datos del registro anterior antes de
+      corregirse. Se usa en editar próximo service, emitir documento y el
+      buscador global. Arranca con el token en `null` para que un componente
+      montado ya abierto también prepare sus campos; sin ese detalle los tests
+      de los dos modales fallaban.
+    - En "registrar nuevo trabajo" se sacaron dos efectos: la patente que llega
+      desde la ficha de un vehículo ahora es el valor inicial del estado, y los
+      datos del vehículo elegido se resuelven del listado en curso con el que se
+      guardó al elegirlo como respaldo.
+    - El enfoque del campo en el buscador global **se queda en un efecto**, que
+      es donde va: tocar el DOM es para lo que están. De paso se cancela el
+      temporizador al desmontar.
+    - Avisos de lint: de 28 a 11, sin errores.
 
 37. **[a testear]** TypeORM 0.3 → 1.x, con cambio de driver
     - Se hizo en **dos tandas separadas a propósito** —driver primero, ORM
@@ -1020,13 +1038,20 @@ real: un upgrade sin forma de verificarlo es una apuesta.
       electron-builder usa para subir a GitHub, porque la URL no tolera acentos
       ni espacios. Conviene **confirmarlo en el primer release real**: si los dos
       nombres no coincidieran, el auto-update fallaría en silencio.
-    - **Falta subir la versión.** El instalador salió como `1.0.3`, la misma que
-      está instalada: publicado así, ninguna aplicación vería la actualización.
+    - **La versión ya subió a `2.0.0`.** El instalador se había armado como
+      `1.0.3`, la misma que está instalada: publicado así ninguna aplicación
+      habría visto la actualización. Va una mayor y no una menor porque entre
+      1.0.3 y esto hay una migración de datos que no se deshace sola —la base se
+      muda a `userData`, cambia el driver, cambia el esquema—: volver atrás no
+      es reinstalar la anterior, es restaurar un respaldo.
 
 41. **[pendiente]** Lo que queda por modernizar
     - **React 18 → 19 y HeroUI 2 → 3**: dos majors que tocan toda la interfaz.
       Lo que menos compra y lo que más pantalla mueve; conviene último, y con
       alguien mirando las pantallas. Hoy es lo único de versiones que falta.
+    - Se deja para después de que alguien use la aplicación con todo lo que se
+      cambió: son 30 tareas marcadas "a testear" y mover la interfaz entera
+      antes de esa pasada haría imposible saber qué rompió qué.
 
 ---
 
@@ -1303,6 +1328,48 @@ Cuatro cosas que costaron encontrar y conviene no volver a descubrir:
 Lo que **no** se hizo, a propósito: los 17 `setState` dentro de efectos (tarea 36) y React 19 + HeroUI 3 (tarea 40). Los dos tocan mucha pantalla y ninguno
 arregla un bug; encima de un backlog que todavía nadie probó a mano, sumarían
 riesgo sin comprar nada. Van cuando haya alguien mirando las pantallas.
+
+### 2026-09-06 — Renders en cascada: nueve migrados, ocho documentados
+
+La tarea 36 estaba anotada como "17 avisos, ninguno es bug". Revisándolos de a
+uno resultó que **no eran todos la misma cosa**, y esa distinción es lo que hizo
+que valiera la pena:
+
+- **Nueve eran correcciones de estado disfrazadas de efecto** y se migraron.
+- **Ocho son efectos legítimos**: traen datos del proceso principal o se
+  suscriben a sus avisos. El aviso lo dispara el `setLoading(true)` sincrónico
+  con el que arrancan, y sacarlo dejaría la pantalla mostrando el listado viejo
+  mientras llega el nuevo.
+
+De los nueve migrados, **uno era un problema de verdad y no sólo un olor**: la
+corrección de "la página quedó fuera de rango" retrocedía **de a una página por
+vuelta**. Estando en la página 6 y filtrando a algo que deja 3 resultados,
+encadenaba cinco consultas —la 6 vacía, la 5 vacía, la 4 vacía…— y repintaba la
+tabla vacía en cada una. Acotando al leer con `clampPage`, la respuesta que trae
+el total nuevo ya alcanza para ir a la última página buena.
+
+Con los ocho restantes silenciados en el lugar y con el motivo escrito, la regla
+**pasó de aviso a error**: ya no hay ruido que ignorar, así que una cascada nueva
+traba el lint en vez de sumarse a una lista que nadie mira.
+
+Dos cosas para recordar:
+
+- **Actualizar el estado durante el render no es un truco**: es lo que documenta
+  React para preparar estado cuando cambia aquello de lo que depende. React
+  descarta el render en curso y vuelve a empezar **sin llegar a pintar**. Pero
+  sólo vale para el estado del propio componente: el `reset` de react-hook-form
+  avisa a sus suscriptores, así que ése se queda en un efecto.
+- **`useResetOn` arranca con el token en `null` a propósito.** Un componente que
+  se monta con el modal ya abierto también tiene que preparar sus campos: el
+  efecto que reemplaza corría al montar. Sin ese detalle los tests de los dos
+  modales fallaban, que es exactamente para lo que se habían escrito.
+
+Avisos de lint: de 28 a 11, sin errores. Tests: de 137 a 144.
+
+Y la versión pasó a **2.0.0**. No es cosmética: entre 1.0.3 y esto la base se
+muda de Documentos a `userData`, cambia el driver, cambia el esquema y Electron
+saltó catorce mayores. Volver atrás no es reinstalar la anterior, es restaurar
+un respaldo.
 
 ### Historial anterior
 
