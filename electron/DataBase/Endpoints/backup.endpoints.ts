@@ -154,7 +154,24 @@ handleIpc("backup:export", async () => {
 
   if (!filePath) return { status: "cancelled", message: "Operación cancelada" };
 
-  fs.copyFileSync(sourcePath, filePath);
+  // `VACUUM INTO` y no `copyFileSync`: copiar el archivo a secas puede
+  // capturarlo a mitad de una escritura. Esta es la copia que el usuario se
+  // lleva en un pendrive pensando que tiene sus datos a salvo, así que tiene que
+  // ser consistente sí o sí. `VACUUM INTO` falla si el destino ya existe, y el
+  // diálogo de guardado ya confirmó el reemplazo.
+  try {
+    fs.rmSync(filePath, { force: true });
+    await AppDataSource.query("VACUUM INTO ?", [filePath]);
+  } catch (error) {
+    logError("backup:export", error, { filePath });
+    return {
+      status: "failed",
+      message: `No se pudo exportar la base de datos: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    };
+  }
+
   shell.showItemInFolder(filePath);
 
   return {

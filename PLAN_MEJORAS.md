@@ -465,16 +465,33 @@ correcta`; con base ya migrada no saca copia. Es la primera vez que este
     - **Lo único no verificado**: el cuadro de diálogo que ofrece restaurar. Se
       puede provocar su lógica, pero verlo requiere abrirlo a mano.
 
-14. **[pendiente]** Respaldos: `VACUUM INTO` en vez de `copyFileSync` y retención por niveles
-    - Archivo: `electron/main.ts:54` (`performAutoBackup`) y
-      `backup.endpoints.ts`.
-    - `fs.copyFileSync` de un `.db` puede capturar un archivo inconsistente si
-      hay una escritura o un journal/WAL en curso, y hoy se conservan 7 copias
-      diarias: un problema que se detecta a los 10 días ya no tiene backup sano.
-    - Solución: usar `VACUUM INTO` (produce una copia consistente y compactada),
-      correr `integrity_check` sobre el resultado y aplicar retención por niveles
-      (7 diarios + 4 semanales + 6 mensuales).
-    - Esfuerzo: medio · Riesgo: bajo.
+14. **[a testear]** Respaldos: `VACUUM INTO` en vez de `copyFileSync` y retención por niveles
+    - Archivos: `electron/DataBase/backups.ts` (nuevo), `electron/main.ts`,
+      `electron/DataBase/Endpoints/backup.endpoints.ts`.
+    - **La copia se hace con `VACUUM INTO` y se verifica antes de darla por
+      buena.** Se escribe a un temporal, se abre, se le corre `integrity_check` y
+      recién entonces se renombra. Un respaldo que no se puede verificar no es un
+      respaldo: si falla, se descarta, en vez de dejar un archivo con nombre de
+      copia buena que nadie va a mirar hasta que sea tarde.
+    - El respaldo diario pasó a correr **después** de `initializeDB` (necesita la
+      conexión abierta). Sigue siendo best-effort: si falla, se registra y la
+      aplicación arranca igual.
+    - **Retención por niveles**: se conserva el más reciente de cada uno de los
+      últimos 7 días, 4 semanas ISO y 6 meses. Un mismo archivo cubre varios
+      niveles a la vez, así que el total es menor que 7+4+6. Medido sobre un año
+      de respaldos diarios: **14 archivos que cubren 129 días hacia atrás**,
+      contra 7 archivos y 7 días del criterio anterior. Ése era el problema real:
+      un dato borrado por accidente o una corrupción silenciosa se descubren
+      tarde, y con 7 diarias los 7 que quedaban eran todos posteriores al daño.
+    - La exportación manual (`backup:export`) también usa `VACUUM INTO`: es la
+      copia que el usuario se lleva en un pendrive creyendo que tiene sus datos a
+      salvo.
+    - Verificado: retención sobre un año de diarios y sobre un calendario con
+      huecos (la aplicación no se abre todos los días, y ahí no hay que quedarse
+      sin copias viejas); copia real de la base de desarrollo con los 100
+      vehículos completos e `integrity_check` correcto; el segundo respaldo del
+      mismo día no rehace nada y al día siguiente sí; aplicar la retención dos
+      veces no borra de más.
 
 15. **[pendiente]** Restaurar un respaldo desde la propia pantalla de Gestión de datos
     - Hoy "Importar base de datos" abre un explorador de archivos: para volver al

@@ -18,16 +18,15 @@ import {
 import { autoUpdater } from "electron-updater";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import fs from "node:fs";
 import log from "electron-log/main";
 import { logError, logInfo, logWarn } from "./logger";
 import { handleIpc } from "./ipc";
 import {
   AppDataSource,
   getBackupDir,
-  getDBPath,
   initializeDB,
 } from "./DataBase/dataSource";
+import { createDailyBackup } from "./DataBase/backups";
 import { countDueReminders } from "./DataBase/serviceReminders.service";
 
 log.initialize();
@@ -52,27 +51,35 @@ if (!gotTheLock) {
   app.quit();
 }
 
-function performAutoBackup(): void {
-  const dbPath = getDBPath();
-  if (!fs.existsSync(dbPath)) return;
+/**
+ * Respaldo diario. Corre **después** de inicializar la base porque necesita la
+ * conexión abierta: la copia se hace con `VACUUM INTO`, que es lo único que
+ * garantiza un archivo consistente (ver `backups.ts`). Antes se copiaba el
+ * archivo a secas y se hacía antes de abrirlo.
+ *
+ * Es best-effort: si falla se registra y la aplicación sigue. La red de
+ * seguridad de las migraciones —que sí bloquea el arranque— es otra cosa.
+ */
+async function performAutoBackup(): Promise<void> {
+  const result = await createDailyBackup(AppDataSource, {
+    dir: getBackupDir(),
+  });
 
-  const today = new Date().toISOString().slice(0, 10);
-  const backupDir = getBackupDir();
-  if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
-
-  const backupPath = path.join(backupDir, `taller_${today}.db`);
-  if (!fs.existsSync(backupPath)) {
-    fs.copyFileSync(dbPath, backupPath);
+  if (result.skipped) {
+    logInfo("backup:auto", "El respaldo de hoy ya estaba hecho", {
+      path: result.path,
+    });
+  } else {
+    logInfo("backup:auto", "Respaldo diario creado y verificado", {
+      path: result.path,
+      kb: Math.round(result.bytes / 1024),
+    });
   }
 
-  const backups = fs
-    .readdirSync(backupDir)
-    .filter((f) => f.startsWith("taller_") && f.endsWith(".db"))
-    .sort();
-  if (backups.length > 7) {
-    backups
-      .slice(0, backups.length - 7)
-      .forEach((f) => fs.unlinkSync(path.join(backupDir, f)));
+  if (result.removed.length > 0) {
+    logInfo("backup:auto", "Respaldos fuera de la retención eliminados", {
+      count: result.removed.length,
+    });
   }
 }
 
@@ -252,16 +259,6 @@ async function createWindow() {
   showSplash();
 
   try {
-    if (process.env.NODE_ENV !== "development") {
-      try {
-        performAutoBackup();
-        logInfo("backup:auto", "Auto-backup completado");
-      } catch (err) {
-        // El respaldo es best-effort: si falla no impide usar la aplicación.
-        logError("backup:auto", err);
-      }
-    }
-
     await initializeDB();
   } catch (error) {
     // Sin base de datos la aplicación no sirve para nada, y antes este camino
@@ -270,6 +267,15 @@ async function createWindow() {
     // que acá sólo se registra y se cierra.
     fatalError("app:start", error, { showDialog: false });
     return;
+  }
+
+  if (process.env.NODE_ENV !== "development") {
+    try {
+      await performAutoBackup();
+    } catch (err) {
+      // El respaldo es best-effort: si falla no impide usar la aplicación.
+      logError("backup:auto", err);
+    }
   }
 
   // Notificación de recordatorios de service al iniciar (solo en producción).
