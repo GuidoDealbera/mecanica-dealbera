@@ -601,15 +601,34 @@ numeración corrida para no renumerar el resto.
     - **Falta probarlo a mano**: el circuito completo sólo se ve usando la
       aplicación.
 
-18. **[pendiente]** Historial de documentos emitidos
-    - `document:list` está implementado y expuesto, sin UI. Los documentos se
-      registran con su número correlativo, patente, titular y total, así que ya
-      hay con qué armar el historial; hoy no hay forma de ver qué se emitió.
-    - Solución: pestaña o modal con los documentos del vehículo (número, tipo,
-      fecha, total) y el mismo listado global en Gestión de datos. Ideal:
-      permitir re-descargar el PDF a partir del registro.
-    - Esfuerzo: medio (alto si se quiere reimprimir fiel: habría que guardar los
-      ítems del documento, no sólo el total) · Riesgo: bajo.
+18. **[a testear]** Historial de documentos emitidos
+    - Archivos: `src/Components/DocumentHistory.tsx` (nuevo),
+      `electron/DataBase/Endpoints/document.endpoints.ts`,
+      `electron/preload.ts`, `global.d.ts`, `src/Types/apiTypes.ts`,
+      `src/Pages/CarDetailPage.tsx`, `src/Pages/BackupPage.tsx`,
+      `src/Components/DataCard.tsx`.
+    - `document:list` estaba implementado desde que se agregó la numeración
+      correlativa y **no lo consumía ninguna pantalla**: no había forma de ver
+      qué se emitió ni de ubicar un número cuando el cliente lo menciona.
+    - El endpoint pasó a recibir un objeto de filtros (`type`, `licensePlate`,
+      `limit`) en vez de sólo el tipo, que era obligatorio: el historial de un
+      vehículo necesita mezclar presupuestos y facturas.
+    - Dos detalles del endpoint que importan:
+      - Un `type` inválido devuelve **vacío**, no el historial completo: filtrar
+        por algo que no existe no puede traer todo.
+      - Se ordena por **fecha** y no por número. El correlativo es por tipo, así
+        que al mezclar series ordenar por número intercalaría presupuestos y
+        facturas sin sentido; se desempata por número, único dentro del tipo.
+    - Dos vistas con el mismo componente: en la ficha del vehículo (sin la
+      patente, que ya se sabe) y en Gestión de datos (con patente, todo el
+      taller). Se refresca solo con el aviso de `data-changed`, porque emitir un
+      documento invalida la caché del dashboard.
+    - Se dice explícitamente en la interfaz que **el PDF no se puede volver a
+      generar**: lo que se guarda es el registro (número, patente, titular,
+      total), no los ítems. Reimprimir fiel exigiría guardarlos, y volver a
+      emitir daría otro número, que es lo correcto.
+    - `DataCard.action` pasó a ser opcional: esta tarjeta sólo informa, y un
+      botón inventado sería peor que ninguno.
 
 19. **[a testear]** Filtrar la bandeja por "ya avisado"
     - Archivos: `src/Types/apiTypes.ts`,

@@ -5,7 +5,7 @@ import {
   CarQueryParams,
   ClientQueryParams,
   CreateCarJob,
-  DocumentType,
+  DocumentQueryParams,
   IssueDocumentBody,
   ReminderQueryParams,
   SaveReminderBody,
@@ -115,8 +115,8 @@ contextBridge.exposeInMainWorld("api", {
       await ipcRenderer.invoke("document:issue", body),
     discard: async (id: string) =>
       await ipcRenderer.invoke("document:discard", id),
-    list: async (type: DocumentType, limit?: number) =>
-      await ipcRenderer.invoke("document:list", type, limit),
+    list: async (filters?: DocumentQueryParams) =>
+      await ipcRenderer.invoke("document:list", filters),
   },
   /**
    * Aviso de "los datos cambiaron", que emite el proceso principal cada vez que

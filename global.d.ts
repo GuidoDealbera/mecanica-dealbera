@@ -7,6 +7,7 @@ import { CreateClientDto } from "./electron/DataBase/Types/client.dto";
 import {
   APIResponse,
   BackupEntry,
+  DocumentQueryParams,
   CarQueryParams,
   ClientQueryParams,
   CreateCarJob,
@@ -137,7 +138,7 @@ declare global {
           body: IssueDocumentBody
         ) => Promise<APIResponse<IssuedDocument>>;
         discard: (id: string) => Promise<APIResponse>;
-        list: (type: DocumentType, limit?: number) => Promise<IssuedDocument[]>;
+        list: (filters?: DocumentQueryParams) => Promise<IssuedDocument[]>;
       };
       /** Suscribe al aviso de "los datos cambiaron". Devuelve la baja. */
       onDataChanged: (callback: () => void) => () => void;

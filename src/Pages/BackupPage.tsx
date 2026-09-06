@@ -9,8 +9,10 @@ import {
   MdSchedule,
   MdBugReport,
   MdWarningAmber,
+  MdDescription,
 } from "react-icons/md";
 import CustomDialog from "../Components/CustomDialog";
+import DocumentHistory from "../Components/DocumentHistory";
 import DataCard from "../Components/DataCard";
 import PageShell from "../Components/PageShell";
 import { useToasts } from "../Hooks/useToasts";
@@ -291,6 +293,22 @@ const BackupPage: React.FC = () => {
             </Button>
           }
         />
+
+        <DataCard
+          accent="primary"
+          icon={<MdDescription size={24} />}
+          title="Documentos emitidos"
+          subtitle="Presupuestos y facturas"
+          description="Últimos documentos emitidos con su número correlativo, vehículo, titular y total. Sirve para ubicar un número cuando el cliente lo menciona por teléfono."
+          note={
+            <Note icon={<MdInfo size={16} className="text-primary" />}>
+              Se guarda el registro del documento, no sus ítems: el PDF original
+              no se puede volver a generar.
+            </Note>
+          }
+        >
+          <DocumentHistory filters={{ limit: 15 }} showPlate />
+        </DataCard>
       </div>
 
       <CustomDialog

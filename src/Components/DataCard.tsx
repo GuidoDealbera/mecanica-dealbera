@@ -68,8 +68,12 @@ interface DataCardProps {
   accent?: DataCardAccent;
   /** Contenido extra entre la descripción y la acción (listas, detalles). */
   children?: React.ReactNode;
-  /** Botón de la tarjeta; queda anclado al pie para alinear toda la fila. */
-  action: React.ReactNode;
+  /**
+   * Botón de la tarjeta; queda anclado al pie para alinear toda la fila.
+   * Opcional: hay tarjetas que sólo informan (el historial de documentos), y
+   * ahí un botón inventado sería peor que ninguno.
+   */
+  action?: React.ReactNode;
 }
 
 /**
@@ -122,7 +126,7 @@ const DataCard: React.FC<DataCardProps> = ({
 
         {children}
 
-        <div className="mt-auto pt-1">{action}</div>
+        {action && <div className="mt-auto pt-1">{action}</div>}
       </CardBody>
     </Card>
   );

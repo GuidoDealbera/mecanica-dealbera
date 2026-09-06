@@ -255,6 +255,14 @@ export interface IssueDocumentBody {
   total: number;
 }
 
+/** Filtros del historial de documentos. Todos opcionales. */
+export interface DocumentQueryParams {
+  type?: DocumentType;
+  licensePlate?: string;
+  /** Cuántos traer (1-100, por defecto 20). */
+  limit?: number;
+}
+
 /** Documento ya emitido, con su número correlativo asignado. */
 export interface IssuedDocument {
   id: string;

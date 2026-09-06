@@ -41,7 +41,8 @@ import AddCarForm from "../Components/Forms/AddCarForm";
 import ReassignOwnerModal from "./Components/ReassingOwnerModal";
 import CarTimeline from "./Components/CarTimeline";
 import NextServiceCard from "./Components/NextServiceCard";
-import { MdNotificationsActive } from "react-icons/md";
+import DocumentHistory from "../Components/DocumentHistory";
+import { MdDescription, MdNotificationsActive } from "react-icons/md";
 
 // ── Campo de solo lectura reutilizable ─────────────────────────────────────
 const InfoField: React.FC<{
@@ -280,6 +281,23 @@ const CarDetailPage: React.FC = () => {
             <NextServiceCard
               licensePlate={licence}
               currentKm={car?.kilometers ?? 0}
+            />
+          </CardBody>
+        </Card>
+
+        {/* ── Documentos emitidos ──────────────────────────────────────────── */}
+        <Card className="bg-content1 border border-divider shadow-none">
+          <CardHeader className="flex items-center gap-2 pb-2">
+            <MdDescription size={18} className="text-primary-400" />
+            <h5 className="font-semibold text-base text-primary-400">
+              Documentos emitidos
+            </h5>
+          </CardHeader>
+          <Divider className="bg-content3" />
+          <CardBody className="pt-3">
+            <DocumentHistory
+              filters={{ licensePlate: licence, limit: 10 }}
+              emptyText="Todavía no se emitió ningún presupuesto ni factura de este vehículo."
             />
           </CardBody>
         </Card>

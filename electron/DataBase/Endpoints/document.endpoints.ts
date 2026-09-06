@@ -6,6 +6,7 @@ import {
   DocumentType,
   formatDocumentNumber,
   type APIResponse,
+  type DocumentQueryParams,
   type IssueDocumentBody,
   type IssuedDocument,
 } from "../../../src/Types/apiTypes";
@@ -119,13 +120,27 @@ handleIpc(
 /** Últimos documentos emitidos de un tipo (historial, más recientes primero). */
 handleIpc(
   "document:list",
-  async (_event, type: DocumentType, limit = 20): Promise<IssuedDocument[]> => {
-    if (!VALID_TYPES.includes(type)) return [];
+  async (_event, filters?: DocumentQueryParams): Promise<IssuedDocument[]> => {
     const repo = getRepositories().documentRepository;
+
+    const where: { type?: DocumentType; licensePlate?: string } = {};
+    // Un tipo inválido no se ignora: filtrar por "algo que no existe" tiene que
+    // devolver vacío, no el historial completo.
+    if (filters?.type !== undefined) {
+      if (!VALID_TYPES.includes(filters.type)) return [];
+      where.type = filters.type;
+    }
+    if (filters?.licensePlate) {
+      where.licensePlate = filters.licensePlate;
+    }
+
+    // Orden por fecha y no por número: el correlativo es por tipo, así que al
+    // mezclar presupuestos y facturas ordenar por número intercalaría series.
+    // Se desempata por número, que dentro de un tipo es único.
     const docs = await repo.find({
-      where: { type },
-      order: { number: "DESC" },
-      take: Math.min(Math.max(Number(limit) || 20, 1), 100),
+      where,
+      order: { createdAt: "DESC", number: "DESC" },
+      take: Math.min(Math.max(Number(filters?.limit) || 20, 1), 100),
     });
     return docs.map(toPlainDocument);
   }
