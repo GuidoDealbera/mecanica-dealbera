@@ -564,17 +564,39 @@ numeración corrida para no renumerar el resto.
 
 ## Sprint D — Producto y UX
 
-16. **[pendiente]** Definir los tipos de service (o eliminarlos)
-    - Archivos: `src/Types/apiTypes.ts` (`ServiceType`), `AddJobForm`,
-      `Jobs.tsx`, `service.endpoints.ts`.
-    - Hay cinco tipos (general, aceite, correa, frenos, otro) y el modelo soporta
-      un recordatorio vigente **por tipo**, pero en la práctica sólo se usa
-      "general": por eso se quitó el filtro por tipo de la bandeja. Queda una
-      abstracción a medio usar.
-    - Solución: o se definen los intervalos por tipo (correa cada 60.000 km,
-      aceite cada 10.000, etc.) y se aprovecha el modelo, o se reduce el campo a
-      un booleano "es service" y se simplifica todo el circuito.
-    - Esfuerzo: medio · Riesgo: bajo · **Decisión de negocio pendiente.**
+16. **[a testear]** Los tipos de service se reducen a un booleano
+    - **Decisión del usuario (06/09/2026)**: de las dos salidas planteadas
+      —definir intervalos por tipo, o reducir a un booleano— se eligió el
+      booleano.
+    - Archivos:
+      `electron/DataBase/Migrations/SimplifyServiceType1700000011000.ts` (nueva),
+      las entidades `job` y `service_reminder`, `car.dto.ts`,
+      `serviceReminders.service.ts`, `car.jobs.endpoints.ts`,
+      `service.endpoints.ts`, `src/Types/{apiTypes,types}.ts`, `AddJobForm`,
+      `Jobs.tsx`, `JobsTable`, `NextServiceCard`, `EditReminderModal`,
+      `ServiceAlertsPage`, `CreateServiceReminders1700000007000.ts`.
+    - `job.serviceType` (enum de cinco) → **`job.isService`** (booleano).
+      `service_reminder.type` **desaparece**: la invariante pasa de "un
+      recordatorio vigente por vehículo **y tipo**" a "uno por vehículo".
+    - El caso delicado de la migración: un vehículo podía tener **varios**
+      vigentes, uno por tipo, y sin tipo serían duplicados. Se conserva el más
+      urgente —el que vence antes; los que no tienen fecha van al final— y los
+      demás se marcan como descartados **con el motivo en las notas**. Se
+      descartan y no se borran: son historial, y borrar registros del usuario en
+      una migración es justo lo que no hay que hacer.
+    - La migración `CreateServiceReminders` dejó de importar el enum y usa el
+      literal `"general"`: una migración describe el esquema **de su momento**,
+      aunque el código de hoy ya no conozca esos valores. Si importara el enum,
+      borrarlo rompería la historia.
+    - En la interfaz, los tres desplegables de cinco opciones pasaron a un sí/no.
+      El chip del tipo salió de la bandeja y el mensaje de WhatsApp dice "ya está
+      para el service" en vez de interpolar el nombre del tipo.
+    - Verificado sobre una copia con datos sembrados a propósito (64 trabajos con
+      tipos variados y un vehículo con **dos** recordatorios vigentes): los 64
+      quedan como service y el resto como trabajo común, el vehículo queda con
+      **uno solo** vigente, **no se borra ningún registro** (132 antes y
+      después), el descartado explica por qué, ningún vehículo queda con dos
+      vigentes, integridad y claves foráneas limpias, y reabrir no cambia nada.
 
 17. **[a testear]** Editar el próximo service desde la ficha del vehículo
     - Archivos: `src/Components/EditReminderModal.tsx` (nuevo),

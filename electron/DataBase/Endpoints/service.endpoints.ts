@@ -15,7 +15,6 @@ import {
 } from "../serviceReminders.service";
 import {
   ReminderStatus,
-  ServiceType,
   type APIResponse,
   type Paginated,
   type ReminderQueryParams,
@@ -35,8 +34,6 @@ import {
 // compartido `src/Utils/serviceReminders.ts`, que es la misma fuente de verdad
 // que usa el backend para generar los vencimientos.
 
-const VALID_TYPES = Object.values(ServiceType) as string[];
-
 /**
  * Serializa el recordatorio para el renderer: sólo los datos del vehículo y del
  * titular que se muestran, y el promedio de km/día ya calculado (para no mandar
@@ -44,7 +41,6 @@ const VALID_TYPES = Object.values(ServiceType) as string[];
  */
 const toView = (reminder: ServiceReminder): ServiceReminderView => ({
   id: reminder.id,
-  type: reminder.type,
   status: reminder.status,
   dueDate: reminder.dueDate ? new Date(reminder.dueDate).toISOString() : null,
   dueKm: reminder.dueKm ?? null,
@@ -143,10 +139,6 @@ handleIpc(
       qb.andWhere("reminder.status IN (:...active)", {
         active: ACTIVE_STATUSES,
       });
-    }
-
-    if (params?.type && VALID_TYPES.includes(params.type)) {
-      qb.andWhere("reminder.type = :type", { type: params.type });
     }
 
     // "Ya avisado" es exactamente "tiene fecha de contacto": no hace falta una
@@ -332,11 +324,7 @@ handleIpc(
         };
       }
 
-      const next = await completeAndScheduleNext(
-        qr.manager,
-        reminder.car,
-        reminder.type
-      );
+      const next = await completeAndScheduleNext(qr.manager, reminder.car);
       await qr.commitTransaction();
       invalidateDashboardStatsCache();
 
@@ -408,19 +396,18 @@ handleIpc(
       };
     }
 
-    // Invariante: un solo recordatorio vigente por vehículo y tipo. Al reactivar
-    // un descartado hay que asegurarse de que no haya otro ocupando su lugar
-    // (por ejemplo, uno generado después al completar un service).
+    // Invariante: un solo recordatorio vigente por vehículo. Al reactivar uno
+    // descartado hay que asegurarse de que no haya otro ocupando su lugar (por
+    // ejemplo, uno generado después al completar un service).
     if (reminder.status === ReminderStatus.DISMISSED) {
       const active = await findActiveReminder(
         AppDataSource.manager,
-        reminder.car.id,
-        reminder.type
+        reminder.car.id
       );
       if (active) {
         return {
           status: "failed",
-          message: "El vehículo ya tiene un recordatorio vigente de este tipo",
+          message: "El vehículo ya tiene un recordatorio de service vigente",
         };
       }
     }
@@ -448,7 +435,7 @@ handleIpc(
     _event,
     body: SaveReminderBody
   ): Promise<APIResponse<ServiceReminderView>> => {
-    if (!body?.licensePlate || !VALID_TYPES.includes(body.type)) {
+    if (!body?.licensePlate) {
       return { status: "failed", message: "Datos del recordatorio inválidos" };
     }
 
@@ -480,14 +467,13 @@ handleIpc(
       };
     }
 
-    // Si no se está editando uno puntual, se reutiliza el vigente del tipo para
-    // no dejar dos recordatorios activos del mismo service.
+    // Si no se está editando uno puntual, se reutiliza el vigente del vehículo
+    // para no dejar dos recordatorios activos.
     const existing = body.id
       ? await repo.findOne({ where: { id: body.id }, relations: ["car"] })
       : await repo.findOne({
           where: {
             car: { id: car.id },
-            type: body.type,
             status: In(ACTIVE_STATUSES),
           },
           relations: ["car"],
@@ -497,12 +483,10 @@ handleIpc(
       existing ??
       repo.create({
         car,
-        type: body.type,
         status: ReminderStatus.PENDING,
       });
 
     reminder.car = car;
-    reminder.type = body.type;
     reminder.status = ReminderStatus.PENDING;
     reminder.snoozedUntil = null;
     reminder.dueDate = dueDate;

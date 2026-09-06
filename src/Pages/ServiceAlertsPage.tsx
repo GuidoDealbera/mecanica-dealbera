@@ -21,7 +21,6 @@ import {
   APIResponse,
   DEFAULT_SERVICE_SETTINGS,
   ReminderScope,
-  SERVICE_TYPE_LABELS,
   ServiceReminderView,
   ServiceSettings,
 } from "../Types/apiTypes";
@@ -201,7 +200,7 @@ const ServiceAlertsPage: React.FC = () => {
     const message =
       `Hola ${reminder.owner.fullname}, te escribimos de Mecánica Dealbera. ` +
       `Según nuestros registros, tu ${reminder.car.brand} ${reminder.car.model} ` +
-      `(${reminder.car.licensePlate}) ya está para el ${SERVICE_TYPE_LABELS[reminder.type].toLowerCase()}. ` +
+      `(${reminder.car.licensePlate}) ya está para el service. ` +
       `¿Querés que coordinemos un turno?`;
     const url = buildWhatsappUrl(reminder.owner.phone, message);
     if (!url) {
@@ -441,13 +440,6 @@ const ServiceAlertsPage: React.FC = () => {
                   <p className="font-semibold text-sm">
                     {reminder.car.brand} {reminder.car.model}
                   </p>
-                  <Chip
-                    size="sm"
-                    variant="flat"
-                    className="text-foreground-300"
-                  >
-                    {SERVICE_TYPE_LABELS[reminder.type]}
-                  </Chip>
                   <Chip size="sm" color={badge.color} variant="flat">
                     {badge.label}
                   </Chip>

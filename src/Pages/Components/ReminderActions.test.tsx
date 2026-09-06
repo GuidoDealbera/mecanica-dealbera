@@ -6,7 +6,6 @@ import ReminderActions from "./ReminderActions";
 import {
   DEFAULT_SERVICE_SETTINGS,
   ReminderStatus,
-  ServiceType,
   type ServiceReminderView,
 } from "../../Types/apiTypes";
 import { evaluateReminder } from "../../Utils/serviceReminders";
@@ -24,7 +23,6 @@ const baseReminder = (
   overrides: Partial<ServiceReminderView> = {}
 ): ServiceReminderView => ({
   id: "r1",
-  type: ServiceType.GENERAL,
   status: ReminderStatus.PENDING,
   dueDate: null,
   dueKm: null,

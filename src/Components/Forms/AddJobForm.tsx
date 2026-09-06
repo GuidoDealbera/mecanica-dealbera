@@ -1,12 +1,7 @@
 import React from "react";
 import { Jobs } from "../../Types/types";
 import { Controller, useForm } from "react-hook-form";
-import {
-  CreateCarJob,
-  JobStatus,
-  SERVICE_TYPE_LABELS,
-  ServiceType,
-} from "../../Types/apiTypes";
+import { CreateCarJob, JobStatus } from "../../Types/apiTypes";
 import FormWrapper from "./FormWrapper";
 import { Button, Input, Select, SelectItem, Textarea } from "@heroui/react";
 import { formatThousands, parseNumber } from "../../Utils/utils";
@@ -20,11 +15,8 @@ const INITIAL_VALUES: Partial<Jobs> = {
   parts: [],
   notes: "",
   clientNote: "",
-  serviceType: null,
+  isService: false,
 };
-
-// Opción para trabajos que no son un service (la mayoría).
-const NO_SERVICE = "none";
 
 interface AddJobFormProps {
   onSubmit: (data: CreateCarJob) => void;
@@ -172,36 +164,24 @@ const AddJobForm: React.FC<AddJobFormProps> = ({
             />
 
             {/* Marcar el trabajo como service: al completarlo se programa el
-                próximo recordatorio de ese tipo automáticamente. */}
+                próximo recordatorio automáticamente. Era un desplegable con
+                cinco tipos, pero el taller usa uno solo: ahora es un sí/no. */}
             <Controller
               control={control}
-              name="serviceType"
+              name="isService"
               render={({ field: { value, onChange } }) => (
                 <Select
                   label="¿Es un service?"
                   description="Si lo es, al completarlo se programa el próximo"
-                  selectedKeys={[value ?? NO_SERVICE]}
+                  selectedKeys={[value ? "true" : "false"]}
                   onSelectionChange={(keys) => {
-                    const selected = Array.from(keys)[0] as string | undefined;
-                    onChange(
-                      !selected || selected === NO_SERVICE
-                        ? null
-                        : (selected as ServiceType)
-                    );
+                    onChange(Array.from(keys)[0] === "true");
                   }}
                   isDisabled={isLoading || !license}
                   fullWidth
                 >
-                  {[
-                    <SelectItem key={NO_SERVICE}>
-                      No, es un trabajo común
-                    </SelectItem>,
-                    ...Object.values(ServiceType).map((type) => (
-                      <SelectItem key={type}>
-                        {SERVICE_TYPE_LABELS[type]}
-                      </SelectItem>
-                    )),
-                  ]}
+                  <SelectItem key="false">No, es un trabajo común</SelectItem>
+                  <SelectItem key="true">Sí, es un service</SelectItem>
                 </Select>
               )}
             />

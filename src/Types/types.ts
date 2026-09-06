@@ -1,5 +1,5 @@
 import type { CarBrand } from "../Utils/utils";
-import { AppError, JobStatus, Paginated, ServiceType } from "./apiTypes";
+import { AppError, JobStatus, Paginated } from "./apiTypes";
 
 export interface KmRecord {
   km: number;
@@ -58,8 +58,8 @@ export interface Jobs {
   notes?: string;
   /** Observación para el cliente: **sí** se imprime en el documento. */
   clientNote?: string;
-  /** Tipo de service si el trabajo es un service; `null` si es un trabajo común. */
-  serviceType?: ServiceType | null;
+  /** Si el trabajo es un service (programa el próximo al completarlo). */
+  isService?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }

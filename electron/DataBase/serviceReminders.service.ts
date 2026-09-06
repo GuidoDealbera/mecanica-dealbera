@@ -6,7 +6,6 @@ import {
   DEFAULT_SERVICE_SETTINGS,
   ReminderStatus,
   ServiceSettings,
-  ServiceType,
 } from "../../src/Types/apiTypes";
 import { computeNextService } from "../../src/Utils/serviceReminders";
 
@@ -86,28 +85,31 @@ export const saveServiceSettings = async (
   return getServiceSettings(manager);
 };
 
-/** Recordatorio vigente de un vehículo para un tipo de service, si existe. */
+/**
+ * Recordatorio vigente de un vehículo, si existe.
+ *
+ * Es **uno por vehículo**: antes había uno por tipo de service, pero los tipos
+ * se eliminaron (ver la migración SimplifyServiceType1700000011000).
+ */
 export const findActiveReminder = async (
   manager: EntityManager,
-  carId: string,
-  type: ServiceType
+  carId: string
 ): Promise<ServiceReminder | null> =>
   manager.findOne(ServiceReminder, {
-    where: { car: { id: carId }, type, status: In(ACTIVE_STATUSES) },
+    where: { car: { id: carId }, status: In(ACTIVE_STATUSES) },
     relations: ["car"],
   });
 
 /**
- * Crea el recordatorio inicial de un vehículo si todavía no tiene uno vigente
- * del tipo indicado. Se usa al registrar un auto (para que aparezca en el
- * circuito de service desde el primer día) y como red de seguridad.
+ * Crea el recordatorio inicial de un vehículo si todavía no tiene uno vigente.
+ * Se usa al registrar un auto (para que aparezca en el circuito de service desde
+ * el primer día) y como red de seguridad.
  */
 export const ensureReminder = async (
   manager: EntityManager,
-  car: Car,
-  type: ServiceType = ServiceType.GENERAL
+  car: Car
 ): Promise<ServiceReminder | null> => {
-  const existing = await findActiveReminder(manager, car.id, type);
+  const existing = await findActiveReminder(manager, car.id);
   if (existing) return existing;
 
   const settings = await getServiceSettings(manager);
@@ -123,7 +125,6 @@ export const ensureReminder = async (
     ServiceReminder,
     manager.create(ServiceReminder, {
       car,
-      type,
       status: ReminderStatus.PENDING,
       dueDate,
       dueKm,
@@ -132,8 +133,8 @@ export const ensureReminder = async (
 };
 
 /**
- * Cierra el recordatorio vigente de un tipo (marcándolo como hecho) y genera el
- * siguiente a partir de la fecha y el kilometraje del service realizado.
+ * Cierra el recordatorio vigente del vehículo (marcándolo como hecho) y genera
+ * el siguiente a partir de la fecha y el kilometraje del service realizado.
  *
  * Es lo que hace que el sistema se mantenga solo: cada service completado
  * programa el próximo, sin que haya que cargar nada a mano.
@@ -141,11 +142,10 @@ export const ensureReminder = async (
 export const completeAndScheduleNext = async (
   manager: EntityManager,
   car: Car,
-  type: ServiceType,
   doneAt: Date = new Date(),
   doneKm?: number | null
 ): Promise<ServiceReminder> => {
-  const current = await findActiveReminder(manager, car.id, type);
+  const current = await findActiveReminder(manager, car.id);
   if (current) {
     current.status = ReminderStatus.DONE;
     current.snoozedUntil = null;
@@ -165,7 +165,6 @@ export const completeAndScheduleNext = async (
     ServiceReminder,
     manager.create(ServiceReminder, {
       car,
-      type,
       status: ReminderStatus.PENDING,
       dueDate,
       dueKm,

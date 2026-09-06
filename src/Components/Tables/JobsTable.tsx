@@ -18,7 +18,7 @@ import {
   TableRow,
   Tooltip,
 } from "@heroui/react";
-import { JobStatus, SERVICE_TYPE_LABELS } from "../../Types/apiTypes";
+import { JobStatus } from "../../Types/apiTypes";
 import {
   MdEdit,
   MdKeyboardArrowDown,
@@ -274,9 +274,9 @@ const JobsTable: React.FC<JobsProps> = ({
               <TableRow key={job.id} className="text-foreground">
                 <TableCell className="max-w-[300px]" title={job.description}>
                   <div className="flex items-center gap-1.5">
-                    {job.serviceType && (
+                    {job.isService && (
                       <Tooltip
-                        content={`Service: ${SERVICE_TYPE_LABELS[job.serviceType]}`}
+                        content="Este trabajo es un service"
                         color="foreground"
                         placement="top"
                         showArrow

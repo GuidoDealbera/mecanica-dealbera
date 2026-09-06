@@ -15,7 +15,7 @@ import { Transform, Type } from "class-transformer";
 import { CreateClientDto } from "./client.dto";
 import type { CarBrand } from "../Types/enums";
 import { CarsBrands } from "../Types/enums";
-import { JobStatus, ServiceType } from "../../../src/Types/apiTypes";
+import { JobStatus } from "../../../src/Types/apiTypes";
 
 export class CreateCarDto {
   @IsString()
@@ -77,11 +77,11 @@ export class JobsDto {
   @IsString()
   clientNote?: string;
 
-  // Marca el trabajo como un service de este tipo (cierra el recordatorio
-  // vigente y programa el siguiente). `null`/ausente = trabajo común.
+  // Marca el trabajo como un service: al cerrarlo se completa el recordatorio
+  // vigente del vehículo y se programa el siguiente.
   @IsOptional()
-  @IsEnum(ServiceType)
-  serviceType?: ServiceType | null;
+  @IsBoolean()
+  isService?: boolean;
 }
 
 export class UpdateCarDto {
@@ -120,8 +120,8 @@ export class UpdateJobDto {
   clientNote?: string;
 
   @IsOptional()
-  @IsEnum(ServiceType)
-  serviceType?: ServiceType | null;
+  @IsBoolean()
+  isService?: boolean;
 }
 
 // El tipo de trabajo ahora vive en la entidad `Job` (electron/DataBase/Entities/job.entity.ts).

@@ -3,8 +3,15 @@ import { MigrationInterface, QueryRunner } from "typeorm";
 import {
   DEFAULT_SERVICE_SETTINGS,
   ReminderStatus,
-  ServiceType,
 } from "../../../src/Types/apiTypes";
+
+/**
+ * El tipo de service se escribe como literal y no importando el enum: los tipos
+ * se eliminaron después (ver SimplifyServiceType1700000011000), y una migración
+ * tiene que seguir describiendo el estado del esquema **en su momento**, aunque
+ * el código de hoy ya no conozca esos valores.
+ */
+const TIPO_GENERAL = "general";
 import { addMonths } from "../../../src/Utils/serviceReminders";
 
 /**
@@ -32,7 +39,7 @@ export class CreateServiceReminders1700000007000 implements MigrationInterface {
       CREATE TABLE "service_reminder" (
         "id" varchar PRIMARY KEY NOT NULL,
         "carId" varchar NOT NULL,
-        "type" varchar NOT NULL DEFAULT ('${ServiceType.GENERAL}'),
+        "type" varchar NOT NULL DEFAULT ('${TIPO_GENERAL}'),
         "status" varchar NOT NULL DEFAULT ('${ReminderStatus.PENDING}'),
         "dueDate" datetime,
         "dueKm" integer,
@@ -88,7 +95,7 @@ export class CreateServiceReminders1700000007000 implements MigrationInterface {
         [
           randomUUID(),
           car.id,
-          ServiceType.GENERAL,
+          TIPO_GENERAL,
           ReminderStatus.PENDING,
           toSqliteDate(dueDate),
         ]

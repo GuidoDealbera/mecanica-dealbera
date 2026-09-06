@@ -152,6 +152,17 @@ El error apunta al formato del módulo y manda a investigar Vite, el `type` del
 `package.json` y la versión de Electron, que no tienen nada que ver. **Antes de
 lanzar Electron desde un script, limpiar esa variable.**
 
+### Finales de línea: LF siempre
+
+El repositorio guarda LF, pero en Windows `core.autocrlf=true` convierte a CRLF
+al hacer checkout. Da igual mientras se programa y rompe el CI: el runner
+también es Windows, y `prettier --check` —que espera LF— rechaza **todos** los
+archivos. Pasó: 162 archivos marcados, con tipos y lint pasando.
+
+Lo resuelve `.gitattributes` con `* text=auto eol=lf`. No cambiarlo, y no
+"arreglarlo" poniendo `endOfLine: "auto"` en Prettier: eso aceptaría CRLF en vez
+de impedirlo.
+
 ### `npm install` falla sin `.npmrc`
 
 `typeorm` declara `sqlite3@^5` como peer y el proyecto usa el 6. El `.npmrc` con

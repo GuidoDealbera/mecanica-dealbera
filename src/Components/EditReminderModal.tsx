@@ -9,12 +9,10 @@ import {
   ModalHeader,
   Textarea,
 } from "@heroui/react";
-import {
-  SERVICE_TYPE_LABELS,
-  ServiceType,
-  type APIResponse,
-  type SaveReminderBody,
-  type ServiceReminderView,
+import type {
+  APIResponse,
+  SaveReminderBody,
+  ServiceReminderView,
 } from "../Types/apiTypes";
 
 interface EditReminderModalProps {
@@ -86,7 +84,6 @@ const EditReminderModal: React.FC<EditReminderModalProps> = ({
       const body: SaveReminderBody = {
         id: reminder?.id,
         licensePlate,
-        type: reminder?.type ?? ServiceType.GENERAL,
         // La fecha se manda como mediodía local para que el cambio de huso no
         // la corra un día al convertirla a ISO.
         dueDate: dueDate ? new Date(`${dueDate}T12:00:00`).toISOString() : null,
@@ -110,8 +107,7 @@ const EditReminderModal: React.FC<EditReminderModalProps> = ({
         <ModalHeader className="flex flex-col gap-1">
           <span className="text-xl font-bold">Editar próximo service</span>
           <span className="text-foreground-400 text-sm font-normal">
-            {licensePlate} ·{" "}
-            {SERVICE_TYPE_LABELS[reminder?.type ?? ServiceType.GENERAL]}
+            {licensePlate}
           </span>
         </ModalHeader>
 

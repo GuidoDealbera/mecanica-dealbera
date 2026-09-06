@@ -9,7 +9,7 @@ import {
   UpdateDateColumn,
 } from "typeorm";
 import { Car } from "./car.entity";
-import { JobStatus, ServiceType } from "../../../src/Types/apiTypes";
+import { JobStatus } from "../../../src/Types/apiTypes";
 
 /**
  * Trabajo realizado (o pendiente) sobre un vehículo. Antes vivía como JSON
@@ -52,11 +52,14 @@ export class Job {
   @Column("text", { nullable: true })
   clientNote?: string;
 
-  // Si el trabajo es un service, de qué tipo. Al pasarlo a completado/entregado
-  // se cierra el recordatorio vigente de ese tipo y se genera el siguiente.
-  // `null` = trabajo común (no afecta los recordatorios).
-  @Column("varchar", { nullable: true })
-  serviceType?: ServiceType | null;
+  // Si el trabajo es un service. Al pasarlo a completado/entregado se cierra el
+  // recordatorio vigente del vehículo y se genera el siguiente. Un trabajo
+  // común no afecta los recordatorios.
+  //
+  // Era un enum de cinco tipos, pero el taller usa uno solo: ver la migración
+  // SimplifyServiceType1700000011000.
+  @Column("boolean", { default: false })
+  isService!: boolean;
 
   @CreateDateColumn({ type: "datetime" })
   createdAt!: Date;

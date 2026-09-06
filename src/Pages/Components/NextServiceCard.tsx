@@ -4,7 +4,6 @@ import { MdEdit, MdNotificationsActive, MdSchedule } from "react-icons/md";
 import {
   APIResponse,
   DEFAULT_SERVICE_SETTINGS,
-  SERVICE_TYPE_LABELS,
   ServiceReminderView,
   ServiceSettings,
 } from "../../Types/apiTypes";
@@ -172,9 +171,7 @@ const NextServiceCard: React.FC<NextServiceCardProps> = ({
             />
             <div className="flex-1 min-w-[200px]">
               <div className="flex items-center gap-2 flex-wrap">
-                <p className="text-sm font-medium">
-                  {SERVICE_TYPE_LABELS[reminder.type]}
-                </p>
+                <p className="text-sm font-medium">Próximo service</p>
                 <Chip size="sm" color={badge.color} variant="flat">
                   {badge.label}
                 </Chip>

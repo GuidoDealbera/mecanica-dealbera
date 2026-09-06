@@ -24,7 +24,7 @@ function toPlainJob(job: Job) {
     parts: job.parts ?? [],
     notes: job.notes ?? "",
     clientNote: job.clientNote ?? "",
-    serviceType: job.serviceType ?? null,
+    isService: job.isService ?? false,
     createdAt: job.createdAt,
     updatedAt: job.updatedAt,
   };
@@ -65,17 +65,16 @@ handleIpc("car:add-job", async (_, license: string, jobDto: CreateCarJob) => {
       parts: jobDto.parts,
       notes: jobDto.notes,
       clientNote: jobDto.clientNote,
-      serviceType: jobDto.serviceType ?? null,
+      isService: jobDto.isService ?? false,
       car,
     });
     const saved = await qr.manager.save(Job, job);
 
     // Si el trabajo es un service y ya se carga cerrado, se programa el siguiente.
-    if (saved.serviceType && isClosed(saved.status)) {
+    if (saved.isService && isClosed(saved.status)) {
       await completeAndScheduleNext(
         qr.manager,
         car,
-        saved.serviceType,
         saved.updatedAt ?? new Date(),
         car.kilometers
       );
@@ -149,17 +148,16 @@ handleIpc(
       if (updateJobDto.notes !== undefined) job.notes = updateJobDto.notes;
       if (updateJobDto.clientNote !== undefined)
         job.clientNote = updateJobDto.clientNote;
-      if (updateJobDto.serviceType !== undefined) {
-        job.serviceType = updateJobDto.serviceType;
+      if (updateJobDto.isService !== undefined) {
+        job.isService = updateJobDto.isService;
       }
 
       const saved = await qr.manager.save(Job, job);
 
-      if (saved.serviceType && !wasClosed && isClosed(saved.status)) {
+      if (saved.isService && !wasClosed && isClosed(saved.status)) {
         await completeAndScheduleNext(
           qr.manager,
           job.car,
-          saved.serviceType,
           new Date(),
           job.car.kilometers
         );

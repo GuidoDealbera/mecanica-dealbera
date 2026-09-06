@@ -23,7 +23,8 @@ export interface UpdateJobBody {
     price: number;
   }[];
   notes?: string;
-  serviceType?: ServiceType | null;
+  clientNote?: string;
+  isService?: boolean;
 }
 
 export interface CreateCarBody {
@@ -112,21 +113,11 @@ export interface UpdateCar {
 // ─── Recordatorios de service ────────────────────────────────────────────
 
 /** Tipo de service. Cada vehículo lleva un recordatorio vigente por tipo. */
-export enum ServiceType {
-  GENERAL = "general",
-  OIL = "oil",
-  BELT = "belt",
-  BRAKES = "brakes",
-  OTHER = "other",
-}
-
-export const SERVICE_TYPE_LABELS: Record<ServiceType, string> = {
-  [ServiceType.GENERAL]: "Service general",
-  [ServiceType.OIL]: "Cambio de aceite",
-  [ServiceType.BELT]: "Correa de distribución",
-  [ServiceType.BRAKES]: "Frenos",
-  [ServiceType.OTHER]: "Otro",
-};
+// Los tipos de service (general, aceite, correa, frenos, otro) se eliminaron:
+// el taller trabaja con un único circuito y la abstracción a medio usar sólo
+// complicaba el modelo. Ahora un trabajo "es un service" o no lo es, y cada
+// vehículo tiene a lo sumo un recordatorio vigente. Ver la migración
+// SimplifyServiceType1700000011000.
 
 /**
  * Estado del recordatorio. Es lo que evita la "fatiga de alerta": un
@@ -168,7 +159,6 @@ export const DEFAULT_SERVICE_SETTINGS: ServiceSettings = {
 /** Recordatorio tal como lo devuelve el backend, con el contexto que se muestra. */
 export interface ServiceReminderView {
   id: string;
-  type: ServiceType;
   status: ReminderStatus;
   /** Fecha de vencimiento (ISO) o `null` si el recordatorio es sólo por km. */
   dueDate: string | null;
@@ -198,8 +188,6 @@ export type ReminderScope = "due" | "pending" | "all";
 export interface ReminderQueryParams extends PaginationParams {
   /** `due` (vencidos o por vencer, default), `pending` (todos los vigentes) o `all`. */
   scope?: ReminderScope;
-  /** Filtra por tipo de service. */
-  type?: ServiceType;
   /**
    * Filtra por si ya se contactó al cliente. `undefined` no filtra.
    * Con 70 recordatorios vencidos, lo primero que se necesita saber es a quién
@@ -213,7 +201,6 @@ export interface SaveReminderBody {
   /** Si viene, actualiza ese recordatorio; si no, crea uno nuevo. */
   id?: string;
   licensePlate: string;
-  type: ServiceType;
   /** Fecha de vencimiento en ISO (o `null` para que sea sólo por km). */
   dueDate?: string | null;
   dueKm?: number | null;
@@ -289,8 +276,8 @@ export interface CreateCarJob {
   notes?: string;
   /** Observación para el cliente: **sí** sale impresa en el documento. */
   clientNote?: string;
-  /** Si el trabajo es un service, de qué tipo (programa el próximo). */
-  serviceType?: ServiceType | null;
+  /** Si es un service: al completarlo se programa el próximo. */
+  isService?: boolean;
 }
 
 /**

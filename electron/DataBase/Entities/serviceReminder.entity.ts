@@ -9,7 +9,7 @@ import {
   UpdateDateColumn,
 } from "typeorm";
 import { Car } from "./car.entity";
-import { ReminderStatus, ServiceType } from "../../../src/Types/apiTypes";
+import { ReminderStatus } from "../../../src/Types/apiTypes";
 
 /**
  * Recordatorio de service de un vehículo.
@@ -35,9 +35,6 @@ export class ServiceReminder {
   @Index("IDX_service_reminder_car")
   @ManyToOne(() => Car, { onDelete: "CASCADE", nullable: false })
   car!: Car;
-
-  @Column("varchar", { default: ServiceType.GENERAL })
-  type!: ServiceType;
 
   @Column("varchar", { default: ReminderStatus.PENDING })
   status!: ReminderStatus;
