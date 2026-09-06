@@ -1,8 +1,13 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
+    // ES2022 y no ES2020: es lo que corresponde al runtime real. El renderer
+    // va sobre el Chromium de Electron 44 y el proceso principal sobre su Node
+    // 22, los dos muy por encima de ES2020. Estaba en ES2020 y compilaba de
+    // casualidad, porque los tipos de Node suplían métodos como `Array.at()`
+    // que la librería declarada no incluía; al actualizar dejaron de suplirlos.
+    "target": "ES2022",
     "useDefineForClassFields": true,
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "skipLibCheck": true,
     "experimentalDecorators": true,
