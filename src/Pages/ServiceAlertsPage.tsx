@@ -30,6 +30,7 @@ import {
   getReminderBadge,
 } from "../Utils/serviceReminders";
 import { buildWhatsappUrl, formatDate } from "../Utils/utils";
+import { clampPage } from "../Utils/pagination";
 import LicenceTable from "../Components/Licenses/LicenceTable";
 import TablePagination from "../Components/TablePagination";
 import EmptyState from "../Components/EmptyState";
@@ -108,11 +109,15 @@ const ServiceAlertsPage: React.FC = () => {
     }
   }, []);
 
+  // La página pedida, acotada a la última que existe. Se deriva al leer en vez
+  // de corregirse después con un efecto: ver `clampPage`.
+  const effectivePage = clampPage(page, total, PAGE_SIZE);
+
   const fetchReminders = React.useCallback(async () => {
     setLoading(true);
     try {
       const result = await window.api.service.list({
-        page,
+        page: effectivePage,
         pageSize: PAGE_SIZE,
         scope,
         contacted: CONTACTED_VALUE[contacted],
@@ -137,7 +142,7 @@ const ServiceAlertsPage: React.FC = () => {
       setLoading(false);
       setLoaded(true);
     }
-  }, [page, scope, contacted, debouncedSearch, showToast]);
+  }, [effectivePage, scope, contacted, debouncedSearch, showToast]);
 
   React.useEffect(() => {
     fetchSettings();
@@ -146,14 +151,6 @@ const ServiceAlertsPage: React.FC = () => {
   React.useEffect(() => {
     fetchReminders();
   }, [fetchReminders]);
-
-  // Si la página quedó vacía pero hay resultados (se accionó el último item de
-  // la última página), se retrocede una.
-  React.useEffect(() => {
-    if (!loading && total > 0 && reminders.length === 0 && page > 1) {
-      setPage((p) => Math.max(1, p - 1));
-    }
-  }, [loading, total, reminders.length, page]);
 
   /** Evalúa cada recordatorio con la misma lógica que usa el backend. */
   const evaluated = React.useMemo(
@@ -394,7 +391,7 @@ const ServiceAlertsPage: React.FC = () => {
       header={header}
       footer={
         <TablePagination
-          page={page}
+          page={effectivePage}
           pageSize={PAGE_SIZE}
           total={total}
           onPageChange={setPage}

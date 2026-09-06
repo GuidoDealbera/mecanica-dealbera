@@ -12,6 +12,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { IoSearch, IoCarSportSharp } from "react-icons/io5";
 import { MdPersonOutline } from "react-icons/md";
 import { ClientQueryParams } from "../Types/apiTypes";
+import { clampPage } from "../Utils/pagination";
 
 const PAGE_SIZE = 8;
 
@@ -61,9 +62,13 @@ const ClientPage: React.FC = () => {
   const [actionLoading, setActionLoading] = React.useState(false);
 
   // Parámetros de la consulta paginada. Al cambiar, se dispara el fetch.
+  // La página pedida, acotada a la última que existe. Se deriva al leer en vez
+  // de corregirse después con un efecto: ver `clampPage`.
+  const effectivePage = clampPage(page, list.total, PAGE_SIZE);
+
   const params = React.useMemo<ClientQueryParams>(
     () => ({
-      page,
+      page: effectivePage,
       pageSize: PAGE_SIZE,
       search: nameFilter || undefined,
       includeInactive: showInactive,
@@ -71,20 +76,12 @@ const ClientPage: React.FC = () => {
       sortBy: sort.by ?? undefined,
       sortDir: sort.dir,
     }),
-    [page, nameFilter, showInactive, city, sort]
+    [effectivePage, nameFilter, showInactive, city, sort]
   );
 
   React.useEffect(() => {
     getClients(params);
   }, [getClients, params]);
-
-  // Autocorrección: si la página quedó vacía pero hay resultados (p.ej. se
-  // desactivó/eliminó el último item de la última página), retrocede una.
-  React.useEffect(() => {
-    if (!listLoading && list.total > 0 && list.items.length === 0 && page > 1) {
-      setPage((p) => Math.max(1, p - 1));
-    }
-  }, [listLoading, list.total, list.items.length, page]);
 
   React.useEffect(() => {
     return () => {
@@ -284,7 +281,7 @@ const ClientPage: React.FC = () => {
         emptyContent={emptyContent}
         onToggleActive={handleToggleActive}
         onDelete={handleDelete}
-        page={page}
+        page={effectivePage}
         pageSize={PAGE_SIZE}
         total={list.total}
         onPageChange={setPage}

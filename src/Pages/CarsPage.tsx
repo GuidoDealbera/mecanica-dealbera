@@ -18,6 +18,7 @@ import EmptyState from "../Components/EmptyState";
 import PageShell from "../Components/PageShell";
 import { useDebounce } from "../Hooks/useDebounce";
 import { BRANDS_OPTIONS } from "../Utils/utils";
+import { clampPage } from "../Utils/pagination";
 import { CarQueryParams } from "../Types/apiTypes";
 import { Cars } from "../Types/types";
 
@@ -53,10 +54,14 @@ const CarsPage: React.FC = () => {
     refresh,
   } = useCarQueries();
 
+  // La página pedida, acotada a la última que existe. Se deriva al leer en vez
+  // de corregirse después con un efecto: ver `clampPage`.
+  const effectivePage = clampPage(page, list.total, PAGE_SIZE);
+
   // Parámetros de la consulta paginada. Al cambiar, se dispara el fetch.
   const params = useMemo<CarQueryParams>(
     () => ({
-      page,
+      page: effectivePage,
       pageSize: PAGE_SIZE,
       search: licenceFilter || undefined,
       brand: brand || undefined,
@@ -65,20 +70,19 @@ const CarsPage: React.FC = () => {
       sortBy: sort.by ?? undefined,
       sortDir: sort.dir,
     }),
-    [page, licenceFilter, brand, debouncedYearFrom, debouncedYearTo, sort]
+    [
+      effectivePage,
+      licenceFilter,
+      brand,
+      debouncedYearFrom,
+      debouncedYearTo,
+      sort,
+    ]
   );
 
   useEffect(() => {
     getCars(params);
   }, [getCars, params]);
-
-  // Si la página actual quedó vacía pero hay resultados (p.ej. se borró el
-  // último item de la última página), retrocede una página. Autocorrige.
-  useEffect(() => {
-    if (!listLoading && list.total > 0 && list.items.length === 0 && page > 1) {
-      setPage((p) => Math.max(1, p - 1));
-    }
-  }, [listLoading, list.total, list.items.length, page]);
 
   // Limpieza al desmontar (evita que se vea data vieja al volver a entrar).
   useEffect(() => {
@@ -267,7 +271,7 @@ const CarsPage: React.FC = () => {
         isLoading={listLoading}
         emptyContent={emptyContent}
         deleteCar={handleOpenDeleteDialog}
-        page={page}
+        page={effectivePage}
         pageSize={PAGE_SIZE}
         total={list.total}
         onPageChange={setPage}
