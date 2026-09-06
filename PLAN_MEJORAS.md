@@ -1003,7 +1003,27 @@ real: un upgrade sin forma de verificarlo es una apuesta.
       (typescript-eslint#10940): es de las actualizaciones más rentables que
       quedan y no depende de nosotros.
 
-40. **[pendiente]** Lo que queda por modernizar
+40. **[a testear]** El instalador se arma, y publicar espera a la verificación
+    - **Primera vez que el paquete NSIS se construye con este código.** Salió:
+      163 MB, firmado, con su `blockmap` y su `latest.yml`, y `app-update.yml`
+      dentro del paquete —el error que aparecía en los builds `--dir` era sólo
+      de ese modo, que no genera ese archivo—.
+    - **`release.yml` y `verify.yml` corrían en paralelo** ante un push a `main`,
+      así que el instalador no esperaba el resultado de la verificación: un build
+      roto se publicaba igual. Ahora la verificación es un job **dentro** de
+      `release.yml` y el publicado declara `needs: verify`. `verify.yml` dejó de
+      dispararse en `main` para no pagar dos veces lo mismo; sigue corriendo en
+      `feat/**`, `fix/**` y en los pull requests.
+    - **Ojo con el nombre del artefacto al publicar**: el archivo local se llama
+      `Mecánica Dealbera-Windows-1.0.3-Setup.exe` pero `latest.yml` apunta a
+      `mecanica-dealbera-setup-1.0.3.exe`. Es el nombre "seguro" que
+      electron-builder usa para subir a GitHub, porque la URL no tolera acentos
+      ni espacios. Conviene **confirmarlo en el primer release real**: si los dos
+      nombres no coincidieran, el auto-update fallaría en silencio.
+    - **Falta subir la versión.** El instalador salió como `1.0.3`, la misma que
+      está instalada: publicado así, ninguna aplicación vería la actualización.
+
+41. **[pendiente]** Lo que queda por modernizar
     - **React 18 → 19 y HeroUI 2 → 3**: dos majors que tocan toda la interfaz.
       Lo que menos compra y lo que más pantalla mueve; conviene último, y con
       alguien mirando las pantallas. Hoy es lo único de versiones que falta.

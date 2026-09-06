@@ -7,10 +7,12 @@ name: Verificación
 # El build del instalador NO va acá: es lento, necesita firmar y ya lo hace
 # `release.yml` en `main`.
 
+# En `main` **no** corre desde acá: lo ejecuta `release.yml` como paso previo a
+# publicar, y así el instalador espera el visto bueno en vez de armarse en
+# paralelo. Duplicarlo sería pagar dos veces la misma verificación.
 on:
   push:
     branches:
-      - main
       - "feat/**"
       - "fix/**"
   pull_request:

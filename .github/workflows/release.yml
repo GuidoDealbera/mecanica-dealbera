@@ -1,5 +1,13 @@
 name: Build & Release
 
+# Arma el instalador y lo publica. Sólo desde `main`.
+#
+# La verificación corre **antes y dentro del mismo flujo**, no en paralelo: como
+# `verify.yml` también se dispara con el push a `main`, los dos corrían a la vez
+# y un build roto se publicaba igual, porque el instalador no esperaba a que la
+# verificación terminara. Ahora `release` declara `needs: verify`: si algo falla
+# —tipos, lint, formato, tests o build del renderer— no se publica nada.
+
 on:
   push:
     branches:
@@ -8,16 +16,36 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  release:
+  verify:
     runs-on: windows-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Misma versión que el flujo de verificación (`.nvmrc`): si el
-      # instalador se armara con un Node distinto del que se verifica, el visto
-      # bueno de `verify` diría menos de lo que parece.
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verificar
+        run: npm run verify
+
+  release:
+    needs: verify
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Misma versión que la verificación (`.nvmrc`): si el instalador se armara
+      # con un Node distinto del que se verifica, el visto bueno diría menos de
+      # lo que parece.
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
