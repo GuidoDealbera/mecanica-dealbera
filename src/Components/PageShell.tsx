@@ -42,8 +42,12 @@ const PageShell: React.FC<PageShellProps> = ({
   >
     {header && <div className="shrink-0 px-4 pt-4 pb-3">{header}</div>}
 
+    {/* Con cabecera el cuerpo lleva `pt-1` y no cero: el contenedor recorta con
+        `overflow-y-auto`, así que un hijo pegado al borde superior pierde su
+        sombra. Se veía en el dashboard, donde las `StatCard` arrancaban contra
+        la cabecera y su `shadow shadow-primary` quedaba cortada. */}
     <div
-      className={`flex-1 min-h-0 px-4 ${header ? "" : "pt-4"} ${
+      className={`flex-1 min-h-0 px-4 ${header ? "pt-1" : "pt-4"} ${
         footer ? "" : "pb-4"
       } ${scrollBody ? "overflow-y-auto overflow-x-hidden" : "flex flex-col"}`}
     >

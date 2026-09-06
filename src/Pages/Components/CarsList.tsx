@@ -16,8 +16,11 @@ interface CarsListProps {
 
 // Mismas clases para esqueletos y tarjetas: si la grilla cambiara de forma
 // entre un estado y otro, el alto saltaría al terminar la carga.
+// `items-stretch` para que las tarjetas de una misma fila igualen la altura;
+// junto con `h-full` en la tarjeta, la grilla queda pareja aunque un titular
+// tenga un nombre más largo que otro.
 const GRID =
-  "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 p-3";
+  "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 p-3 items-stretch";
 
 const CarsList: React.FC<CarsListProps> = ({
   cars,

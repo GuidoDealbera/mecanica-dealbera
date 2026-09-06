@@ -24,8 +24,12 @@ const CarCard: React.FC<CarCardProps> = ({
     <Card
       isPressable
       onPress={() => onSelect(licensePlate)}
+      // `w-full h-full` y no `max-w-fit`: `max-w-fit` le ganaba a `w-full`, así
+      // que el ancho lo definía el contenido (el nombre del titular, los dígitos
+      // del kilometraje) en vez de la celda de la grilla, y las tarjetas salían
+      // de anchos distintos con huecos irregulares.
       className={`
-        w-full max-w-fit transition-all duration-200 border-2
+        w-full h-full transition-all duration-200 border-2
         ${
           isSelected
             ? "bg-primary-700 border-primary-400 shadow-lg shadow-primary-900/60"

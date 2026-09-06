@@ -675,49 +675,37 @@ numeración corrida para no renumerar el resto.
 Detectadas usando la aplicación (10/08/2026). La 27 es un **bug de flujo** y
 conviene que entre antes del despliegue; las otras dos son de presentación.
 
-27. **[pendiente]** El vehículo preseleccionado no se ve si no está en la primera página
-    - Archivos: `src/Pages/AddJobPage.tsx:39-43`, `src/Pages/Components/CarsList.tsx`.
-    - Al entrar a "Nuevo trabajo" desde la ficha de un vehículo, la patente llega
-      por el `state` de la navegación y se guarda en `selectedLicense`, pero el
-      selector muestra la **primera página** del listado paginado. Si el vehículo
-      no cae en esa página, no se ve ninguna tarjeta marcada: la selección existe
-      (el formulario funciona) pero el usuario no tiene forma de confirmarla, y
-      parece que no se seleccionó nada.
-    - Solución propuesta, en dos partes que se complementan:
-      1. Al llegar con `state.license`, **precargar el buscador** con esa patente.
-         La búsqueda ya es server-side, así que el vehículo queda en la primera
-         página sin necesidad de endpoints nuevos.
-      2. Mostrar arriba del listado un **resumen fijo del vehículo seleccionado**
-         (patente + marca/modelo + titular, con un botón para desmarcarlo), que
-         se vea siempre sin importar la página o el filtro. Esto además arregla
-         el caso general: elegir un auto, paginar y perder de vista qué se eligió.
-    - Esfuerzo: bajo · Riesgo: bajo.
+27. **[a testear]** El vehículo preseleccionado no se ve si no está en la primera página
+    - Archivos: `src/Pages/AddJobPage.tsx`, `src/Pages/Components/CarsList.tsx`.
+    - Se hicieron las dos partes que se habían planificado, y se complementan:
+      1. Al llegar con `state.license` desde la ficha del vehículo, **el buscador
+         arranca precargado con esa patente**. La búsqueda ya es server-side, así
+         que el vehículo queda en la primera página sin endpoints nuevos.
+      2. **Resumen fijo del vehículo elegido** arriba del listado: patente,
+         marca/modelo/año, titular y un botón para quitarlo. Se ve siempre, sin
+         importar la página ni el filtro, así que también arregla el caso
+         general de elegir un auto, paginar y perder de vista cuál era.
+    - Para eso la página guarda el vehículo **entero** y no sólo la patente. Como
+      desde la ficha sólo viaja la patente, los datos se completan en cuanto el
+      auto aparece en el listado —que es justo lo que garantiza el buscador
+      precargado—; hasta entonces el resumen muestra la patente sola en vez de
+      no mostrar nada.
 
-28. **[pendiente]** Las tarjetas de vehículos no tienen el mismo tamaño
-    - Archivo: `src/Pages/Components/CarCard.tsx:28` y la grilla de
-      `src/Pages/Components/CarsList.tsx:19`.
-    - La `Card` usa `w-full max-w-fit`: `max-w-fit` gana sobre `w-full`, así que
-      el ancho lo define el contenido (el nombre del titular, la cantidad de
-      dígitos del kilometraje) en lugar de la celda de la grilla. El resultado es
-      una grilla con tarjetas de anchos distintos y huecos irregulares.
-    - Solución: quitar `max-w-fit` y dejar `w-full h-full`; en la grilla, bajar la
-      separación (`gap-3` → `gap-2`) y agregar `items-stretch` para que además
-      igualen la altura dentro de cada fila.
-    - Esfuerzo: mínimo · Riesgo: nulo.
+28. **[a testear]** Las tarjetas de vehículos no tienen el mismo tamaño
+    - Archivos: `src/Pages/Components/CarCard.tsx`,
+      `src/Pages/Components/CarsList.tsx`.
+    - `max-w-fit` le ganaba a `w-full`, así que el ancho lo definía el contenido
+      (el nombre del titular, los dígitos del kilometraje) en vez de la celda de
+      la grilla. Ahora la tarjeta es `w-full h-full`, y la grilla pasó a `gap-2`
+      con `items-stretch` para que además igualen la altura dentro de cada fila.
 
-29. **[pendiente]** Las tarjetas del dashboard quedan pegadas a la cabecera
-    - Archivos: `src/Components/PageShell.tsx:46`, `src/Pages/HomePage.tsx`.
-    - El cuerpo de `PageShell` no lleva padding superior cuando hay cabecera
-      (`${header ? "" : "pt-4"}`). En el dashboard la cabecera es una sola fila
-      sin margen inferior propio, así que las `StatCard` arrancan pegadas al
-      borde y su `shadow shadow-primary` queda recortada por el `overflow-y-auto`
-      del contenedor: las tarjetas no se aprecian completas.
-    - Solución: agregar un padding superior chico (`pt-1`) al cuerpo de
-      `PageShell` — beneficia a todas las pantallas con cabecera, no sólo al
-      dashboard. Verificar que no afecte al encabezado adherido (`isHeaderSticky`)
-      de las tablas de Autos y Clientes; si molesta ahí, aplicarlo sólo en el
-      contenedor interno del dashboard.
-    - Esfuerzo: mínimo · Riesgo: bajo.
+29. **[a testear]** Las tarjetas del dashboard quedan pegadas a la cabecera
+    - Archivo: `src/Components/PageShell.tsx`.
+    - El cuerpo pasa de `pt-0` a `pt-1` cuando hay cabecera. El contenedor
+      recorta con `overflow-y-auto`, así que un hijo pegado al borde superior
+      pierde su sombra: en el dashboard las `StatCard` arrancaban contra la
+      cabecera y su `shadow shadow-primary` quedaba cortada. Beneficia a todas
+      las pantallas con cabecera, no sólo al dashboard.
 
 ## Notas de sesión
 
