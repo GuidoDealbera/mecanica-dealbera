@@ -1045,13 +1045,41 @@ real: un upgrade sin forma de verificarlo es una apuesta.
       muda a `userData`, cambia el driver, cambia el esquema—: volver atrás no
       es reinstalar la anterior, es restaurar un respaldo.
 
-41. **[pendiente]** Lo que queda por modernizar
-    - **React 18 → 19 y HeroUI 2 → 3**: dos majors que tocan toda la interfaz.
-      Lo que menos compra y lo que más pantalla mueve; conviene último, y con
-      alguien mirando las pantallas. Hoy es lo único de versiones que falta.
-    - Se deja para después de que alguien use la aplicación con todo lo que se
-      cambió: son 30 tareas marcadas "a testear" y mover la interfaz entera
-      antes de esa pasada haría imposible saber qué rompió qué.
+41. **[a testear]** React 19, y las tres mayores de afuera de la interfaz
+    - **React 18 → 19: sin cambios de código.** El proyecto ya usaba
+      `createRoot` y no quedaba nada de lo que React 19 eliminó. Verificado
+      arrancando la aplicación empaquetada contra una copia de la base real: el
+      dashboard pinta completo —tarjetas, gráficos de recharts, el aviso de
+      services— y el traslado de la base, las once migraciones, la verificación
+      de integridad y el respaldo diario siguen andando.
+    - **Vitest 4 → 5, framer-motion 12 → 13, class-validator 0.14 → 0.15.**
+      Ninguna pidió cambios. `framer-motion` no se importa en ningún lado: viene
+      sólo como peer de HeroUI. `class-validator` no tiene tests, así que se
+      ejercitó a mano contra los DTO reales —mensajes propios, validación
+      anidada del titular y el `@Transform` que pasa la patente a mayúsculas
+      antes de comparar el formato—.
+    - Con esto **no queda nada más actualizable** salvo los dos descartados con
+      motivo: TypeScript 7 (tarea 39) y HeroUI 3 (abajo).
+
+42. **[pendiente]** HeroUI 3: es otra librería, no una versión nueva
+    - Se probó de verdad, instalándola con sus peers. **315 errores de tipos en
+      los 47 archivos que la usan** —todos los que la usan—.
+    - No son renombres mecánicos. Los componentes pasaron a importarse **por
+      subruta** (`@heroui/react/button`), cambiaron de nombre (`Divider` →
+      `separator`, `Progress` → `progress-bar`) y cambiaron las props más
+      básicas: 39 usos de `label`, 39 de `color`, 27 de `content`, 10 de
+      `onClose`, 9 de `isLoading` y 6 de `startContent` ya no existen. `Modal`
+      perdió `ModalContent`, `Tooltip` perdió `content`, `Button` perdió `color`
+      e `isLoading`.
+    - Y hay componentes que **directamente no existen** en la 3: `Navbar`,
+      `User` y `HeroUIProvider`. La cabecera habría que rehacerla a mano.
+    - **No hay urgencia que lo justifique**: la 2.8 está mantenida, no tiene
+      vulnerabilidades y ya funciona con React 19. Migrar es rehacer la interfaz
+      entera contra una API nueva, sin poder mirar una sola pantalla mientras se
+      hace, y con 30 tareas todavía marcadas "a testear". Si algo se rompiera no
+      habría forma de saber si fue esto o cualquiera de las otras treinta.
+    - **Cuándo hacerlo**: después de que alguien use la aplicación y baje el
+      backlog de "a testear", y en una sesión con las pantallas a la vista.
 
 ---
 
@@ -1370,6 +1398,34 @@ Y la versión pasó a **2.0.0**. No es cosmética: entre 1.0.3 y esto la base se
 muda de Documentos a `userData`, cambia el driver, cambia el esquema y Electron
 saltó catorce mayores. Volver atrás no es reinstalar la anterior, es restaurar
 un respaldo.
+
+### 2026-09-06 — Lo que quedaba actualizable, y lo que no
+
+Cuatro mayores más, cada una en su tanda: **React 19**, **Vitest 5**,
+**framer-motion 13** y **class-validator 0.15**. Ninguna pidió cambios de
+código. Después de esto `npm outdated` sólo lista dos paquetes, y los dos están
+descartados con motivo escrito.
+
+React 19 se verificó donde importa: arrancando la aplicación empaquetada contra
+una copia de la base real. Traslada la base, saca la copia previa, corre las
+once migraciones, verifica integridad, deja el respaldo diario y **pinta el
+dashboard completo** —tarjetas, gráficos, aviso de services—. El único error del
+log es el de la pantalla de carga, que no existe fuera del paquete: eso es la
+tarea 31 haciendo su trabajo, un splash que falla ya no voltea el arranque.
+
+**HeroUI 3 se probó y se descartó.** Es lo que más costó decidir, así que
+conviene dejar el número: instalada con sus peers, deja **315 errores de tipos
+en los 47 archivos que la usan**, o sea todos. No son renombres mecánicos —los
+componentes se importan por subruta, cambiaron de nombre y perdieron las props
+más básicas: 39 usos de `label`, 39 de `color`, 27 de `content`— y encima
+`Navbar`, `User` y `HeroUIProvider` no existen más. Es rehacer la interfaz
+entera contra una API nueva sin poder mirar una sola pantalla mientras se hace,
+con 30 tareas todavía sin probar: si algo se rompiera, no habría forma de saber
+si fue esto o cualquiera de las otras treinta. La 2.8 está mantenida, sin
+vulnerabilidades y andando con React 19, así que no hay nada que fuerce la mano.
+
+TypeScript 7 sigue igual que en la evaluación anterior: `typescript-eslint`
+todavía declara `typescript <6.1.0`.
 
 ### Historial anterior
 
