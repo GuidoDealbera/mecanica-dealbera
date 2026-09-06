@@ -1,5 +1,8 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
-import { v4 } from "uuid";
+// `randomUUID` de Node y no el paquete `uuid`: TypeORM lo traía como
+// dependencia transitiva y dejó de hacerlo en la 1.x, así que importarlo acá
+// rompía el build. El de Node hace exactamente lo mismo y no suma dependencias.
+import { randomUUID } from "node:crypto";
 import { logError } from "../../logger";
 
 /**
@@ -93,7 +96,7 @@ export class NormalizeJobs1700000004000 implements MigrationInterface {
             ("id", "price", "description", "isThirdParty", "status", "parts", "createdAt", "updatedAt", "carId")
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
-            job.id ?? v4(),
+            job.id ?? randomUUID(),
             job.price ?? 0,
             job.description ?? "",
             job.isThirdParty ? 1 : 0,

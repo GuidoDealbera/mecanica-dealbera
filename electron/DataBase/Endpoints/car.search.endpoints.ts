@@ -27,7 +27,7 @@ handleIpc("global:search", async (_, query: string) => {
         { licensePlate: Like(`%${q.toUpperCase()}%`) },
         { model: Like(`%${q.toUpperCase()}%`) },
       ],
-      relations: ["owner"],
+      relations: { owner: true },
       take: 6,
     }),
     clientRepo.find({

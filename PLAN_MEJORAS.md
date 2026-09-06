@@ -940,14 +940,40 @@ real: un upgrade sin forma de verificarlo es una apuesta.
       probando la pantalla**.
     - Esfuerzo: medio · Riesgo: medio si se hace en bloque, bajo de a uno.
 
-37. **[pendiente]** Lo que queda por modernizar
-    - **TypeORM 0.3 → 1.x**: major sobre la capa de datos. Conviene solo, con los
-      scripts de verificación contra copias. Es la oportunidad de evaluar
-      `better-sqlite3`, que es el driver correcto para Electron y **eliminaría
-      el `legacy-peer-deps`** (ese hack existe sólo porque typeorm pide
-      `sqlite3@^5`).
+37. **[a testear]** TypeORM 0.3 → 1.x, con cambio de driver
+    - Se hizo en **dos tandas separadas a propósito** —driver primero, ORM
+      después— para que fueran dos variables independientes: si algo se rompía,
+      se sabía cuál de las dos.
+    - **El driver no era opcional**: TypeORM 1.x eliminó `sqlite3`, sus peers
+      sólo listan `better-sqlite3`.
+    - **La versión del driver importa, y no es la que pide typeorm.** La 12
+      descarga un binario atado al ABI de Node: dentro de Electron falla con
+      `NODE_MODULE_VERSION 137` y habría que recompilarla en cada instalación
+      para poder correr `npm run dev`. Se probó: la aplicación no abre la base.
+      La 13 trae binarios **N-API** dentro del paquete, estables entre Node y
+      Electron. Por eso el `legacy-peer-deps` **se queda**, ahora con un motivo
+      mejor: typeorm declara hasta `^12` y usamos la 13 a conciencia.
+    - Por lo mismo se desactivó `npmRebuild` en electron-builder: intentaba
+      recompilar con node-gyp y hacía fallar el empaquetado en cualquier máquina
+      sin toolchain de C++, para reconstruir algo que ya viene listo.
+    - Antes de migrar se verificaron las tres operaciones de las que depende
+      todo el resguardo: `VACUUM INTO ?` con parámetro, `VACUUM INTO` literal y
+      `PRAGMA integrity_check`. Las tres andan igual.
+    - Rupturas de TypeORM 1.x, las dos mecánicas: `relations` dejó de aceptar
+      arrays de strings (18 sitios, pasados a la forma de objeto) y el paquete
+      `uuid` dejó de venir como dependencia transitiva —se reemplazó por
+      `randomUUID` de `node:crypto`, que hace lo mismo sin sumar nada—.
+    - Verificado más allá de los tipos: un script contra una copia de la base
+      real comprueba que las relaciones en forma de objeto carguen **lo mismo**
+      que los arrays —titular, trabajos, vehículos del cliente con sus trabajos
+      anidados, y el titular anidado del recordatorio— y que el listado paginado
+      con join siga andando. Y sobre el paquete real: traslada, copia previa,
+      once migraciones, integridad `ok` y respaldo diario.
+
+38. **[pendiente]** Lo que queda por modernizar
     - **React 18 → 19 y HeroUI 2 → 3**: dos majors que tocan toda la interfaz.
-      Lo que menos compra y lo que más pantalla mueve; conviene último.
+      Lo que menos compra y lo que más pantalla mueve; conviene último, y con
+      alguien mirando las pantallas.
     - **TypeScript 5.9 → 7**: es la reescritura nativa. Hay que verificar que
       soporte `emitDecoratorMetadata`, del que depende TypeORM.
 

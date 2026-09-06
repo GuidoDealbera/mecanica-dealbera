@@ -120,7 +120,7 @@ handleIpc(
     try {
       const job = await qr.manager.findOne(Job, {
         where: { id: jobId },
-        relations: ["car"],
+        relations: { car: true },
       });
       if (!job) {
         await qr.rollbackTransaction();

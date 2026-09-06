@@ -69,7 +69,7 @@ const toView = (reminder: ServiceReminder): ServiceReminderView => ({
 const findReminder = async (id: string) =>
   getRepositories().serviceReminderRepository.findOne({
     where: { id },
-    relations: ["car", "car.owner"],
+    relations: { car: { owner: true } },
   });
 
 handleIpc("service:settings-get", async (): Promise<ServiceSettings> => {
@@ -197,7 +197,7 @@ handleIpc(
         car: { licensePlate },
         status: In(ACTIVE_STATUSES),
       },
-      relations: ["car", "car.owner"],
+      relations: { car: { owner: true } },
       order: { dueDate: "ASC" },
     });
     return reminders.map(toView);
@@ -304,7 +304,7 @@ handleIpc(
     try {
       const reminder = await qr.manager.findOne(ServiceReminder, {
         where: { id },
-        relations: ["car", "car.owner"],
+        relations: { car: { owner: true } },
       });
       if (!reminder) {
         await qr.rollbackTransaction();
@@ -443,7 +443,7 @@ handleIpc(
       getRepositories();
     const car = await carRepository.findOne({
       where: { licensePlate: body.licensePlate },
-      relations: ["owner"],
+      relations: { owner: true },
     });
     if (!car) {
       return { status: "failed", message: "Vehículo no registrado" };
@@ -470,13 +470,13 @@ handleIpc(
     // Si no se está editando uno puntual, se reutiliza el vigente del vehículo
     // para no dejar dos recordatorios activos.
     const existing = body.id
-      ? await repo.findOne({ where: { id: body.id }, relations: ["car"] })
+      ? await repo.findOne({ where: { id: body.id }, relations: { car: true } })
       : await repo.findOne({
           where: {
             car: { id: car.id },
             status: In(ACTIVE_STATUSES),
           },
-          relations: ["car"],
+          relations: { car: true },
         });
 
     const reminder =

@@ -126,7 +126,7 @@ handleIpc(
       where: {
         fullname,
       },
-      relations: ["cars", "cars.jobs"],
+      relations: { cars: { jobs: true } },
     });
     if (!owner) {
       return {
@@ -164,7 +164,10 @@ handleIpc("client:search", async (_, query: string) => {
 
 handleIpc("client:toggle-active", async (_, id: string) => {
   const repo = getRepositories().clientRepository;
-  const client = await repo.findOne({ where: { id }, relations: ["cars"] });
+  const client = await repo.findOne({
+    where: { id },
+    relations: { cars: true },
+  });
   if (!client) {
     return {
       status: "failed",
@@ -188,7 +191,7 @@ handleIpc("client:delete", async (_, id: string) => {
   try {
     const client = await qr.manager.findOne(Client, {
       where: { id },
-      relations: ["cars"],
+      relations: { cars: true },
     });
     if (!client) {
       await qr.rollbackTransaction();
@@ -256,7 +259,7 @@ handleIpc("client:update", async (_, payload: UpdateClientDto) => {
     where: {
       id: saved.id,
     },
-    relations: ["cars"],
+    relations: { cars: true },
   });
   return {
     status: "success",

@@ -152,7 +152,7 @@ handleIpc(
       where: {
         licensePlate: licence,
       },
-      relations: ["owner", "jobs"],
+      relations: { owner: true, jobs: true },
       // Orden explícito: sin esto lo decidía la base, así que la tabla de
       // trabajos de la ficha, el documento que se emite y el historial podían
       // mostrar el mismo listado en órdenes distintos (y la tabla pagina de 5 en
@@ -181,7 +181,7 @@ handleIpc("car:update", async (_, id: string, kilometers: number) => {
     where: {
       id: id,
     },
-    relations: ["owner"],
+    relations: { owner: true },
   });
   if (!car) {
     return {
@@ -241,7 +241,7 @@ handleIpc("car:delete", async (_, license: CreateCarDto["licensePlate"]) => {
   try {
     const car = await qr.manager.findOne(Car, {
       where: { licensePlate: license },
-      relations: ["owner"],
+      relations: { owner: true },
     });
 
     if (!car) {
@@ -288,7 +288,7 @@ handleIpc(
     try {
       const car = await qr.manager.findOne(Car, {
         where: { licensePlate },
-        relations: ["owner"],
+        relations: { owner: true },
       });
       if (!car) {
         await qr.rollbackTransaction();

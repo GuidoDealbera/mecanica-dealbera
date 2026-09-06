@@ -97,7 +97,7 @@ export const findActiveReminder = async (
 ): Promise<ServiceReminder | null> =>
   manager.findOne(ServiceReminder, {
     where: { car: { id: carId }, status: In(ACTIVE_STATUSES) },
-    relations: ["car"],
+    relations: { car: true },
   });
 
 /**
