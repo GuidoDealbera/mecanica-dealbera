@@ -71,7 +71,12 @@ const DocumentHistory: React.FC<DocumentHistoryProps> = ({
 
   // Emitir un documento invalida la caché del dashboard, así que el aviso de
   // "cambiaron los datos" también cubre este listado.
+  // El aviso salta por el `setLoading(true)` con el que arranca `load`, que es
+  // sincrónico. Suscribirse a un sistema externo y traer sus datos es
+  // justamente para lo que están los efectos; sin ese `true` inmediato la
+  // pantalla mostraría el listado viejo mientras llega el nuevo.
   React.useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- carga y suscripción a un sistema externo
     load();
     return window.api.onDataChanged(load);
   }, [load]);

@@ -86,6 +86,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose }) => {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- consulta al proceso principal; el `setLoading(true)` sincrónico dispara el aviso
     search(debouncedQuery);
   }, [debouncedQuery, search]);
 

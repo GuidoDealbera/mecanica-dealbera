@@ -79,6 +79,7 @@ const NextServiceCard: React.FC<NextServiceCardProps> = ({
   }, [licensePlate, showToast]);
 
   React.useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- consulta al proceso principal; el `setLoading(true)` sincrónico dispara el aviso
     fetch();
   }, [fetch]);
 

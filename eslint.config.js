@@ -50,15 +50,18 @@ export default tseslint.config(
       ],
 
       // Regla nueva del compilador de React: llamar a `setState` de forma
-      // síncrona dentro de un efecto provoca un render en cascada. Tiene razón
-      // —hay 17 casos, casi todos correcciones de estado del tipo "la página
-      // quedó fuera de rango"— pero **no son bugs**, y reescribir diecisiete
-      // efectos de una es la mejor forma de introducir una regresión.
+      // síncrona dentro de un efecto provoca un render en cascada. Entró como
+      // aviso con 17 casos; hoy los que quedan son ocho efectos de carga o
+      // suscripción, cada uno con su `eslint-disable-next-line` explicando por
+      // qué —el aviso lo dispara el `setLoading(true)` sincrónico con el que
+      // arrancan, y traer datos de un sistema externo es justamente para lo
+      // que están los efectos—.
       //
-      // Queda como aviso para verlos, no para que traben el build. Está
-      // anotado como tarea en PLAN_MEJORAS.md; el camino es ir migrándolos a
-      // estado derivado durante el render, de a uno y probando la pantalla.
-      "react-hooks/set-state-in-effect": "warn",
+      // Por eso pasa a error: con los casos reales ya migrados a estado
+      // derivado, cualquier cascada nueva es algo que conviene mirar antes de
+      // que entre. Si aparece un efecto legítimo más, se silencia en el lugar
+      // y con el motivo escrito, no bajando la regla.
+      "react-hooks/set-state-in-effect": "error",
     },
   }
 );

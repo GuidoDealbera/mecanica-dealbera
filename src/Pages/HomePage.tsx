@@ -100,6 +100,7 @@ const HomePage: React.FC = () => {
   // que cambiaron los datos: dejarlo abierto en otra ventana mientras se carga
   // un trabajo ya no muestra números viejos.
   React.useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- carga y suscripción a un sistema externo
     fetchStats();
     return window.api.onDataChanged(() => fetchStats());
   }, [fetchStats]);

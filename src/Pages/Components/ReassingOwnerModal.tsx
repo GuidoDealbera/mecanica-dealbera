@@ -78,9 +78,13 @@ const ReassignOwnerModal: React.FC<ReassignOwnerModalProps> = ({
     },
   });
 
-  // Limpiar estado al abrir/cerrar
+  // La limpieza se queda en un efecto y no pasa a `useResetOn`: además del
+  // estado propio hay que llamar al `reset` de react-hook-form, que avisa a sus
+  // suscriptores y por eso no puede correr durante el render. Y como corre al
+  // cerrar, el render de más no se ve.
   React.useEffect(() => {
     if (!isOpen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- también resetea react-hook-form, que no puede correr durante el render
       setMode("existing");
       setSelectedFullname("");
       setQuery("");
@@ -95,6 +99,7 @@ const ReassignOwnerModal: React.FC<ReassignOwnerModalProps> = ({
   React.useEffect(() => {
     const q = debouncedQuery.trim();
     if (q.length < 2) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- consulta al proceso principal, con cancelación al desmontar
       setResults([]);
       return;
     }
