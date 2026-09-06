@@ -137,6 +137,31 @@ recorta **pierde su sombra**. Por eso el cuerpo de `PageShell` lleva `pt-1`.
 Cabecera fija, cuerpo que scrollea, pie opcional. Las pantallas nuevas van con
 `PageShell`, no con un `div` a mano.
 
+### Corregir estado: durante el render, no en un efecto
+
+`react-hooks/set-state-in-effect` está en **error**. Un `setState` síncrono
+dentro de un efecto pinta una vez con el estado viejo y recién después lo
+corrige.
+
+Dos reemplazos ya escritos, y conviene usarlos antes que un efecto nuevo:
+
+- **`clampPage`** (`src/Utils/pagination.ts`) para la página fuera de rango. El
+  efecto que reemplazó retrocedía de a una página por vuelta: filtrar desde la
+  página 6 a tres resultados encadenaba cinco consultas.
+- **`useResetOn`** (`src/Hooks/useResetOn.ts`) para preparar campos al abrir un
+  modal. Actualiza el estado durante el render, que es lo que documenta React:
+  descarta el render en curso y vuelve a empezar sin llegar a pintar.
+
+**Sólo vale para el estado del propio componente.** Avisarle a algo de afuera
+—el `reset` de react-hook-form, el DOM, una suscripción— sigue yendo en un
+efecto.
+
+Traer datos también va en un efecto, y ahí la regla marca un falso positivo: lo
+dispara el `setLoading(true)` sincrónico del arranque, que hace falta para no
+mostrar el listado viejo mientras llega el nuevo. Esos ocho casos están
+silenciados en el lugar con el motivo escrito. Si aparece otro, se silencia
+igual: no bajar la regla.
+
 ### Limpiar las suscripciones IPC
 
 `window.api.onDataChanged` y los listeners del auto-updater devuelven (o
