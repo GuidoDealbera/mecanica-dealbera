@@ -1248,6 +1248,42 @@ pero nadie usó la aplicación. Lo que más conviene mirar con la app abierta:
    corre dos migraciones nuevas. Conviene copiar `Documents/taller.db` antes,
    aunque el traslado deje la vieja apartada como `taller.db.migrated`.
 
+### 2026-09-06 — Modernización: de 31 vulnerabilidades a cero
+
+Seis tandas, cada una con su commit y su verificación sobre el paquete real.
+
+|                    | antes                    | ahora                         |
+| ------------------ | ------------------------ | ----------------------------- |
+| Vulnerabilidades   | 31 (1 crítica, 22 altas) | **0**                         |
+| Electron           | 30.5.1 (sin soporte)     | 44.2.0                        |
+| Vite               | 5.4                      | 8.2                           |
+| ESLint             | 8 (EOL, `.eslintrc`)     | 10 (config plana)             |
+| TypeORM            | 0.3 (driver `sqlite3`)   | 1.1 (driver `better-sqlite3`) |
+| Tests              | 122                      | **137**                       |
+| Build del renderer | 12 s                     | 4,5 s                         |
+
+Cuatro cosas que costaron encontrar y conviene no volver a descubrir:
+
+- **Vite 8 casi rompe la aplicación en silencio.** Empaqueta con Rolldown y
+  renombró `build.rollupOptions` a `build.rolldownOptions`. Con el nombre viejo
+  la configuración se ignora **sin avisar**: typeorm, sqlite3 y electron-log
+  entraron al bundle (720 kB → 2,2 MB) y la aplicación dejó de arrancar con
+  `__dirname is not defined in ES module scope`.
+- **La versión del driver de la base importa más que el peer de typeorm.**
+  `better-sqlite3@12` trae un binario atado al ABI de Node y dentro de Electron
+  falla con `NODE_MODULE_VERSION 137`; la 13 trae binarios N-API. Se usa la 13 a
+  conciencia, y por eso el `legacy-peer-deps` se queda.
+- **`electron-builder` intentaba recompilar lo que ya venía listo**, y hacía
+  fallar el empaquetado en cualquier máquina sin toolchain de C++. Se desactivó
+  `npmRebuild`.
+- **ESLint 10 encontró un bug real**: se mutaba un ref durante el render en
+  `useGlobalShortcuts`. React puede descartar y repetir un render, y ahí el
+  valor queda desincronizado con lo que se pintó.
+
+Lo que **no** se hizo, a propósito: los 17 `setState` dentro de efectos (tarea 36) y React 19 + HeroUI 3 (tarea 40). Los dos tocan mucha pantalla y ninguno
+arregla un bug; encima de un backlog que todavía nadie probó a mano, sumarían
+riesgo sin comprar nada. Van cuando haya alguien mirando las pantallas.
+
 ### Historial anterior
 
 El plan de 33 tareas (sprints 0 a 7) se completó entre el 18/07/2026 y el
