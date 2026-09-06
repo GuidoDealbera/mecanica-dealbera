@@ -59,6 +59,14 @@ interface DocumentModalProps {
   car: Cars;
   /** Todos los trabajos del vehículo; el modal filtra los que puede incluir. */
   jobs: Jobs[];
+  /**
+   * Patente de cada trabajo, por id. Sólo la manda el documento consolidado de
+   * un cliente: ahí los trabajos vienen de varios autos y hay que poder
+   * distinguirlos en la lista.
+   */
+  plateByJob?: Record<string, string>;
+  /** Reemplaza la línea del vehículo en la cabecera (documento de cliente). */
+  subtitle?: string;
   isGenerating: boolean;
   onConfirm: (
     type: DocumentType,
@@ -80,6 +88,8 @@ const DocumentModal: React.FC<DocumentModalProps> = ({
   onClose,
   car,
   jobs,
+  plateByJob,
+  subtitle,
   isGenerating,
   onConfirm,
 }) => {
@@ -133,8 +143,10 @@ const DocumentModal: React.FC<DocumentModalProps> = ({
             Emitir documento
           </span>
           <span className="text-foreground-400 text-xs font-normal">
-            {car.licensePlate} — {car.brand} {car.model} ·{" "}
-            {car.owner?.fullname ?? "Sin titular"}
+            {subtitle ??
+              `${car.licensePlate} — ${car.brand} ${car.model} · ${
+                car.owner?.fullname ?? "Sin titular"
+              }`}
           </span>
         </ModalHeader>
         <Divider className="bg-divider" />
@@ -224,6 +236,11 @@ const DocumentModal: React.FC<DocumentModalProps> = ({
                       <div className="flex items-start justify-between gap-3 w-full">
                         <div className="min-w-0">
                           <p className="text-sm font-medium break-words">
+                            {plateByJob?.[job.id] && (
+                              <span className="text-primary font-semibold mr-1.5">
+                                {plateByJob[job.id]}
+                              </span>
+                            )}
                             {job.description}
                           </p>
                           <div className="flex items-center gap-2 mt-1 flex-wrap">

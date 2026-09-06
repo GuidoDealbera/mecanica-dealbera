@@ -12,6 +12,7 @@ import {
   Input,
 } from "@heroui/react";
 import { HiOutlineRefresh } from "react-icons/hi";
+import ClientDocumentButton from "../Components/ClientDocumentButton";
 import {
   MdEmail,
   MdPhone,
@@ -197,6 +198,10 @@ const ClientDetailPage: React.FC = () => {
           >
             {loading ? "Actualizando..." : "Actualizar"}
           </Button>
+          {/* Un solo documento con los trabajos de todos sus vehículos: antes
+              un cliente con dos autos se llevaba dos documentos, con dos
+              números, y tenía que sumar a mano. */}
+          <ClientDocumentButton cars={clientCars} />
           <Button
             color={isEditing ? "danger" : "default"}
             startContent={

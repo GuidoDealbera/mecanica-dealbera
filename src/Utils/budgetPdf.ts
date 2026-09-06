@@ -52,6 +52,29 @@ export interface RenderBudgetParams {
    * en la app. Si no se pasa, se usa la tipografía estándar del documento.
    */
   plateFontBase64?: string;
+  /**
+   * Documento **consolidado** de un cliente con varios vehículos.
+   *
+   * Cuando viene con más de uno, el documento deja de ser "de un auto" y pasa a
+   * ser "de un cliente": el recuadro de la patente lista todas, la ficha del
+   * vehículo se reemplaza por el listado, y la tabla de trabajos gana una
+   * columna con la patente de cada uno. El bloque del titular no cambia, que es
+   * lo que hace que el consolidado tenga sentido: es el mismo cliente.
+   *
+   * `car` sigue haciendo falta: de ahí salen los datos del titular.
+   */
+  vehicles?: VehicleSummary[];
+  /** Patente de cada trabajo, por id. Sólo se usa en el modo consolidado. */
+  jobPlates?: Record<string, string>;
+}
+
+/** Datos mínimos de un vehículo para el listado del documento consolidado. */
+export interface VehicleSummary {
+  licensePlate: string;
+  brand: string;
+  model: string;
+  year: number;
+  kilometers: number;
 }
 
 export const renderBudgetDocument = ({
@@ -62,7 +85,13 @@ export const renderBudgetDocument = ({
   docType,
   title,
   plateFontBase64,
+  vehicles,
+  jobPlates,
 }: RenderBudgetParams): jsPDF => {
+  // Consolidado sólo si hay más de un vehículo: con uno solo el documento de
+  // cliente y el de vehículo son lo mismo, y conviene el formato conocido.
+  const consolidado = (vehicles?.length ?? 0) > 1;
+
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
 
   const pageW = doc.internal.pageSize.getWidth();
@@ -146,7 +175,12 @@ export const renderBudgetDocument = ({
   doc.setFont("helvetica", "normal");
   doc.setFontSize(T.small);
   doc.setTextColor(...CO.textMuted);
-  doc.text("PATENTE DEL VEHÍCULO", pageW / 2, y + 7, { align: "center" });
+  doc.text(
+    consolidado ? "VEHÍCULOS DEL CLIENTE" : "PATENTE DEL VEHÍCULO",
+    pageW / 2,
+    y + 7,
+    { align: "center" }
+  );
 
   // La patente se dibuja con la misma tipografía que en la app (FE-FONT).
   doc.setTextColor(...CO.text);
@@ -157,9 +191,25 @@ export const renderBudgetDocument = ({
     doc.setFont("helvetica", "bold");
     doc.setFontSize(T.plate - 2);
   }
-  doc.text(formatLicence(car.licensePlate), pageW / 2, y + 20, {
-    align: "center",
-  });
+
+  if (consolidado) {
+    // Con varias patentes la tipografía de patente no entra a tamaño completo:
+    // se achica hasta que la línea quepa, en vez de desbordar el recuadro.
+    const texto = vehicles!
+      .map((v) => formatLicence(v.licensePlate))
+      .join("   ");
+    let size = T.plate;
+    doc.setFontSize(size);
+    while (size > 8 && doc.getTextWidth(texto) > contentW - 12) {
+      size -= 1;
+      doc.setFontSize(size);
+    }
+    doc.text(texto, pageW / 2, y + 19, { align: "center" });
+  } else {
+    doc.text(formatLicence(car.licensePlate), pageW / 2, y + 20, {
+      align: "center",
+    });
+  }
 
   // ─── DATOS DEL VEHÍCULO Y DEL TITULAR ────────────────────────────────
   y += plateBoxH + L.gap;
@@ -195,12 +245,27 @@ export const renderBudgetDocument = ({
     });
   };
 
-  drawInfoCard(margin, "VEHÍCULO", [
-    ["Marca", car.brand ?? "---"],
-    ["Modelo", car.model ?? "---"],
-    ["Año", String(car.year ?? "---")],
-    ["Kilometraje", `${(car.kilometers ?? 0).toLocaleString("es-AR")} km`],
-  ]);
+  if (consolidado) {
+    // Un renglón por vehículo. Si son más de cuatro no entran en la tarjeta, y
+    // el resto ya está listado arriba en el recuadro de patentes.
+    const filas = vehicles!
+      .slice(0, 4)
+      .map((v): [string, string] => [
+        v.licensePlate,
+        `${v.brand} ${v.model} (${v.year})`,
+      ]);
+    if (vehicles!.length > 4) {
+      filas[3] = ["", `y ${vehicles!.length - 3} vehículos más`];
+    }
+    drawInfoCard(margin, "VEHÍCULOS", filas);
+  } else {
+    drawInfoCard(margin, "VEHÍCULO", [
+      ["Marca", car.brand ?? "---"],
+      ["Modelo", car.model ?? "---"],
+      ["Año", String(car.year ?? "---")],
+      ["Kilometraje", `${(car.kilometers ?? 0).toLocaleString("es-AR")} km`],
+    ]);
+  }
 
   drawInfoCard(margin + colW + L.gap, "TITULAR", [
     ["Nombre", car.owner?.fullname ?? "---"],
@@ -250,7 +315,16 @@ export const renderBudgetDocument = ({
       startY: y,
       margin: { left: margin, right: margin },
       head: [
-        ["Descripción", "Estado", "Terceros", "Repuestos", "Mano de obra"],
+        consolidado
+          ? [
+              "Patente",
+              "Descripción",
+              "Estado",
+              "Terceros",
+              "Repuestos",
+              "Mano de obra",
+            ]
+          : ["Descripción", "Estado", "Terceros", "Repuestos", "Mano de obra"],
       ],
       body: jobs.map((job) => {
         const partsTotal = (job.parts ?? []).reduce(
@@ -261,7 +335,7 @@ export const renderBudgetDocument = ({
         // misma celda: como fila aparte rompería la grilla de la tabla y el
         // cálculo de totales por columna.
         const clientNote = job.clientNote?.trim();
-        return [
+        const fila = [
           clientNote
             ? `${job.description ?? ""}\n${clientNote}`
             : (job.description ?? ""),
@@ -270,6 +344,9 @@ export const renderBudgetDocument = ({
           partsTotal > 0 ? formatARS(partsTotal) : "---",
           formatARS(job.price ?? 0),
         ];
+        // En el consolidado cada trabajo tiene que decir de qué auto es: sin
+        // eso, un cliente con dos vehículos recibe una lista indistinguible.
+        return consolidado ? [jobPlates?.[job.id] ?? "---", ...fila] : fila;
       }),
       theme: "grid",
       styles: {
@@ -290,16 +367,29 @@ export const renderBudgetDocument = ({
       },
       bodyStyles: { fillColor: CO.surfaceAlt },
       alternateRowStyles: { fillColor: CO.surface },
-      columnStyles: {
-        0: { cellWidth: "auto" },
-        1: { cellWidth: 26, halign: "center" },
-        2: { cellWidth: 19, halign: "center" },
-        3: { cellWidth: 28, halign: "right" },
-        4: { cellWidth: 30, halign: "right" },
-      },
+      // Con la columna de patente todo se corre un lugar; la descripción sigue
+      // siendo la elástica.
+      columnStyles: consolidado
+        ? {
+            0: { cellWidth: 22, halign: "center" },
+            1: { cellWidth: "auto" },
+            2: { cellWidth: 24, halign: "center" },
+            3: { cellWidth: 17, halign: "center" },
+            4: { cellWidth: 26, halign: "right" },
+            5: { cellWidth: 28, halign: "right" },
+          }
+        : {
+            0: { cellWidth: "auto" },
+            1: { cellWidth: 26, halign: "center" },
+            2: { cellWidth: 19, halign: "center" },
+            3: { cellWidth: 28, halign: "right" },
+            4: { cellWidth: 30, halign: "right" },
+          },
       // Chip de estado, con el mismo color semántico que en la app.
       didDrawCell: (data) => {
-        if (data.section !== "body" || data.column.index !== 1) return;
+        const statusColumn = consolidado ? 2 : 1;
+        if (data.section !== "body" || data.column.index !== statusColumn)
+          return;
         const status = rowStatuses[data.row.index];
         const chip = STATUS_CHIP[status];
         if (!chip) return;

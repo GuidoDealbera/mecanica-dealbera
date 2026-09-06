@@ -696,12 +696,38 @@ numeración corrida para no renumerar el resto.
     - Avisar es best-effort: si un listener falla, no puede hacer fallar la
       mutación que se acaba de guardar.
 
-22. **[pendiente]** Emitir un documento consolidado desde la ficha del cliente
-    - Hoy el presupuesto/factura es por vehículo. Un cliente con dos autos en el
-      taller necesita dos documentos.
-    - Solución: reusar el modal de emisión con los trabajos de todos sus
-      vehículos, agrupados por patente en la tabla del PDF.
-    - Esfuerzo: medio · Riesgo: bajo.
+22. **[a testear]** Emitir un documento consolidado desde la ficha del cliente
+    - Archivos: `src/Components/ClientDocumentButton.tsx` (nuevo),
+      `src/Utils/budgetPdf.ts`, `src/Hooks/useBudgetPdf.ts`,
+      `src/Components/DocumentModal.tsx`, `src/Pages/ClientDetailPage.tsx`,
+      `src/Utils/budgetPdfConsolidated.test.ts` (nuevo).
+    - Un cliente con dos autos en el taller recibía **dos** documentos, con dos
+      números, y tenía que sumar a mano. Ahora la ficha del cliente tiene un
+      botón que emite uno solo con los trabajos de todos sus vehículos.
+    - Lo que hace que el consolidado tenga sentido es que **el bloque del titular
+      no cambia**: es el mismo cliente. Lo que cambia es el resto: el recuadro
+      de la patente lista todas (achicando la tipografía hasta que entren), la
+      ficha del vehículo se reemplaza por el listado de autos, y la tabla de
+      trabajos gana una **columna de patente** —sin eso, el cliente recibe una
+      lista de trabajos indistinguibles—.
+    - Se activa sólo con **más de un** vehículo: con uno solo el documento de
+      cliente y el de vehículo son lo mismo, y conviene el formato conocido.
+    - En el modal cada trabajo muestra su patente al lado, y sólo entran al
+      documento los vehículos que aportan algún trabajo elegido: listar un auto
+      sin trabajos sería ruido.
+    - En el registro del documento la patente pasa a ser la lista de patentes.
+      La columna es de texto, así que el historial sigue diciendo a qué autos
+      corresponde sin inventar una tabla de relación para un caso de borde.
+    - La emisión (numeración, descarga, descarte del número ante un fallo) quedó
+      factorizada en un solo lugar: el consolidado y el de siempre comparten
+      todo salvo qué se imprime.
+    - **4 tests nuevos** sobre la tabla que realmente dibuja `jspdf-autotable`
+      (`lastAutoTable`): que el consolidado tiene 6 columnas y que cada fila
+      lleva la patente que le corresponde, que con un solo vehículo siguen
+      siendo 5, que sin `vehicles` nada cambia, y que el total suma los trabajos
+      de todos los autos.
+    - **Falta la revisión visual**: se puede generar un PDF de muestra con
+      `PDF_PREVIEW_DIR=<carpeta> npx vitest run src/Utils/pdfPreview.test.ts`.
 
 ---
 
