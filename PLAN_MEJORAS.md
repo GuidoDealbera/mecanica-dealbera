@@ -992,12 +992,21 @@ real: un upgrade sin forma de verificarlo es una apuesta.
       modal de HeroUI se pinta en un portal con estilos de superposición que
       jsdom no resuelve, así que la visibilidad da falsos negativos.
 
-39. **[pendiente]** Lo que queda por modernizar
+39. **[hecho]** TypeScript 7: evaluado y descartado por ahora
+    - Se probó de verdad. **Typechea el proyecto entero y limpio en 2,2
+      segundos**, un salto grande frente al compilador actual.
+    - Pero **`typescript-eslint` no soporta TS 7.0** y falla al arrancar:
+      adoptarlo hoy es quedarse sin lint, o hacer malabares corriendo la API de
+      TS 6 en paralelo. Y TS 6 sólo existe como `6.0.0-beta`, así que tampoco es
+      salida.
+    - Se volvió a 5.9. **Revisar cuando typescript-eslint soporte TS ≥ 7.1**
+      (typescript-eslint#10940): es de las actualizaciones más rentables que
+      quedan y no depende de nosotros.
+
+40. **[pendiente]** Lo que queda por modernizar
     - **React 18 → 19 y HeroUI 2 → 3**: dos majors que tocan toda la interfaz.
       Lo que menos compra y lo que más pantalla mueve; conviene último, y con
-      alguien mirando las pantallas.
-    - **TypeScript 5.9 → 7**: es la reescritura nativa. Hay que verificar que
-      soporte `emitDecoratorMetadata`, del que depende TypeORM.
+      alguien mirando las pantallas. Hoy es lo único de versiones que falta.
 
 ---
 
