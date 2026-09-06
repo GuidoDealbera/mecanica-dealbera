@@ -1,12 +1,14 @@
 import React from "react";
 import { useLocation } from "react-router-dom";
-import { Input, Pagination } from "@heroui/react";
+import { Button, Input, Pagination } from "@heroui/react";
 import { IoSearch } from "react-icons/io5";
+import { MdCheckCircle, MdClose } from "react-icons/md";
 import AddJobForm from "../Components/Forms/AddJobForm";
 import { useCarQueries } from "../Hooks/useCarQueries";
 import { useDebounce } from "../Hooks/useDebounce";
 import CarsList from "./Components/CarsList";
 import { CarQueryParams, CreateCarJob } from "../Types/apiTypes";
+import { Cars } from "../Types/types";
 
 const PICKER_PAGE_SIZE = 12;
 
@@ -15,7 +17,13 @@ const AddJobPage: React.FC = () => {
   const { list, listLoading, loadingStates, addCarJob, getCars, cleanCars } =
     useCarQueries();
   const [selectedLicense, setSelectedLicense] = React.useState<string>("");
-  const [search, setSearch] = React.useState("");
+  // El vehículo elegido se guarda entero, no sólo la patente: hace falta para
+  // el resumen de arriba, que tiene que seguir visible aunque el auto ya no esté
+  // en la página del listado que se está viendo.
+  const [selectedCar, setSelectedCar] = React.useState<Cars | null>(null);
+  const [search, setSearch] = React.useState<string>(
+    () => state?.license ?? ""
+  );
   const [page, setPage] = React.useState(1);
   const debouncedSearch = useDebounce(search, 250);
 
@@ -41,6 +49,31 @@ const AddJobPage: React.FC = () => {
       setSelectedLicense(state.license);
     }
   }, [state]);
+
+  // Cuando se llega con un vehículo ya elegido (desde su ficha) sólo viaja la
+  // patente, así que sus datos se completan en cuanto aparece en el listado. El
+  // buscador arranca precargado con esa patente justamente para que aparezca.
+  React.useEffect(() => {
+    if (!selectedLicense || selectedCar?.licensePlate === selectedLicense) {
+      return;
+    }
+    const encontrado = list.items.find(
+      (car) => car.licensePlate === selectedLicense
+    );
+    if (encontrado) setSelectedCar(encontrado);
+  }, [selectedLicense, selectedCar, list.items]);
+
+  const handleSelect = (license: string) => {
+    setSelectedLicense(license);
+    setSelectedCar(
+      list.items.find((car) => car.licensePlate === license) ?? null
+    );
+  };
+
+  const handleClearSelection = () => {
+    setSelectedLicense("");
+    setSelectedCar(null);
+  };
 
   const handleSubmit = async (data: CreateCarJob) => {
     return await addCarJob(selectedLicense, data);
@@ -73,12 +106,55 @@ const AddJobPage: React.FC = () => {
         }}
       />
 
+      {/* Resumen del vehículo elegido. Se muestra siempre que haya una
+          selección, sin depender de que la tarjeta esté en la página visible:
+          antes, si el auto no caía en la primera página, no se veía nada
+          marcado y parecía que no se había seleccionado. */}
+      {selectedLicense && (
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border-2 border-primary-400 bg-primary-700 px-4 py-3 text-white shadow shadow-primary-900/40">
+          <MdCheckCircle size={20} className="flex-shrink-0" />
+          <div className="flex flex-col">
+            <span className="text-xs text-primary-200">
+              Vehículo seleccionado
+            </span>
+            <span className="text-lg font-semibold tracking-wide">
+              {selectedLicense}
+            </span>
+          </div>
+          {selectedCar && (
+            <>
+              <div className="flex flex-col">
+                <span className="text-xs text-primary-200">Vehículo</span>
+                <span className="text-sm font-medium">
+                  {selectedCar.brand} {selectedCar.model} ({selectedCar.year})
+                </span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-xs text-primary-200">Titular</span>
+                <span className="text-sm font-medium">
+                  {selectedCar.owner?.fullname ?? "---"}
+                </span>
+              </div>
+            </>
+          )}
+          <Button
+            size="sm"
+            variant="flat"
+            className="ml-auto bg-primary-600 text-white"
+            startContent={<MdClose size={16} />}
+            onPress={handleClearSelection}
+          >
+            Quitar
+          </Button>
+        </div>
+      )}
+
       {/* `listLoading` incluye "todavía no se pidió", así que no aparece el
           estado vacío por un frame antes de que arranque la primera consulta. */}
       <CarsList
         cars={list.items}
         selectedLicense={selectedLicense}
-        onSelect={setSelectedLicense}
+        onSelect={handleSelect}
         isLoading={listLoading}
         skeletonCount={PICKER_PAGE_SIZE}
       />
