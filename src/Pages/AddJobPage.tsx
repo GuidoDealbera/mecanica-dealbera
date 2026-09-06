@@ -16,11 +16,15 @@ const AddJobPage: React.FC = () => {
   const { state } = useLocation();
   const { list, listLoading, loadingStates, addCarJob, getCars, cleanCars } =
     useCarQueries();
-  const [selectedLicense, setSelectedLicense] = React.useState<string>("");
+  // Se puede llegar con un vehículo ya elegido desde su ficha; en ese caso sólo
+  // viaja la patente. Se toma como valor inicial, igual que el buscador.
+  const [selectedLicense, setSelectedLicense] = React.useState<string>(
+    () => state?.license ?? ""
+  );
   // El vehículo elegido se guarda entero, no sólo la patente: hace falta para
   // el resumen de arriba, que tiene que seguir visible aunque el auto ya no esté
   // en la página del listado que se está viendo.
-  const [selectedCar, setSelectedCar] = React.useState<Cars | null>(null);
+  const [pickedCar, setPickedCar] = React.useState<Cars | null>(null);
   const [search, setSearch] = React.useState<string>(
     () => state?.license ?? ""
   );
@@ -44,35 +48,26 @@ const AddJobPage: React.FC = () => {
     return () => cleanCars();
   }, [cleanCars]);
 
-  React.useEffect(() => {
-    if (state?.license) {
-      setSelectedLicense(state.license);
-    }
-  }, [state]);
-
-  // Cuando se llega con un vehículo ya elegido (desde su ficha) sólo viaja la
-  // patente, así que sus datos se completan en cuanto aparece en el listado. El
-  // buscador arranca precargado con esa patente justamente para que aparezca.
-  React.useEffect(() => {
-    if (!selectedLicense || selectedCar?.licensePlate === selectedLicense) {
-      return;
-    }
-    const encontrado = list.items.find(
-      (car) => car.licensePlate === selectedLicense
-    );
-    if (encontrado) setSelectedCar(encontrado);
-  }, [selectedLicense, selectedCar, list.items]);
+  // Los datos del vehículo elegido salen del listado en curso, y si ahí no está
+  // —porque se cambió de página— del que se guardó al elegirlo. Antes esto era
+  // un efecto que completaba el estado en cuanto el auto aparecía en el
+  // listado, con el render en cascada que eso implica; derivarlo cubre los dos
+  // casos, incluido el de llegar con la patente ya elegida desde su ficha.
+  const selectedCar =
+    list.items.find((car) => car.licensePlate === selectedLicense) ??
+    pickedCar ??
+    null;
 
   const handleSelect = (license: string) => {
     setSelectedLicense(license);
-    setSelectedCar(
+    setPickedCar(
       list.items.find((car) => car.licensePlate === license) ?? null
     );
   };
 
   const handleClearSelection = () => {
     setSelectedLicense("");
-    setSelectedCar(null);
+    setPickedCar(null);
   };
 
   const handleSubmit = async (data: CreateCarJob) => {

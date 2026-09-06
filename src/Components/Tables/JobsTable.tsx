@@ -29,6 +29,7 @@ import { HiArrowUp } from "react-icons/hi";
 import { formatARS } from "../../Utils/utils";
 import TableLoadingContent from "../TableLoadingContent";
 import TablePagination from "../TablePagination";
+import { clampPage } from "../../Utils/pagination";
 interface JobsProps {
   jobs: Jobs[];
   isLoading: boolean;
@@ -133,17 +134,16 @@ const JobsTable: React.FC<JobsProps> = ({
     return result;
   }, [jobs, statusFilter, sort]);
 
-  const paginatedJobs = React.useMemo(() => {
-    const start = (page - 1) * rowsPerPage;
-    return processedJobs.slice(start, start + rowsPerPage);
-  }, [processedJobs, page, rowsPerPage]);
-
   // Si la lista visible se achica (se filtró o se borró un trabajo), la página
-  // actual puede quedar fuera de rango. Retrocede a la última válida.
-  React.useEffect(() => {
-    const lastPage = Math.max(1, Math.ceil(processedJobs.length / rowsPerPage));
-    if (page > lastPage) setPage(lastPage);
-  }, [processedJobs.length, page, rowsPerPage]);
+  // actual queda fuera de rango. Se acota al leer en vez de corregirse con un
+  // efecto: acá la lista ya está en memoria, así que la página válida se conoce
+  // en el mismo render y no hace falta pintar una tabla vacía antes.
+  const effectivePage = clampPage(page, processedJobs.length, rowsPerPage);
+
+  const paginatedJobs = React.useMemo(() => {
+    const start = (effectivePage - 1) * rowsPerPage;
+    return processedJobs.slice(start, start + rowsPerPage);
+  }, [processedJobs, effectivePage, rowsPerPage]);
 
   const handleStatusFilter = (value: JobStatus | "all") => {
     setStatusFilter(value);
@@ -405,7 +405,7 @@ const JobsTable: React.FC<JobsProps> = ({
         </TableBody>
       </Table>
       <TablePagination
-        page={page}
+        page={effectivePage}
         pageSize={rowsPerPage}
         total={processedJobs.length}
         onPageChange={setPage}
