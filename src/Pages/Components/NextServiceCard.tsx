@@ -1,6 +1,6 @@
 import React from "react";
-import { Chip, Spinner } from "@heroui/react";
-import { MdNotificationsActive, MdSchedule } from "react-icons/md";
+import { Button, Chip, Spinner } from "@heroui/react";
+import { MdEdit, MdNotificationsActive, MdSchedule } from "react-icons/md";
 import {
   APIResponse,
   DEFAULT_SERVICE_SETTINGS,
@@ -16,9 +16,16 @@ import {
 import { formatDate } from "../../Utils/utils";
 import { useToasts } from "../../Hooks/useToasts";
 import ReminderActions from "./ReminderActions";
+import EditReminderModal from "../../Components/EditReminderModal";
 
 interface NextServiceCardProps {
   licensePlate: string;
+  /**
+   * Kilometraje actual del vehículo. Hace falta para el modal de edición, que
+   * avisa si el objetivo ya quedó atrás. Viene por prop porque cuando no hay
+   * ningún recordatorio no hay de dónde sacarlo.
+   */
+  currentKm: number;
 }
 
 /**
@@ -26,7 +33,10 @@ interface NextServiceCardProps {
  * vigentes con su urgencia y las acciones disponibles según el estado
  * (`ReminderActions`, compartido con la bandeja de `/alerts`).
  */
-const NextServiceCard: React.FC<NextServiceCardProps> = ({ licensePlate }) => {
+const NextServiceCard: React.FC<NextServiceCardProps> = ({
+  licensePlate,
+  currentKm,
+}) => {
   const { showToast } = useToasts();
   const [reminders, setReminders] = React.useState<ServiceReminderView[]>([]);
   const [settings, setSettings] = React.useState<ServiceSettings>(
@@ -34,6 +44,17 @@ const NextServiceCard: React.FC<NextServiceCardProps> = ({ licensePlate }) => {
   );
   const [loading, setLoading] = React.useState(true);
   const [actioningId, setActioningId] = React.useState<string | null>(null);
+  // Dos estados y no uno: `null` significa "crear uno nuevo", así que no sirve
+  // para representar también "el modal está cerrado".
+  const [editorOpen, setEditorOpen] = React.useState(false);
+  const [editing, setEditing] = React.useState<ServiceReminderView | null>(
+    null
+  );
+
+  const openEditor = (reminder: ServiceReminderView | null) => {
+    setEditing(reminder);
+    setEditorOpen(true);
+  };
 
   const fetch = React.useCallback(async () => {
     setLoading(true);
@@ -80,6 +101,24 @@ const NextServiceCard: React.FC<NextServiceCardProps> = ({ licensePlate }) => {
     }
   };
 
+  const editor = (
+    <EditReminderModal
+      isOpen={editorOpen}
+      onClose={() => setEditorOpen(false)}
+      licensePlate={licensePlate}
+      reminder={editing}
+      currentKm={currentKm}
+      onSaved={fetch}
+      onResult={(res) =>
+        showToast(
+          res.message,
+          res.status === "success" ? "success" : "danger",
+          "Service"
+        )
+      }
+    />
+  );
+
   if (loading) {
     return (
       <div className="flex justify-center py-4">
@@ -90,9 +129,21 @@ const NextServiceCard: React.FC<NextServiceCardProps> = ({ licensePlate }) => {
 
   if (reminders.length === 0) {
     return (
-      <p className="text-foreground-400 text-sm py-2">
-        Sin recordatorios de service vigentes.
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-3 py-2">
+        <p className="text-foreground-400 text-sm">
+          Sin recordatorios de service vigentes.
+        </p>
+        <Button
+          size="sm"
+          variant="flat"
+          color="primary"
+          startContent={<MdEdit size={16} />}
+          onPress={() => openEditor(null)}
+        >
+          Programar service
+        </Button>
+        {editor}
+      </div>
     );
   }
 
@@ -150,15 +201,28 @@ const NextServiceCard: React.FC<NextServiceCardProps> = ({ licensePlate }) => {
               )}
             </div>
 
-            <ReminderActions
-              reminder={reminder}
-              evaluation={evaluation}
-              isBusy={actioningId === reminder.id}
-              onRun={(action) => runAction(reminder.id, action)}
-            />
+            <div className="flex items-center gap-2">
+              <ReminderActions
+                reminder={reminder}
+                evaluation={evaluation}
+                isBusy={actioningId === reminder.id}
+                onRun={(action) => runAction(reminder.id, action)}
+              />
+              <Button
+                size="sm"
+                variant="light"
+                isIconOnly
+                aria-label="Editar próximo service"
+                title="Editar fecha o kilometraje"
+                onPress={() => openEditor(reminder)}
+              >
+                <MdEdit size={16} />
+              </Button>
+            </div>
           </div>
         );
       })}
+      {editor}
     </div>
   );
 };

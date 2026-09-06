@@ -277,7 +277,10 @@ const CarDetailPage: React.FC = () => {
           </CardHeader>
           <Divider className="bg-content3" />
           <CardBody className="pt-3">
-            <NextServiceCard licensePlate={licence} />
+            <NextServiceCard
+              licensePlate={licence}
+              currentKm={car?.kilometers ?? 0}
+            />
           </CardBody>
         </Card>
 

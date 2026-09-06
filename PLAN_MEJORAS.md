@@ -576,15 +576,30 @@ numeración corrida para no renumerar el resto.
       un booleano "es service" y se simplifica todo el circuito.
     - Esfuerzo: medio · Riesgo: bajo · **Decisión de negocio pendiente.**
 
-17. **[pendiente]** Editar el próximo service desde la ficha del vehículo
-    - El endpoint `service:save` (y `SaveReminderBody`) ya existe, está expuesto
-      en el preload y no lo usa ninguna pantalla: hoy no hay forma de corregir a
-      mano la fecha o el kilometraje del próximo service, ni de fijar un intervalo
-      propio para un vehículo (`car.serviceIntervalMonths/Km` sólo se puede
-      cambiar por SQL).
-    - Solución: modal "Editar próximo service" en el bloque de la ficha, con
-      fecha, km e intervalo del vehículo.
-    - Esfuerzo: medio · Riesgo: bajo.
+17. **[a testear]** Editar el próximo service desde la ficha del vehículo
+    - Archivos: `src/Components/EditReminderModal.tsx` (nuevo),
+      `src/Pages/Components/NextServiceCard.tsx`, `src/Pages/CarDetailPage.tsx`.
+    - El endpoint `service:save` estaba implementado y expuesto desde que se armó
+      el sistema de recordatorios, y **no lo usaba ninguna pantalla**: corregir
+      una fecha o un kilometraje exigía entrar a la base. Ahora hay un modal.
+    - Cada recordatorio del bloque "Próximo service" tiene un botón de editar; y
+      cuando no hay ninguno vigente, el estado vacío ofrece **programar uno**
+      (mismo modal, sin `id`, que es como el endpoint distingue crear de
+      actualizar).
+    - Detalles que evitan errores conocidos:
+      - La fecha se manda como **mediodía local**: con medianoche, pasar a ISO
+        corre el día para atrás en husos negativos como el nuestro.
+      - Los campos se recargan en cada apertura; si no, editar dos
+        recordatorios seguidos mostraba los datos del primero.
+      - "Abierto" y "cuál se edita" son **dos** estados: `null` significa "crear
+        uno nuevo", así que no puede significar además "cerrado".
+      - Avisa si el kilometraje objetivo ya quedó atrás (el recordatorio va a
+        aparecer vencido) en vez de dejar que el usuario lo descubra después.
+    - La validación de verdad sigue en el backend —al menos fecha o km, fecha
+      válida, km no negativo, un solo recordatorio vigente por tipo—; la del
+      modal sólo evita el ida y vuelta de un error obvio.
+    - **Falta probarlo a mano**: el circuito completo sólo se ve usando la
+      aplicación.
 
 18. **[pendiente]** Historial de documentos emitidos
     - `document:list` está implementado y expuesto, sin UI. Los documentos se
