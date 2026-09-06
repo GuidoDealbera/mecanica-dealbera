@@ -164,7 +164,11 @@ const relocateDatabaseIfNeeded = async (): Promise<void> => {
         "",
         "Cerrá OneDrive o cualquier programa que pueda tener abierto ese " +
           "archivo y volvé a abrir la aplicación. No se perdió nada.",
-      ].join("\n")
+      ].join("\n"),
+      // El error original va como `cause`: el mensaje de arriba es para el
+      // usuario, y sin esto se perdería el motivo técnico (permisos, disco
+      // lleno, archivo tomado) que es lo único que sirve para diagnosticar.
+      { cause: error }
     );
   }
 };
@@ -219,7 +223,8 @@ const runPendingMigrations = async (): Promise<void> => {
     throw new Error(
       "No se pudo crear la copia de seguridad previa a la actualización de la " +
         `base de datos (${backupDir}). La base quedó intacta y no se aplicó ` +
-        "ningún cambio. Liberá espacio en el disco y volvé a abrir la aplicación."
+        "ningún cambio. Liberá espacio en el disco y volvé a abrir la aplicación.",
+      { cause: error }
     );
   }
 
@@ -236,7 +241,8 @@ const runPendingMigrations = async (): Promise<void> => {
       "La actualización de la base de datos no pudo completarse."
     );
     throw new ReportedStartupError(
-      `Falló una migración: ${error instanceof Error ? error.message : String(error)}`
+      `Falló una migración: ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error }
     );
   }
 

@@ -50,7 +50,15 @@ const isModalOpen = (): boolean =>
  */
 export const useGlobalShortcuts = (handlers: GlobalShortcutHandlers): void => {
   const handlersRef = useRef(handlers);
-  handlersRef.current = handlers;
+
+  // La ref se actualiza en un efecto y no durante el render: React puede
+  // descartar y repetir un render, y mutar una ref ahí deja el valor
+  // desincronizado con lo que finalmente se pintó. Este efecto corre en cada
+  // render a propósito —es justo lo que se quiere— pero después de que el
+  // render se confirmó.
+  useEffect(() => {
+    handlersRef.current = handlers;
+  });
 
   useEffect(() => {
     // Estado de la secuencia de navegación ("g" pendiente de segunda tecla).

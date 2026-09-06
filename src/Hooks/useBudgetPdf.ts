@@ -130,7 +130,7 @@ export const useBudgetPDF = () => {
             ? err.message
             : "Error desconocido al generar el PDF";
         setError(msg);
-        throw new Error(msg);
+        throw new Error(msg, { cause: err });
       } finally {
         setIsGenerating(false);
       }

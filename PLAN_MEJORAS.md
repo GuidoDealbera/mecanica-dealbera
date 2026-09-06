@@ -875,6 +875,84 @@ conviene que entre antes del despliegue; las otras dos son de presentación.
       cabecera y su `shadow shadow-primary` quedaba cortada. Beneficia a todas
       las pantallas con cabecera, no sólo al dashboard.
 
+## Sprint G — Modernización
+
+Arrancó el 06/09/2026, después de constatar que el proyecto tenía **31
+vulnerabilidades (1 crítica, 22 altas)** y dependencias de hasta catorce majors
+de atraso. Se hace por tandas, con su commit y su verificación sobre el paquete
+real: un upgrade sin forma de verificarlo es una apuesta.
+
+32. **[a testear]** Electron 30 → 44, con builder y updater al día
+    - Electron 30 estaba **sin soporte** (mantienen tres majors), o sea sin
+      parches de seguridad, en una aplicación que guarda los datos del taller.
+      Ahí estaban la crítica y casi todas las altas: _ASAR Integrity Bypass_ en
+      Electron, fuga de credenciales de `electron-updater` en redirecciones
+      —justo la pieza del auto-update— y _symlink traversal_ en la cadena de
+      empaquetado.
+    - **El riesgo que se temía no apareció**: `sqlite3` usa N-API, estable entre
+      versiones de Node y de Electron, así que el cambio de ABI no lo afecta y
+      electron-builder lo recompiló sin intervención.
+    - El target de TypeScript subió de ES2020 a ES2022. Compilaba de casualidad:
+      los tipos de Node suplían métodos como `Array.at()` que la librería
+      declarada no incluía, y al actualizar dejaron de suplirlos.
+    - Verificado sobre el paquete real: traslada la base, copia previa, migra,
+      verifica integridad, respaldo diario y la ventana carga sin errores.
+
+33. **[a testear]** Dependencias dentro de los rangos declarados
+    - De 16 vulnerabilidades a 2. Entre lo actualizado, `react-router`, que tenía
+      una alta y es dependencia de la aplicación, no de las herramientas.
+    - Los tests de componentes necesitaron un doble de `ResizeObserver`: jsdom no
+      lo implementa y las Tabs de HeroUI lo usan para medirse, así que el
+      componente reventaba al montarse y el test fallaba por una carencia del
+      entorno.
+
+34. **[a testear]** Vite 5 → 8 y los plugins de Electron
+    - **Cero vulnerabilidades.** Y resuelve una incoherencia previa: vitest 4
+      pedía vite ≥6 y había la 5. El build del renderer baja de 12 a 4,5 s.
+    - **La trampa**: Vite 8 empaqueta con Rolldown y renombró
+      `build.rollupOptions` a `build.rolldownOptions`. Con el nombre viejo la
+      configuración se ignora **en silencio**: typeorm, sqlite3 y electron-log
+      terminaron dentro del bundle (720 kB → 2,2 MB) y la aplicación dejó de
+      arrancar con `__dirname is not defined in ES module scope`. Esos tres
+      tienen que quedar afuera: sqlite3 es nativo y typeorm resuelve drivers con
+      `require` dinámico.
+
+35. **[a testear]** ESLint 8 → 10 y configuración plana
+    - ESLint 9 dejó de leer `.eslintrc.*` y la 10 lo eliminó, así que migrar era
+      obligatorio. Las reglas son las mismas; cambia cómo se declaran.
+    - El plugin de hooks v7 trae las reglas del compilador de React y encontró
+      **21 errores**. Se separaron por lo que son:
+      - **Reales, arreglados**: mutar un ref durante el render en
+        `useGlobalShortcuts` (React puede descartar y repetir un render, y el
+        valor queda desincronizado con lo que se pintó), y tres errores
+        relanzados sin `cause`, que perdían el motivo técnico.
+      - **Informativos**: `watch()` de react-hook-form no se puede memoizar.
+      - **17 × `set-state-in-effect`**: renders en cascada. Ver la tarea 36.
+
+36. **[pendiente]** Migrar los 17 `setState` dentro de efectos
+    - El compilador de React marca 17 casos de `setState` síncrono dentro de un
+      efecto, casi todos correcciones del tipo "la página quedó fuera de rango".
+      Provocan un render en cascada: no son bugs, pero son un olor real.
+    - Está como **aviso y no como error** a propósito: reescribir diecisiete
+      efectos de una sola vez, sin poder probar cada pantalla, es la mejor forma
+      de introducir una regresión.
+    - Solución: migrarlos a estado derivado durante el render, **de a uno y
+      probando la pantalla**.
+    - Esfuerzo: medio · Riesgo: medio si se hace en bloque, bajo de a uno.
+
+37. **[pendiente]** Lo que queda por modernizar
+    - **TypeORM 0.3 → 1.x**: major sobre la capa de datos. Conviene solo, con los
+      scripts de verificación contra copias. Es la oportunidad de evaluar
+      `better-sqlite3`, que es el driver correcto para Electron y **eliminaría
+      el `legacy-peer-deps`** (ese hack existe sólo porque typeorm pide
+      `sqlite3@^5`).
+    - **React 18 → 19 y HeroUI 2 → 3**: dos majors que tocan toda la interfaz.
+      Lo que menos compra y lo que más pantalla mueve; conviene último.
+    - **TypeScript 5.9 → 7**: es la reescritura nativa. Hay que verificar que
+      soporte `emitDecoratorMetadata`, del que depende TypeORM.
+
+---
+
 ## Notas de sesión
 
 ### 2026-08-10 — Correcciones sobre observaciones de uso (esta sesión)
