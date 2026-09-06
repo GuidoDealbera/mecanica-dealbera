@@ -15,10 +15,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Misma versión que el flujo de verificación (`.nvmrc`): si el
+      # instalador se armara con un Node distinto del que se verifica, el visto
+      # bueno de `verify` diría menos de lo que parece.
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version-file: ".nvmrc"
           cache: "npm"
 
       - name: Install dependencies

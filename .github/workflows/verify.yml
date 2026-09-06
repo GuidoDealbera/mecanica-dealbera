@@ -25,10 +25,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # La versión sale de `.nvmrc`, para que el CI y la máquina de desarrollo
+      # no puedan desincronizarse. Node 20 no alcanza: jsdom 30 exige
+      # `^22.22.2 || ^24.15.0` y arrastra undici 8, que exige `>=22.19.0`.
+      # `npm ci` sólo advierte de eso, así que el fallo aparecía recién al
+      # levantar el entorno de los tests de componentes.
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version-file: ".nvmrc"
           cache: "npm"
 
       # `sqlite3` trae binarios precompilados, pero si tuviera que compilarlos
