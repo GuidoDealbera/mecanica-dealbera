@@ -970,7 +970,29 @@ real: un upgrade sin forma de verificarlo es una apuesta.
       con join siga andando. Y sobre el paquete real: traslada, copia previa,
       once migraciones, integridad `ok` y respaldo diario.
 
-38. **[pendiente]** Lo que queda por modernizar
+38. **[a testear]** Cobertura de los componentes nuevos
+    - Archivos: `src/Components/EditReminderModal.test.tsx` (nuevo),
+      `src/Components/DocumentHistory.test.tsx` (nuevo).
+    - De **122 a 137 tests**. Los dos componentes más nuevos con reglas propias
+      no tenían ninguna cobertura, y son de los que están "a testear" sin que
+      nadie los haya usado.
+    - `EditReminderModal` (8): que no se pueda guardar sin fecha ni kilometraje,
+      que **la fecha llegue al endpoint apuntando al día elegido** —es la trampa
+      del mediodía local: con medianoche, pasar a ISO en un huso negativo corre
+      el día para atrás—, que se pueda programar sólo por kilometraje, que avise
+      si el objetivo ya quedó atrás, que rechace negativos, que conserve el `id`
+      al editar y no lo mande al crear, y que **no cierre ni avise hacia arriba
+      si el backend rechazó**.
+    - `DocumentHistory` (7): que pase los filtros tal cual, que muestre número,
+      titular y tipo, que la patente aparezca sólo cuando se pide, que **se
+      vuelva a pedir con el aviso de datos cambiados**, que **se dé de baja al
+      desmontarse** —eso ya se pagó una vez con los avisos duplicados del
+      auto-updater— y que un fallo del IPC no rompa la pantalla.
+    - Detalle del entorno: se afirma `toBeInTheDocument` y no `toBeVisible`. El
+      modal de HeroUI se pinta en un portal con estilos de superposición que
+      jsdom no resuelve, así que la visibilidad da falsos negativos.
+
+39. **[pendiente]** Lo que queda por modernizar
     - **React 18 → 19 y HeroUI 2 → 3**: dos majors que tocan toda la interfaz.
       Lo que menos compra y lo que más pantalla mueve; conviene último, y con
       alguien mirando las pantallas.
