@@ -6,6 +6,7 @@ import { MdPeople } from "react-icons/md";
 import { useNavigate } from "react-router-dom";
 import LicenceTable from "../Licenses/LicenceTable";
 import { useDebounce } from "../../Hooks/useDebounce";
+import { useResetOn } from "../../Hooks/useResetOn";
 
 interface SearchResult {
   cars: {
@@ -41,12 +42,19 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose }) => {
   const [loading, setLoading] = useState(false);
   const debouncedQuery = useDebounce(query, 280);
 
+  // El buscador arranca en blanco cada vez que se abre: si conservara la
+  // búsqueda anterior, el atajo mostraría resultados viejos antes de escribir.
+  useResetOn(isOpen ? "abierto" : null, () => {
+    setQuery("");
+    setResults({ cars: [], clients: [] });
+  });
+
+  // El foco sí va en un efecto: tocar el DOM es exactamente para lo que están.
+  // La demora es para que el modal ya esté montado cuando se pide el foco.
   useEffect(() => {
-    if (isOpen) {
-      setTimeout(() => inputRef.current?.focus(), 50);
-      setQuery("");
-      setResults({ cars: [], clients: [] });
-    }
+    if (!isOpen) return;
+    const id = setTimeout(() => inputRef.current?.focus(), 50);
+    return () => clearTimeout(id);
   }, [isOpen]);
 
   useEffect(() => {

@@ -24,6 +24,7 @@ import {
 import { computeTotals, eligibleJobsForDocument } from "../Utils/documentRules";
 import { formatARS } from "../Utils/utils";
 import EmptyState from "./EmptyState";
+import { useResetOn } from "../Hooks/useResetOn";
 
 /** Color del chip de estado, igual que en la tabla de trabajos. */
 const STATUS_COLOR: Record<
@@ -107,9 +108,9 @@ const DocumentModal: React.FC<DocumentModalProps> = ({
 
   // Al abrir o cambiar el tipo se preselecciona todo lo elegible: el caso
   // habitual es emitir el documento completo y desmarcar alguna excepción.
-  React.useEffect(() => {
-    if (isOpen) setSelectedIds(eligible.map((j) => j.id));
-  }, [isOpen, eligible]);
+  useResetOn(isOpen ? eligible : null, () =>
+    setSelectedIds(eligible.map((j) => j.id))
+  );
 
   const selectedJobs = React.useMemo(
     () => eligible.filter((j) => selectedIds.includes(j.id)),

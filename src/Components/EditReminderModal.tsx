@@ -9,6 +9,7 @@ import {
   ModalHeader,
   Textarea,
 } from "@heroui/react";
+import { useResetOn } from "../Hooks/useResetOn";
 import type {
   APIResponse,
   SaveReminderBody,
@@ -64,12 +65,11 @@ const EditReminderModal: React.FC<EditReminderModalProps> = ({
   // Los campos se recargan cada vez que se abre: si el modal quedara con los
   // valores de la vez anterior, editar dos recordatorios seguidos mostraría los
   // datos del primero.
-  React.useEffect(() => {
-    if (!isOpen) return;
+  useResetOn(isOpen ? (reminder?.id ?? "nuevo") : null, () => {
     setDueDate(toDateInput(reminder?.dueDate));
     setDueKm(reminder?.dueKm != null ? String(reminder.dueKm) : "");
     setNotes(reminder?.notes ?? "");
-  }, [isOpen, reminder]);
+  });
 
   const kmNumber = dueKm.trim() === "" ? null : Number(dueKm);
   const kmInvalido =
