@@ -1,5 +1,10 @@
 # Plan de Mejoras — Mecánica Dealbera
 
+> **Hay una segunda pasada**: [PLAN_MEJORAS_V2.md](PLAN_MEJORAS_V2.md), 84
+> tareas salidas de revisar el proyecto entero buscando bugs, no de una lista
+> de pedidos. Este plan sigue vigente para lo que le queda; el v2 es lo que
+> viene después.
+
 Revisión integral del proyecto al **10/08/2026**, hecha después de cerrar el plan
 anterior (33 tareas, sprints 0 a 7). Este archivo reemplaza ese plan: lo que
 estaba hecho quedó en el historial de git y en los commits; acá queda **sólo lo

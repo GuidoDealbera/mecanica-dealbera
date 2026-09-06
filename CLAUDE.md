@@ -3,7 +3,9 @@
 Reglas que se aprendieron rompiendo cosas. Están acá porque ninguna es evidente
 leyendo el código: cada una costó una sesión de depuración.
 
-El plan de trabajo vivo está en [PLAN_MEJORAS.md](PLAN_MEJORAS.md).
+El plan de trabajo vivo está en [PLAN_MEJORAS.md](PLAN_MEJORAS.md), y la
+revisión completa del proyecto —84 tareas, con los bugs primero— en
+[PLAN_MEJORAS_V2.md](PLAN_MEJORAS_V2.md).
 
 ## Cómo se verifica
 
