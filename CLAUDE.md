@@ -55,6 +55,29 @@ La interfaz puede anticiparlas para evitar un ida y vuelta, pero la validación
 que cuenta es la del endpoint. Vale para las acciones de los recordatorios, la
 elegibilidad de trabajos en un documento y los datos del próximo service.
 
+### Todo lo que entra por IPC se valida igual
+
+Un canal recibe lo que le manden, no lo que el formulario debería mandar. El
+criterio, y no hay excepciones:
+
+- **Un objeto** se valida con su DTO (`validateDto`). Si no existe el DTO, se
+  escribe: la mitad de los que había estaban escritos y sin usar, y por eso se
+  pudieron olvidar tres endpoints enteros.
+- **Un identificador** (patente, id, nombre) pasa por `esIdentificador`. Sin eso
+  va derecho a un `where` de TypeORM y revienta con "Undefined value encountered
+  in property ... of a where condition", que es lo que ve el usuario.
+- **Los parámetros de un listado** pasan por `comoParametros`. Con una cadena en
+  vez de un objeto, `params.search.trim()` falla.
+
+Lo que fija esto es
+[`contratoDeEntrada.test.ts`](electron/DataBase/Endpoints/contratoDeEntrada.test.ts):
+recorre **todos** los canales registrados —no una lista escrita a mano, así que
+un endpoint nuevo entra solo— y comprueba que ninguno lance ante un cuerpo
+inválido. La primera vez que se corrió encontró 19.
+
+**Un cuerpo inválido se contesta, no se revienta.** Si el handler lanza,
+`handleIpc` relanza y al renderer le llega el mensaje técnico crudo.
+
 ---
 
 ## Base de datos

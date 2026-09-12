@@ -1,4 +1,5 @@
 import { handleIpc } from "../../ipc";
+import { esIdentificador } from "../../validation";
 import { logError } from "../../logger";
 import { AppDataSource, getRepositories } from "../dataSource";
 import { Document } from "../Entities/document.entity";
@@ -110,6 +111,10 @@ handleIpc(
 handleIpc(
   "document:discard",
   async (_event, id: string): Promise<APIResponse> => {
+    if (!esIdentificador(id)) {
+      return { status: "failed", message: "Documento no encontrado" };
+    }
+
     const repo = getRepositories().documentRepository;
     const doc = await repo.findOne({ where: { id } });
     if (!doc) {

@@ -1,6 +1,6 @@
 import { handleIpc } from "../../ipc";
 import { logError } from "../../logger";
-import { validateDto } from "../../validation";
+import { comoParametros, esIdentificador, validateDto } from "../../validation";
 import { escapeLike, resolvePage } from "../../pagination";
 import { CreateCarDto, UpdateCarDto } from "../Types/car.dto";
 import { AppDataSource, getRepositories } from "../dataSource";
@@ -112,7 +112,10 @@ handleIpc("car:create", async (_event, payload: CreateCarDto) => {
 // todos los autos). Búsqueda por patente (LIKE) y orden opcional en la DB.
 handleIpc(
   "car:get-all",
-  async (_event, params: CarQueryParams): Promise<Paginated<Car>> => {
+  async (_event, entrada: CarQueryParams): Promise<Paginated<Car>> => {
+    // Un canal IPC recibe lo que le manden, y más abajo se hace
+    // `params.search.trim()`: con una cadena en vez de un objeto eso revienta.
+    const params = comoParametros<CarQueryParams>(entrada);
     const { page, pageSize, skip, take } = resolvePage(params);
     const repo = getRepositories().carRepository;
 
@@ -166,6 +169,10 @@ handleIpc(
 handleIpc(
   "car:get-by-license",
   async (_, licence: CreateCarDto["licensePlate"]) => {
+    if (!esIdentificador(licence)) {
+      return { status: "failed", message: "Vehículo no registrado" };
+    }
+
     const repo = getRepositories().carRepository;
     const car = await repo.findOne({
       where: {

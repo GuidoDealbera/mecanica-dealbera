@@ -22,7 +22,13 @@ export class CreateCarDto {
   @IsString()
   @IsNotEmpty({ message: "La patente es requerida" })
   @Length(6, 7, { message: "La patente debe tener 6 o 7 caracteres" })
-  @Transform(({ value }) => value.toUpperCase().replace(/\s+/g, ""))
+  // El `typeof` no sobra: un `@Transform` corre **antes** de las validaciones,
+  // así que con un cuerpo que no sea un objeto —o sin patente— acá llegaba
+  // `undefined` y la transformación reventaba antes de que nadie pudiera
+  // decir "la patente es requerida".
+  @Transform(({ value }) =>
+    typeof value === "string" ? value.toUpperCase().replace(/\s+/g, "") : value
+  )
   @Matches(/^([A-Z]{2}\d{3}[A-Z]{2}|[A-Z]{3}\d{3})$/, {
     message: "La patente debe tener el formato AA123BB o ABC123",
   })

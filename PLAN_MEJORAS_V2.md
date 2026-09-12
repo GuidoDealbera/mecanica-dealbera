@@ -589,7 +589,7 @@ series separadas por tipo, y un rechazo no quema un número.
 
 ### B7 · 🟡 La validación de negocio está repartida entre DTOs y comprobaciones a mano
 
-**[pendiente]** · varios
+**[a testear]** · varios
 
 Además de los DTOs, hay reglas escritas a mano en los endpoints: el kilometraje en
 `car:update`, la fecha y el km en `service:save`, el tipo en `document:issue`, el
@@ -599,6 +599,34 @@ mensaje.
 No es un bug, pero es la razón por la que las de B1–B3 se pudieron olvidar: no hay
 un lugar donde se vea "todo lo que entra por IPC se valida así". Conviene un
 criterio único y una prueba que lo verifique para todos los canales.
+
+**Resuelto, y no era sólo documentación: encontró 19 canales rotos.**
+
+La prueba (`contratoDeEntrada.test.ts`) **no enumera los canales a mano**: los
+toma de los que quedan registrados al importar los módulos, así que un endpoint
+nuevo entra solo. Eso es lo único que evita que la lista se desactualice como se
+desactualizó la anterior. Lo que fija es una sola cosa: **un cuerpo inválido se
+contesta, no se revienta** —si el handler lanza, `handleIpc` relanza y al
+renderer le llega el mensaje técnico crudo—.
+
+La primera corrida marcó 19 canales, con tres causas distintas:
+
+- **`validateDto` reventaba antes de validar.** Con un cuerpo que no fuera un
+  objeto, `plainToInstance` tira "Cannot read properties of undefined (reading
+  'constructor')" antes de que ningún decorador pueda decir qué falta. Un solo
+  arreglo cubrió los siete endpoints que validan DTO.
+- **Los identificadores iban derecho al `where`.** Diez canales: `undefined`,
+  `null` o un objeto producían "Undefined value encountered in property … of a
+  where condition" o "Too few parameter values were provided". Ahora pasan por
+  `esIdentificador`.
+- **Los listados suponían un objeto.** `params.search.trim()` con una cadena
+  falla. Ahora pasan por `comoParametros`.
+
+Y una del `@Transform` de la patente, que corre **antes** de las validaciones:
+asumía que el valor era texto, así que reventaba antes de que
+`@IsNotEmpty({ message: "La patente es requerida" })` pudiera hablar.
+
+El criterio quedó escrito en `CLAUDE.md`, que es donde se busca.
 
 ---
 
