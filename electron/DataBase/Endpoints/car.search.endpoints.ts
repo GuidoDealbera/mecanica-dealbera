@@ -1,6 +1,6 @@
 import { handleIpc } from "../../ipc";
 import { getRepositories } from "../dataSource";
-import { Like } from "typeorm";
+import { escapeLike } from "../../pagination";
 
 // ── Búsqueda global (cross-dominio: vehículos + clientes).
 //
@@ -10,7 +10,7 @@ import { Like } from "typeorm";
 // ver `service.endpoints.ts` y `serviceReminders.service.ts`.
 
 handleIpc("global:search", async (_, query: string) => {
-  if (!query || query.trim().length < 2) {
+  if (typeof query !== "string" || query.trim().length < 2) {
     return {
       status: "success",
       cars: [],
@@ -19,21 +19,36 @@ handleIpc("global:search", async (_, query: string) => {
   }
   const { carRepository: carRepo, clientRepository: clientRepo } =
     getRepositories();
-  const q = query.trim();
+
+  // Los comodines del término van escapados. Sin esto, buscar `_` traía todo y
+  // una patente parcial con guión bajo devolvía cualquier cosa: el `%` y el `_`
+  // que escribe el usuario se interpretaban como comodines de `LIKE`. No era
+  // inyección —la consulta está parametrizada— pero los resultados estaban mal.
+  //
+  // Se usa `escapeLike`, que es el helper que ya usaban todos los listados: acá
+  // no se escapaba nada y en `client:search` estaba reimplementado a mano.
+  const term = `%${escapeLike(query.trim())}%`;
 
   const [cars, clients] = await Promise.all([
-    carRepo.find({
-      where: [
-        { licensePlate: Like(`%${q.toUpperCase()}%`) },
-        { model: Like(`%${q.toUpperCase()}%`) },
-      ],
-      relations: { owner: true },
-      take: 6,
-    }),
-    clientRepo.find({
-      where: [{ fullname: Like(`%${q}%`) }, { phone: Like(`%${q}%`) }],
-      take: 6,
-    }),
+    carRepo
+      .createQueryBuilder("car")
+      .leftJoinAndSelect("car.owner", "owner")
+      .where(
+        "(car.licensePlate LIKE :term ESCAPE :esc OR car.model LIKE :term ESCAPE :esc)",
+        { term, esc: "\\" }
+      )
+      .orderBy("car.licensePlate", "ASC")
+      .take(6)
+      .getMany(),
+    clientRepo
+      .createQueryBuilder("client")
+      .where(
+        "(client.fullname LIKE :term ESCAPE :esc OR client.phone LIKE :term ESCAPE :esc)",
+        { term, esc: "\\" }
+      )
+      .orderBy("client.fullname", "ASC")
+      .take(6)
+      .getMany(),
   ]);
 
   return {

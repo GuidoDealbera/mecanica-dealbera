@@ -20,3 +20,37 @@ export const ensureSuccess = <T>(response: APIResponse<T>): T => {
   }
   return response.result;
 };
+
+/**
+ * Mensaje legible de algo que se lanzó, sea lo que sea.
+ *
+ * `catch` recibe `unknown`: puede llegar un `Error`, un string o cualquier
+ * cosa. Varios `catch` del proyecto estaban tipados como `any` y leían
+ * `error.message` directo, así que ante algo que no fuera un `Error` el toast
+ * salía vacío —el usuario veía un cartel rojo sin texto—.
+ */
+export const errorMessage = (
+  error: unknown,
+  fallback = "La operación no pudo completarse"
+): string => {
+  if (error instanceof Error && error.message) return error.message;
+  if (typeof error === "string" && error.trim()) return error;
+  return fallback;
+};
+
+/**
+ * Convierte lo que se lanzó en una respuesta con la forma del backend.
+ *
+ * Los hooks devolvían el propio `Error` en el `catch`, y quien llamaba hacía
+ * `if (response.status === "success")`. Un `Error` no tiene `status`, así que
+ * daba `undefined`: **funcionaba de casualidad**, porque `undefined` es falsy y
+ * se interpretaba como fallo. Con esto el contrato es el mismo en los dos
+ * caminos.
+ */
+export const failureFrom = (
+  error: unknown,
+  fallback?: string
+): { status: "failed"; message: string } => ({
+  status: "failed",
+  message: errorMessage(error, fallback),
+});

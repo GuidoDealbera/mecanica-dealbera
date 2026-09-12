@@ -6,6 +6,7 @@ import { relocateLegacyDatabase } from "./dataLocation";
 import {
   checkDatabaseHealth,
   createPreMigrationSnapshot,
+  findUnknownMigrations,
   hasPendingMigrations,
   pruneSnapshots,
   restoreSnapshot,
@@ -180,6 +181,72 @@ const relocateDatabaseIfNeeded = async (): Promise<void> => {
 class ReportedStartupError extends Error {}
 
 /**
+ * La base no quedó sana **después** de migrar. Se distingue de un fallo de la
+ * migración en sí porque el mensaje al usuario es otro: una cosa es "no se pudo
+ * actualizar" y otra "se actualizó y quedó dañada".
+ */
+export class DatabaseIntegrityError extends Error {}
+
+/**
+ * La base trae migraciones que esta versión no conoce, o sea que la escribió una
+ * versión posterior. No se toca: aplicarle las nuestras encima sería empeorarlo.
+ */
+export class DatabaseFromNewerVersionError extends Error {}
+
+/**
+ * Aplica las migraciones pendientes y comprueba que la base haya quedado sana.
+ *
+ * **No saca copia previa ni muestra ningún cuadro de diálogo**: eso lo decide
+ * quien llama, que es el único que sabe a qué volver si esto falla. En el
+ * arranque la red es la copia previa (`runPendingMigrations`); al restaurar un
+ * respaldo, la base que se acaba de reemplazar.
+ *
+ * Devuelve cuántas migraciones corrieron (`0` si no había pendientes).
+ */
+export const applyPendingMigrations = async (): Promise<number> => {
+  // Primero lo que no tiene arreglo: si la base viene de una versión posterior,
+  // las migraciones que le faltan no existen en este código.
+  const desconocidas = await findUnknownMigrations(AppDataSource);
+  if (desconocidas.length > 0) {
+    throw new DatabaseFromNewerVersionError(
+      `La base fue creada por una versión más nueva de la aplicación ` +
+        `(tiene ${desconocidas.length} actualización(es) que esta versión no ` +
+        `conoce: ${desconocidas.slice(0, 3).join(", ")}). ` +
+        `Actualizá la aplicación antes de usarla.`
+    );
+  }
+
+  if (!(await hasPendingMigrations(AppDataSource))) return 0;
+
+  const executed = await AppDataSource.runMigrations();
+  logInfo("db:migrate", "Migraciones aplicadas", {
+    count: executed.length,
+    names: executed.map((m) => m.name),
+  });
+
+  const health = await checkDatabaseHealth(AppDataSource);
+  if (health.foreignKeyViolations > 0) {
+    // No se trata como corrupción: puede venir de datos viejos anteriores a la
+    // restricción. Queda registrado para poder revisarlo.
+    logWarn("db:migrate", "Referencias huérfanas después de migrar", {
+      count: health.foreignKeyViolations,
+    });
+  }
+  if (!health.ok) {
+    logError(
+      "db:migrate:integrity",
+      new Error(health.problems.slice(0, 5).join(" | "))
+    );
+    throw new DatabaseIntegrityError(
+      "La base de datos no superó la verificación de integridad"
+    );
+  }
+
+  logInfo("db:migrate", "Verificación de integridad correcta");
+  return executed.length;
+};
+
+/**
  * Aplica las migraciones pendientes con red: copia previa, migración y
  * comprobación de que la base quedó sana.
  *
@@ -196,6 +263,29 @@ class ReportedStartupError extends Error {}
  *   abrirla correría la misma migración fallida contra los mismos datos.
  */
 const runPendingMigrations = async (): Promise<void> => {
+  // Antes que nada, y antes de sacar ninguna copia: una base de una versión
+  // posterior no tiene migraciones pendientes —para este código no las hay— así
+  // que el corte de abajo la dejaría pasar. No hay nada que restaurar porque no
+  // se tocó nada; sólo hay que no seguir.
+  const desconocidas = await findUnknownMigrations(AppDataSource);
+  if (desconocidas.length > 0) {
+    const { dialog } = await import("electron");
+    logError(
+      "db:migrate:version",
+      new Error(`Migraciones desconocidas: ${desconocidas.join(", ")}`)
+    );
+    dialog.showErrorBox(
+      "La base es de una versión más nueva",
+      "Esta base de datos la escribió una versión posterior de la aplicación, " +
+        "así que esta no sabe leerla.\n\n" +
+        "Los datos están intactos. Actualizá la aplicación a la última versión " +
+        "y volvé a abrirla."
+    );
+    throw new ReportedStartupError(
+      `La base tiene ${desconocidas.length} migración(es) desconocida(s)`
+    );
+  }
+
   if (!(await hasPendingMigrations(AppDataSource))) return;
 
   const version = app.getVersion();
@@ -229,46 +319,20 @@ const runPendingMigrations = async (): Promise<void> => {
   }
 
   try {
-    const executed = await AppDataSource.runMigrations();
-    logInfo("db:migrate", "Migraciones aplicadas", {
-      count: executed.length,
-      names: executed.map((m) => m.name),
-    });
+    await applyPendingMigrations();
   } catch (error) {
     logError("db:migrate:run", error);
     await offerRestore(
       snapshotPath,
-      "La actualización de la base de datos no pudo completarse."
+      error instanceof DatabaseIntegrityError
+        ? "La base de datos quedó dañada después de la actualización."
+        : "La actualización de la base de datos no pudo completarse."
     );
     throw new ReportedStartupError(
-      `Falló una migración: ${error instanceof Error ? error.message : String(error)}`,
+      error instanceof Error ? error.message : String(error),
       { cause: error }
     );
   }
-
-  const health = await checkDatabaseHealth(AppDataSource);
-  if (health.foreignKeyViolations > 0) {
-    // No se trata como corrupción: puede venir de datos viejos anteriores a la
-    // restricción. Queda registrado para poder revisarlo.
-    logWarn("db:migrate", "Referencias huérfanas después de migrar", {
-      count: health.foreignKeyViolations,
-    });
-  }
-  if (!health.ok) {
-    logError(
-      "db:migrate:integrity",
-      new Error(health.problems.slice(0, 5).join(" | "))
-    );
-    await offerRestore(
-      snapshotPath,
-      "La base de datos quedó dañada después de la actualización."
-    );
-    throw new ReportedStartupError(
-      "La base de datos no superó la verificación de integridad"
-    );
-  }
-
-  logInfo("db:migrate", "Verificación de integridad correcta");
 };
 
 /**

@@ -76,6 +76,48 @@ export const hasPendingMigrations = (
 ): Promise<boolean> => dataSource.showMigrations();
 
 /**
+ * Migraciones anotadas en la base que **esta versión no conoce**.
+ *
+ * Es el caso inverso al de una base vieja: un archivo hecho por una versión
+ * posterior trae migraciones que acá no existen, `showMigrations()` dice que no
+ * hay nada pendiente —porque para esta versión no lo hay— y la aplicación
+ * termina trabajando contra un esquema del futuro. Pasa al restaurar un
+ * respaldo después de volver a una versión anterior.
+ *
+ * Se consulta la tabla directamente y no por la API de TypeORM porque lo que
+ * interesa es justamente lo que TypeORM **no** sabe mapear.
+ *
+ * El nombre sale de la propiedad `name` que declara cada migración, **no de
+ * `constructor.name`**. El bundle del proceso principal va minificado, así que
+ * ahí el nombre de la clase es una letra: con `constructor.name` esta función
+ * daba por desconocidas a las once migraciones propias y no dejaba arrancar.
+ * TypeORM usa la propiedad declarada por el mismo motivo.
+ *
+ * Devuelve `[]` si la tabla no existe: una base que nunca migró no tiene nada
+ * desconocido, tiene todo pendiente.
+ */
+export const findUnknownMigrations = async (
+  dataSource: DataSource
+): Promise<string[]> => {
+  const conocidas = new Set(
+    dataSource.migrations.map(
+      (migration) => migration.name ?? migration.constructor.name
+    )
+  );
+
+  let rows: { name: string }[];
+  try {
+    rows = await dataSource.query<{ name: string }[]>(
+      "SELECT name FROM migrations"
+    );
+  } catch {
+    return [];
+  }
+
+  return rows.map((row) => row.name).filter((name) => !conocidas.has(name));
+};
+
+/**
  * Copia la base **antes** de migrar, con `VACUUM INTO`.
  *
  * `VACUUM INTO` y no `fs.copyFileSync`: el motor escribe una base nueva y

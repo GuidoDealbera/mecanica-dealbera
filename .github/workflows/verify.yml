@@ -7,33 +7,33 @@ name: Verificación
 # El build del instalador NO va acá: es lento, necesita firmar y ya lo hace
 # `release.yml` en `main`.
 
-# En `main` **no** corre desde acá: lo ejecuta `release.yml` como paso previo a
-# publicar, y así el instalador espera el visto bueno en vez de armarse en
-# paralelo. Duplicarlo sería pagar dos veces la misma verificación.
+# **Sólo `push`, y a propósito.** Antes había además un disparador
+# `pull_request`, y con un PR abierto cada commit generaba **dos** ejecuciones
+# idénticas: el PR mostraba dos veces el mismo check. No hace falta, porque los
+# checks se cuelgan del commit y no del evento: la corrida del push aparece
+# igual en el PR. Se comprobó consultando los check-runs del commit.
+#
+# `main` queda afuera: ahí la verificación la corre `release.yml` como paso
+# previo a publicar, para que el instalador espere el visto bueno.
 on:
   push:
-    branches:
-      - "feat/**"
-      - "fix/**"
-  pull_request:
-    branches:
+    branches-ignore:
       - main
 
-# Con un pull request abierto, un push a la rama disparaba **dos** ejecuciones:
-# una por el `push` y otra por el `pull_request`. Se veía en el historial, dos
-# corridas idénticas con el mismo commit y el mismo segundo de arranque.
+# `cancel-in-progress: false`, que es lo contrario de lo que suele ponerse.
 #
-# El grupo usa `head_ref || ref_name` justamente para que las dos caigan en el
-# mismo: en un pull request `head_ref` es el nombre de la rama y en un push está
-# vacío, así que `ref_name` —que también es el nombre pelado, sin `refs/heads/`—
-# lo cubre. Con `github.ref` no alcanzaba: en un pull request vale
-# `refs/pull/N/merge` y nunca coincidiría.
+# Con `true` cada push cancelaba la verificación del commit anterior, y como la
+# corrida tarda unos tres minutos, una tanda de commits seguidos dejaba a la
+# mayoría **sin verificar**: de los once del Sprint A, cinco terminaron
+# cancelados. Eso es justo lo que este flujo existe para evitar, y encima el
+# "Error: The operation was canceled" del log parecía una falla.
 #
-# `cancel-in-progress` además descarta la corrida anterior cuando se pushea dos
-# veces seguidas: lo que importa es el estado del último commit.
+# Acá cada commit es una tarea cerrada que se quiere saber si pasa, así que las
+# corridas se encolan por rama en vez de pisarse. El grupo se mantiene para que
+# no corran dos a la vez sobre la misma rama.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.ref_name }}
+  cancel-in-progress: false
 
 jobs:
   verify:
@@ -54,11 +54,21 @@ jobs:
           node-version-file: ".nvmrc"
           cache: "npm"
 
-      # `sqlite3` trae binarios precompilados, pero si tuviera que compilarlos
-      # el paso tardaría varios minutos: `--ignore-scripts` no sirve porque
-      # entonces no se instalan. Se deja la instalación normal.
+      # `better-sqlite3` trae binarios precompilados, pero si tuviera que
+      # compilarlos el paso tardaría varios minutos: `--ignore-scripts` no sirve
+      # porque entonces no se instalan. Se deja la instalación normal.
+      #
+      # El binario de Electron sí se saltea: son ~100 MB que esta verificación
+      # **no necesita** —tipos, lint, formato, tests y build del renderer pasan
+      # sin él, comprobado escondiéndolo en local— y bajarlo era una fuente de
+      # fallos intermitentes. Cuando la descarga no llegaba, `electron-log`
+      # —que hace su propio `require("electron")`— tiraba abajo trece tests con
+      # "Electron failed to install correctly". El instalador lo arma
+      # `release.yml`, que sí lo baja.
       - name: Install dependencies
         run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: 1
 
       - name: Verificar
         run: npm run verify

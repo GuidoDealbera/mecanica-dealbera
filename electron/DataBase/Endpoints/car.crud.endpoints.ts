@@ -10,6 +10,7 @@ import { Car } from "../Entities/car.entity";
 import { Client } from "../Entities/client.entity";
 import { invalidateDashboardStatsCache } from "../dashboardCache";
 import { ensureReminder } from "../serviceReminders.service";
+import { describeOwnerMismatch, findClientConflict } from "../clients.service";
 
 // Columnas por las que se permite ordenar el listado de autos (mapa
 // campo-de-la-UI → columna calificada de la query, para no interpolar texto
@@ -48,16 +49,34 @@ handleIpc("car:create", async (_event, payload: CreateCarDto) => {
       where: { fullname: createCarDto.owner.fullname },
     });
 
-    if (!owner) {
-      const existingPhone = await qr.manager.findOne(Client, {
-        where: { phone: createCarDto.owner.phone },
-      });
-      if (existingPhone) {
+    if (owner) {
+      // El titular ya existe con ese nombre, así que el vehículo se le asocia.
+      // Pero si los datos cargados **no son los suyos**, antes se descartaban
+      // en silencio y el mensaje decía "Vehículo registrado correctamente":
+      // el auto quedaba a nombre de otra persona, con el teléfono de otra
+      // persona, y a quien se llamaba por el recordatorio de service era a la
+      // equivocada. Ahora se frena y se explica.
+      const difieren = describeOwnerMismatch(owner, createCarDto.owner);
+      if (difieren.length > 0) {
         await qr.rollbackTransaction();
         return {
           status: "failed",
-          message: `El teléfono ya está registrado a nombre de ${existingPhone.fullname}`,
+          message:
+            `Ya hay un cliente llamado "${owner.fullname}" y ${difieren.join(
+              ", "
+            )} no coincide con lo cargado. ` +
+            "Si es la misma persona, actualizá sus datos desde Clientes; si es " +
+            "otra, usá un nombre que las distinga.",
         };
+      }
+    } else {
+      const conflicto = await findClientConflict(
+        qr.manager,
+        createCarDto.owner
+      );
+      if (conflicto) {
+        await qr.rollbackTransaction();
+        return { status: "failed", message: conflicto };
       }
       owner = qr.manager.create(Client, createCarDto.owner);
     }
@@ -316,27 +335,13 @@ handleIpc(
           };
         }
       } else {
-        // Verificar duplicado de nombre
-        const existingByName = await qr.manager.findOne(Client, {
-          where: { fullname: payload.newOwner.fullname },
-        });
-        if (existingByName) {
+        const conflicto = await findClientConflict(
+          qr.manager,
+          payload.newOwner
+        );
+        if (conflicto) {
           await qr.rollbackTransaction();
-          return {
-            status: "failed",
-            message: `Ya existe un cliente llamado "${payload.newOwner.fullname}"`,
-          };
-        }
-        // Verificar duplicado de teléfono
-        const existingByPhone = await qr.manager.findOne(Client, {
-          where: { phone: payload.newOwner.phone },
-        });
-        if (existingByPhone) {
-          await qr.rollbackTransaction();
-          return {
-            status: "failed",
-            message: `El teléfono ya está registrado a nombre de ${existingByPhone.fullname}`,
-          };
+          return { status: "failed", message: conflicto };
         }
         newOwner = qr.manager.create(Client, {
           ...payload.newOwner,

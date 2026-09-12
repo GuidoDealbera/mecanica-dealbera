@@ -479,6 +479,44 @@ handleIpc(
           relations: { car: true },
         });
 
+    // Editar uno puntual es el camino por el que se rompía la invariante del
+    // sistema —un solo recordatorio vigente por vehículo—, porque tomaba el
+    // recordatorio del `id` sin mirar nada más. Los tres controles:
+    if (body.id) {
+      // Que exista. Antes, un `id` que ya no estaba caía en el `create` de
+      // abajo y **creaba un recordatorio nuevo** sin decir nada.
+      if (!existing) {
+        return {
+          status: "failed",
+          message: "El recordatorio que intentás editar ya no existe",
+        };
+      }
+
+      // Que sea de este vehículo. Sin esto, un `id` equivocado —o una pantalla
+      // con datos viejos— reasignaba el recordatorio a otro auto en silencio.
+      if (existing.car?.id !== car.id) {
+        return {
+          status: "failed",
+          message: "Ese recordatorio no corresponde al vehículo indicado",
+        };
+      }
+
+      // Que reactivarlo no deje dos vigentes. Pasa al editar desde el historial
+      // un recordatorio ya cerrado: completar un service deja el viejo en
+      // `done` y genera uno nuevo, así que volver a abrir el viejo duplicaba el
+      // vehículo en la bandeja y en el badge. Es la misma comprobación que hace
+      // `service:reactivate`.
+      if (!ACTIVE_STATUSES.includes(existing.status)) {
+        const vigente = await findActiveReminder(AppDataSource.manager, car.id);
+        if (vigente && vigente.id !== existing.id) {
+          return {
+            status: "failed",
+            message: "El vehículo ya tiene un recordatorio de service vigente",
+          };
+        }
+      }
+    }
+
     const reminder =
       existing ??
       repo.create({
@@ -495,6 +533,12 @@ handleIpc(
 
     const saved = await repo.save(reminder);
     saved.car = car;
+
+    // Cambiar la fecha o el kilometraje cambia si el recordatorio "vence", así
+    // que el conteo del badge y el del dashboard quedan viejos. Es la misma
+    // razón por la que invalidan `snooze`, `dismiss`, `reactivate`, `complete` y
+    // `settings-set`; acá faltaba.
+    invalidateDashboardStatsCache();
 
     return {
       status: "success",

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ensureSuccess } from "./apiResponse";
+import { ensureSuccess, errorMessage, failureFrom } from "./apiResponse";
 import type { APIResponse } from "../Types/apiTypes";
 
 describe("ensureSuccess", () => {
@@ -44,5 +44,44 @@ describe("ensureSuccess", () => {
     expect(() => ensureSuccess(response)).toThrowError(
       "La operación no pudo completarse"
     );
+  });
+});
+
+describe("errorMessage", () => {
+  it("saca el mensaje de un Error", () => {
+    expect(errorMessage(new Error("no se pudo bajar los km"))).toBe(
+      "no se pudo bajar los km"
+    );
+  });
+
+  it("acepta un string suelto", () => {
+    expect(errorMessage("algo salió mal")).toBe("algo salió mal");
+  });
+
+  it("no devuelve vacío ante algo que no es un error", () => {
+    // El caso que dejaba el toast en blanco: `catch (error: any)` leyendo
+    // `error.message` sobre algo que no era un `Error`.
+    expect(errorMessage(undefined)).not.toBe("");
+    expect(errorMessage({ vaya: "cosa" })).not.toBe("");
+    expect(errorMessage(new Error(""))).not.toBe("");
+    expect(errorMessage("   ")).not.toBe("");
+  });
+
+  it("deja elegir el texto por defecto", () => {
+    expect(errorMessage(null, "no se pudo guardar")).toBe("no se pudo guardar");
+  });
+});
+
+describe("failureFrom", () => {
+  it("arma una respuesta con la misma forma que la del backend", () => {
+    const res = failureFrom(new Error("patente ya registrada"));
+
+    // Lo que importa: que tenga `status`. Los hooks devolvían el `Error` pelado
+    // y quien llamaba hacía `response.status === "success"`, que daba
+    // `undefined` y funcionaba de casualidad por ser falsy.
+    expect(res).toEqual({
+      status: "failed",
+      message: "patente ya registrada",
+    });
   });
 });

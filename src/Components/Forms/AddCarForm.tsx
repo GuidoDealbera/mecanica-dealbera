@@ -87,6 +87,15 @@ const AddCarForm: React.FC<AddCarFormProps> = ({
   );
 
   const shouldEnableSubmit = isEditing ? isDirty && isValid : isValid;
+  // El compilador de React avisa que no puede memoizar este componente porque
+  // `watch()` de react-hook-form devuelve funciones que no se pueden memoizar
+  // sin arriesgar interfaz vieja. No hay nada que corregir: el compilador ya
+  // hace lo correcto —saltea la memoización de este componente— y la
+  // alternativa sería dejar react-hook-form.
+  //
+  // Se silencia en el lugar y no apagando la regla, para que si mañana otro
+  // componente usa una librería incompatible el aviso aparezca.
+  // eslint-disable-next-line react-hooks/incompatible-library -- `watch()` de react-hook-form; el compilador ya saltea la memoización
   const watchedValues = watch();
   const areValuesInitial = (values: CreateCarBody) => {
     return (

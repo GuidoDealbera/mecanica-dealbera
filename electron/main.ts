@@ -47,8 +47,35 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL
   ? path.join(process.env.APP_ROOT, "public")
   : RENDERER_DIST;
 
-const gotTheLock = app.requestSingleInstanceLock();
-if (!gotTheLock) {
+// Identidad de la aplicación en Windows. Sin esto las notificaciones nativas
+// pueden no mostrarse, o mostrarse atribuidas a `electron.app.…` en vez de a
+// Mecánica Dealbera —y la única que manda la aplicación es la de arranque, la de
+// "N vehículos requieren service"—.
+//
+// Tiene que coincidir con el `appId` de `electron-builder.json5`: es el mismo
+// identificador con el que el instalador registra el acceso directo, y Windows
+// empareja la notificación con la aplicación por ahí.
+//
+// En desarrollo se usa la ruta del ejecutable, que es lo que documenta Electron:
+// un identificador propio que no esté registrado en el menú de inicio hace que
+// las notificaciones directamente no aparezcan.
+if (process.platform === "win32") {
+  app.setAppUserModelId(
+    app.isPackaged ? "com.dealbera.mecanica" : process.execPath
+  );
+}
+
+/**
+ * `false` cuando ya hay otra instancia corriendo.
+ *
+ * Pedir el lock avisa a la instancia que ya está (le dispara `second-instance`,
+ * que enfoca su ventana), así que a esta sólo le queda irse. `app.quit()` **no
+ * interrumpe la ejecución del módulo**: sin el corte de más abajo se seguía
+ * registrando `whenReady`, y eso es lo que abre la base de datos. Era una
+ * carrera contra el arranque para ver quién la abría primero.
+ */
+const esInstanciaPrincipal = app.requestSingleInstanceLock();
+if (!esInstanciaPrincipal) {
   app.quit();
 }
 
@@ -86,6 +113,20 @@ async function performAutoBackup(): Promise<void> {
 
 let win: BrowserWindow | null;
 let splash: BrowserWindow | null;
+
+/**
+ * Si el renderer avisó que hay un formulario con cambios sin guardar.
+ *
+ * El guard de React Router sólo intercepta las navegaciones **dentro** de la
+ * aplicación: cerrar la ventana se llevaba el formulario sin decir nada. Lo
+ * mantiene al día `useFormGuard`, que es el mismo lugar que decide si preguntar
+ * al navegar.
+ */
+let hayCambiosSinGuardar = false;
+
+ipcMain.on("app:unsaved-changes", (_event, dirty: unknown) => {
+  hayCambiosSinGuardar = dirty === true;
+});
 
 // Cada vez que una mutación invalida la caché del dashboard se le avisa al
 // renderer. Antes los contadores de la barra se recalculaban en cada cambio de
@@ -324,8 +365,39 @@ async function createWindow() {
   });
 
   win.setMenuBarVisibility(false);
+
+  // Cerrar con un formulario a medio llenar pregunta antes. Se usa la variante
+  // sincrónica del cuadro a propósito: `close` no espera promesas, así que con
+  // la asíncrona la ventana se cierra igual mientras el cuadro se dibuja.
+  //
+  // El `win.close()` de adentro vuelve a entrar acá, y por eso se baja la
+  // bandera primero: en la segunda pasada sale por el corte de arriba.
+  win.on("close", (event) => {
+    if (!hayCambiosSinGuardar) return;
+
+    event.preventDefault();
+    const respuesta = dialog.showMessageBoxSync({
+      type: "warning",
+      title: "Cambios sin guardar",
+      message: "Hay un formulario con cambios sin guardar.",
+      detail: "Si cerrás ahora se pierden.",
+      buttons: ["Volver al formulario", "Cerrar y perder los cambios"],
+      defaultId: 0,
+      cancelId: 0,
+    });
+
+    if (respuesta === 1) {
+      hayCambiosSinGuardar = false;
+      win?.close();
+    }
+  });
+
   // Test active push message to Renderer-process.
   win.webContents.on("did-finish-load", () => {
+    // Al recargar, el renderer arranca de cero: lo que hubiera declarado el
+    // anterior ya no existe. Sin esto, un recargado con el formulario sucio
+    // dejaba la aplicación preguntando al cerrar para siempre.
+    hayCambiosSinGuardar = false;
     win?.webContents.send("main-process-message", new Date().toLocaleString());
   });
 
@@ -460,14 +532,19 @@ handleIpc("check-for-updates", async () => {
   }
 });
 
-app.whenReady().then(async () => {
-  logInfo("app:start", "App iniciando", { version: app.getVersion() });
-  try {
-    await createWindow();
-    setupAutoUpdater();
-  } catch (error) {
-    // `createWindow` ya atiende sus propios fallos; esto cubre lo que se le
-    // escape, para que un arranque fallido no quede como promesa rechazada.
-    fatalError("app:start", error);
-  }
-});
+// El arranque sólo se engancha en la instancia principal. Lo demás que este
+// módulo registra —los handlers de IPC, los listeners de `app`— es inofensivo en
+// un proceso que se está yendo; abrir la base no lo sería.
+if (esInstanciaPrincipal) {
+  app.whenReady().then(async () => {
+    logInfo("app:start", "App iniciando", { version: app.getVersion() });
+    try {
+      await createWindow();
+      setupAutoUpdater();
+    } catch (error) {
+      // `createWindow` ya atiende sus propios fallos; esto cubre lo que se le
+      // escape, para que un arranque fallido no quede como promesa rechazada.
+      fatalError("app:start", error);
+    }
+  });
+}

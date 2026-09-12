@@ -32,7 +32,7 @@ están en los sprints de más abajo, que son de calidad y no de corrección.
 
 | Sprint                               | Tareas | 🔴  | 🟠  | 🟡  | ⚪  |
 | ------------------------------------ | ------ | --- | --- | --- | --- |
-| A — Bugs confirmados                 | 12     | 7   | 5   | 0   | 0   |
+| A — Bugs confirmados                 | 13     | 7   | 4   | 1   | 1   |
 | B — Validación que existe y no corre | 7      | 3   | 3   | 1   | 0   |
 | C — Seguridad y endurecimiento       | 7      | 1   | 0   | 5   | 1   |
 | D — Integridad de datos              | 6      | 2   | 3   | 1   | 0   |
@@ -43,7 +43,7 @@ están en los sprints de más abajo, que son de calidad y no de corrección.
 | I — Interfaz y accesibilidad         | 6      | 0   | 2   | 2   | 2   |
 | J — Tests                            | 7      | 0   | 0   | 5   | 2   |
 | K — Empaquetado y mantenimiento      | 7      | 0   | 1   | 4   | 2   |
-| **Total**                            | **84** | 14  | 27  | 31  | 12  |
+| **Total**                            | **85** | 14  | 26  | 32  | 13  |
 
 ---
 
@@ -53,7 +53,7 @@ Cosas que están mal hoy, con el escenario concreto en el que muerden.
 
 ### A1 · 🔴 Restaurar un respaldo viejo deja la aplicación contra un esquema que no entiende
 
-**[pendiente]** · `electron/DataBase/Endpoints/backup.endpoints.ts` →
+**[a testear]** · `electron/DataBase/Endpoints/backup.endpoints.ts` →
 `replaceDatabaseWith`
 
 Restaurar o importar copia el archivo encima de la base y hace
@@ -74,9 +74,38 @@ Solución: después de reemplazar, correr el mismo camino que el arranque —cop
 previa, migraciones pendientes, verificación—. Si no se puede migrar, volver a la
 base anterior; el mecanismo de `_pre_import_` ya está escrito.
 
+**Resuelto.** El núcleo "migrar y verificar" se extrajo a `applyPendingMigrations`
+—exportado desde `dataSource.ts`— y ahora lo usan los dos caminos: el arranque
+(que le agrega la copia previa y el ofrecimiento de restaurar) y la restauración
+(cuya red es la base que se acaba de apartar). El mensaje avisa cuántos cambios se
+aplicaron: el respaldo ya no es idéntico a lo que quedó restaurado.
+
+De paso se cerró el caso inverso, que era el mismo agujero al revés: una base
+escrita por una versión **posterior** no tiene migraciones pendientes —para este
+código no las hay— así que pasaba el control igual. `findUnknownMigrations` la
+detecta y la aplicación no la toca.
+
+Dos cosas que sólo aparecieron probándolo de verdad:
+
+- **`constructor.name` no sirve para identificar una migración.** El bundle del
+  proceso principal va minificado, así que ahí el nombre de la clase es una
+  letra: la primera versión daba por desconocidas a las once migraciones propias
+  y la aplicación no arrancaba. Va por la propiedad `name` que cada migración
+  declara, que es lo que usa TypeORM por el mismo motivo. Hay un test que fija la
+  causa —que todas la declaren—, porque el síntoma no se reproduce sin minificar.
+- **La base real de la 1.0.3 ya tenía dos migraciones anotadas**
+  (`InitialSchema` y `AddPartsToExistingJobs`), así que al ponerla al día corren
+  nueve y no once. La afirmación de que la 1.0.3 no tenía ninguna migración, en la
+  descripción original de esta tarea, estaba equivocada.
+
+Cubierto por `electron/DataBase/applyPendingMigrations.test.ts` (4 casos) y
+`electron/DataBase/Endpoints/backupRestore.test.ts` (3 casos, sobre el handler
+real: respaldo viejo, archivo que no es una base —con la vuelta atrás— y respaldo
+inexistente). Se comprobó que el test falla si se saca la corrección.
+
 ### A2 · 🔴 `service:save` no invalida la caché del dashboard
 
-**[pendiente]** · `electron/DataBase/Endpoints/service.endpoints.ts`
+**[a testear]** · `electron/DataBase/Endpoints/service.endpoints.ts`
 
 `snooze`, `dismiss`, `reactivate`, `complete` y `settings-set` llaman a
 `invalidateDashboardStatsCache()`. **`service:save` no.**
@@ -87,9 +116,14 @@ siguen mostrando el conteo viejo hasta que otra cosa invalide la caché. Es
 información incorrecta en la pantalla principal, que es exactamente lo que una
 caché no puede permitirse.
 
+**Resuelto.** El test no espía la llamada sino la señal que sale de ella
+(`onDashboardStatsInvalidated`), que es la misma por la que el proceso principal
+manda `data-changed` al renderer: lo que importa no es que se invoque una
+función, es que el contador de la barra se entere.
+
 ### A3 · 🔴 `service:save` puede dejar dos recordatorios vigentes en el mismo vehículo
 
-**[pendiente]** · `electron/DataBase/Endpoints/service.endpoints.ts`
+**[a testear]** · `electron/DataBase/Endpoints/service.endpoints.ts`
 
 La invariante del sistema es **un solo recordatorio vigente por vehículo**, y el
 endpoint la cuida sólo en la rama sin `id`: si no se pasa uno, reutiliza el
@@ -107,18 +141,26 @@ real.
 `service:reactivate` sí hace la comprobación con `findActiveReminder`; `save`
 tiene que hacer la misma.
 
+**Resuelto junto con A4**: los dos eran el mismo hueco —tomar el recordatorio del
+`id` sin mirar nada más— así que se cerró con un solo bloque de tres controles.
+
 ### A4 · 🔴 `service:save` puede mover un recordatorio de un vehículo a otro
 
-**[pendiente]** · `electron/DataBase/Endpoints/service.endpoints.ts`
+**[a testear]** · `electron/DataBase/Endpoints/service.endpoints.ts`
 
 El endpoint busca el recordatorio por `body.id` y después hace
 `reminder.car = car`, donde `car` sale de `body.licensePlate`. **No comprueba que
 el recordatorio pertenezca a ese vehículo.** Un `id` equivocado —o una pantalla
 con datos viejos— lo reasigna en silencio a otro auto.
 
+**Resuelto junto con A3.** Escribiendo los controles apareció un tercer caso que
+no estaba anotado: si el `id` **ya no existe**, el código caía en el `create` de
+más abajo y **creaba un recordatorio nuevo** sin decir nada. Ahora falla y lo
+explica.
+
 ### A5 · 🔴 Un teléfono repetido revienta con el error crudo de SQLite
 
-**[pendiente]** · `electron/DataBase/Endpoints/client.endpoints.ts`
+**[a testear]** · `electron/DataBase/Endpoints/client.endpoints.ts`
 
 `Client.phone` es `unique` en la base. `client:create` comprueba el **nombre**
 duplicado y devuelve un mensaje claro, pero **no comprueba el teléfono**;
@@ -133,9 +175,19 @@ Lo llamativo es que **el mensaje bueno ya existe**: `car:create` y
 `car:reassign-owner` sí hacen esa comprobación. Es la misma regla escrita dos
 veces y faltando en un tercer lugar.
 
+**Resuelto, y de paso F4.** En vez de escribir la tercera y la cuarta copia, la
+regla se mudó a `clients.service.ts` (`findClientConflict`) y ahora la usan los
+cuatro caminos. Recibe el `EntityManager` por parámetro, como el resto del
+dominio, así que funciona igual dentro de las transacciones de `car:create` y
+`car:reassign-owner`.
+
+Detalle que apareció escribiendo el test: `@IsPhoneNumber("AR")` es estricto y
+rechaza números inventados como `3510000001`. Los datos de prueba usan números
+con formato válido de verdad.
+
 ### A6 · 🔴 `car:create` descarta en silencio los datos del titular recién cargados
 
-**[pendiente]** · `electron/DataBase/Endpoints/car.crud.endpoints.ts`
+**[a testear]** · `electron/DataBase/Endpoints/car.crud.endpoints.ts`
 
 Al registrar un vehículo, si ya existe un cliente **con el mismo nombre**, se
 reutiliza ese cliente y **se ignoran el teléfono, la dirección, la localidad y el
@@ -151,9 +203,20 @@ Y si es la misma persona pero cambió de teléfono, el dato nuevo se pierde igua
 Mínimo: avisar que se va a asociar a un cliente existente y mostrar sus datos para
 que el usuario confirme. Ver también **D5**.
 
+**Resuelto sin tocar la interfaz.** Se compara lo cargado contra el cliente que ya
+existe con ese nombre: si coincide, el vehículo se le asocia como siempre; si
+difiere, se frena y el mensaje dice **qué campo** no coincide y qué hacer —si es
+la misma persona, actualizarla desde Clientes; si es otra, usar un nombre que las
+distinga—.
+
+El flujo normal no se ve afectado, y eso está probado: el autocompletar del
+formulario rellena los datos del cliente elegido, así que llegan idénticos. Y un
+campo que el usuario dejó en blanco no cuenta como diferencia: no retipearlo no es
+pedir que se borre.
+
 ### A7 · 🔴 La búsqueda global trata los comodines de `LIKE` como comodines
 
-**[pendiente]** · `electron/DataBase/Endpoints/car.search.endpoints.ts`
+**[a testear]** · `electron/DataBase/Endpoints/car.search.endpoints.ts`
 
 `global:search` arma su patrón **sin escapar** `%` ni `_`, cuando el proyecto
 tiene un helper (`escapeLike`) escrito justamente para eso y usado en todos los
@@ -166,29 +229,66 @@ no hay inyección— pero los resultados son incorrectos.
 De paso, `client:search` **reimplementa** el escape a mano en vez de usar
 `escapeLike`, que hace exactamente eso.
 
-### A8 · 🟠 `useFormGuard` nunca resetea el bloqueador de navegación
+**Resuelto, y con él F5.** `global:search` pasó de `Like()` —que no admite
+cláusula `ESCAPE`— a un query builder con `escapeLike`, igual que el resto de los
+listados, y `client:search` usa el helper en vez de su copia. Los dos ignoran
+ahora un término que no sea texto, que era una vía de caída
+(`query.replace` sobre `undefined`).
 
-**[pendiente]** · `src/Hooks/useFormGuard.ts`
+Se comprobó que los tests fallan si se saca el escape.
+
+### A8 · ⚪ `useFormGuard` nunca resetea el bloqueador de navegación
+
+**[a testear]** · `src/Hooks/useFormGuard.ts`
 
 `useBlocker` de React Router deja el bloqueador en estado `blocked` hasta que se
 llame a `proceed()` o a `reset()`. `confirmNavigation` llama a `proceed()`, pero
 **`cancelNavigation` sólo cierra el modal**: nunca llama a `blocker.reset()`.
 
-Escenario: se está editando un vehículo, se intenta salir y se elige "quedarme".
-El bloqueador queda trabado, y el siguiente intento de salir puede no volver a
-preguntar.
+**El síntoma que decía esta tarea no existe, y estaba mal anotado acá.** Yo
+había escrito que el siguiente intento de salir podía no volver a preguntar. Se
+probó y no pasa: React Router evalúa el bloqueador otra vez en cada navegación y
+la vuelve a frenar. Midiendo los estados por los que pasa sin el `reset`, la
+secuencia es `unblocked → blocked → blocked`, y la pantalla no se abandona
+ninguna de las dos veces.
+
+Así que baja de 🟠 a ⚪: el `reset()` **se agregó igual** —es el uso que documenta
+la API, deja `blocker.state` diciendo la verdad y suelta los `proceed`/`reset`
+viejos— pero no arregla nada que el usuario pudiera ver.
+
+Lo que sí quedó de valor es la cobertura: el guard no tenía ninguna, y ahora hay
+tres casos sobre el ciclo completo (preguntar, quedarse y volver a intentar,
+confirmar y salir).
 
 ### A9 · 🟠 Cerrar la aplicación con cambios sin guardar no avisa nada
 
-**[pendiente]** · `src/Hooks/useFormGuard.ts`, `electron/main.ts`
+**[a testear]** · `src/Hooks/useFormGuard.ts`, `electron/main.ts`
 
 El guard sólo intercepta navegaciones de React Router. **Cerrar la ventana no está
 cubierto**: se pierde el formulario sin una palabra. Hace falta atender el `close`
 de la ventana principal y preguntar.
 
+**Resuelto.** `useFormGuard` —que ya es el único lugar que sabe si el formulario
+está sucio— le avisa al proceso principal por un canal nuevo, y el proceso
+principal atiende el `close` de la ventana y pregunta antes de cerrar. El aviso se
+retira al desmontar: una pantalla que ya no está no tiene cambios sin guardar, y
+sin eso la aplicación quedaría preguntando para siempre. También se limpia en
+`did-finish-load`, porque al recargar el renderer arranca de cero.
+
+Detalles que aparecieron probándolo contra la aplicación real:
+
+- **El cuadro va en su variante sincrónica.** `close` no espera promesas: con la
+  asíncrona la ventana se cierra igual mientras el cuadro se dibuja.
+- **`window.close()` desde el renderer no pasa por `BrowserWindow.on("close")`.**
+  Se descubrió porque la primera prueba —hecha justamente con eso— cerraba la
+  aplicación sin disparar el guard. Los caminos reales (la X, Alt+F4, `app.quit`)
+  sí pasan, y se verificó que ahí el guard frena el cierre y muestra el cuadro.
+  Ningún archivo del renderer llama a `window.close()`, así que no hay una vía de
+  escape; queda anotado por si alguien la agrega.
+
 ### A10 · 🟠 Los hooks devuelven el `Error` donde el llamador espera la respuesta del backend
 
-**[pendiente]** · `src/Hooks/useCarQueries.ts`
+**[a testear]** · `src/Hooks/useCarQueries.ts`
 
 Varios `catch` hacen `return error`, y los llamadores hacen
 `if (response.status === "success")`. Un `Error` no tiene `status`, así que da
@@ -199,9 +299,18 @@ El archivo además arranca con un `eslint-disable` de `no-explicit-any` y tiene
 seis `catch (error: any)`: si lo que se lanza no es un `Error`, `error.message` es
 `undefined` y el toast sale vacío.
 
+**Resuelto.** Dos helpers nuevos en `src/Utils/apiResponse.ts`, que es donde ya
+vive `ensureSuccess`: `errorMessage` saca un texto legible de lo que sea que se
+haya lanzado, y `failureFrom` arma una respuesta con la forma del backend. Los
+seis `catch` pasaron a `unknown` y el `eslint-disable` del archivo se fue.
+
+Los tres que no devolvían nada útil —`getCars`, `refresh` y `refreshCar`, cuyos
+llamadores ignoran el retorno— dejaron de devolver el error: devolverlo sólo
+servía para confundir sobre el contrato.
+
 ### A11 · 🟠 Las notificaciones de Windows no declaran la identidad de la aplicación
 
-**[pendiente]** · `electron/main.ts`
+**[a testear]** · `electron/main.ts`
 
 No se llama a `app.setAppUserModelId("com.dealbera.mecanica")`. En Windows, sin
 eso las notificaciones nativas pueden no mostrarse, o mostrarse atribuidas a
@@ -210,14 +319,77 @@ eso las notificaciones nativas pueden no mostrarse, o mostrarse atribuidas a
 Es justo la notificación de arranque de "N vehículos requieren service", que es la
 única que la aplicación manda.
 
+**Resuelto.** El identificador coincide con el `appId` de
+`electron-builder.json5`, que es con el que el instalador registra el acceso
+directo: Windows empareja la notificación con la aplicación por ahí. En
+desarrollo se usa la ruta del ejecutable, que es lo que documenta Electron —un
+identificador propio sin registrar en el menú de inicio hace que la notificación
+no aparezca en absoluto—.
+
+Es lo único de este sprint que **no se puede verificar con una prueba**: depende
+del centro de notificaciones de Windows. Hay que mirarlo con la aplicación
+instalada, con algún vehículo con el service vencido.
+
 ### A12 · 🟠 La segunda instancia sigue arrancando después de pedir el cierre
 
-**[pendiente]** · `electron/main.ts`
+**[a testear]** · `electron/main.ts`
 
 `app.quit()` no interrumpe la ejecución del módulo: si no se obtuvo el lock, se
 siguen registrando `whenReady`, los handlers de IPC y el resto. En la práctica
 Electron termina cerrando antes, pero es una carrera contra un arranque que
 **abriría la misma base**. Corresponde salir de verdad y no seguir ejecutando.
+
+**Resuelto** enganchando el arranque sólo en la instancia principal, que es el
+patrón que documenta Electron. Lo demás que el módulo registra —handlers de IPC,
+listeners de `app`— es inofensivo en un proceso que se está yendo; abrir la base
+no lo sería.
+
+Verificado lanzando dos instancias contra la misma carpeta de datos: la segunda
+sale con código 0 y **no aparece ni una línea de `db:init` en su log**, mientras
+la primera sigue andando.
+
+---
+
+### A13 · 🟡 El linter arrastraba once avisos que nadie iba a mirar
+
+**[a testear]** · `src/Routes/index.tsx`, `src/Components/Forms/*`,
+`package.json`
+
+`npm run lint` terminaba con **11 avisos** en cada corrida, local y en CI. Un
+aviso permanente no se lee: se vuelve parte del paisaje, y el día que aparece uno
+nuevo tampoco se lee.
+
+Eran dos causas distintas:
+
+- **Nueve de `react-refresh/only-export-components`**, todas en el archivo del
+  router. Definía las nueve pantallas diferidas pero exportaba un objeto, no un
+  componente, así que cualquier cambio ahí obligaba a recargar la página entera
+  en desarrollo. Se resolvió como pedía la regla: las pantallas se mudaron a
+  `src/Routes/lazyPages.ts`, que exporta sólo componentes, y el router quedó
+  exportando sólo el router.
+- **Dos de `react-hooks/incompatible-library`**, en los dos formularios que usan
+  `watch()` de react-hook-form. Acá **no hay nada que corregir**: el compilador de
+  React avisa que no puede memoizar esos componentes y ya hace lo correcto,
+  saltearlos; la alternativa sería dejar react-hook-form. Se silencian en el
+  lugar y con el motivo escrito, no apagando la regla, para que si mañana otro
+  componente usa una librería incompatible el aviso aparezca.
+
+Y para que no vuelvan: `npm run lint` pasó a correr con `--max-warnings 0`. Sin
+eso, llegar a cero es cuestión de tiempo hasta que deje de estarlo.
+
+**Apareció además un fallo intermitente del CI**, que se destapó al mirar por qué
+una corrida fallaba y la anterior no con el mismo código. Los tests de los
+endpoints importan `electron/logger.ts`, que usa `electron-log`, que hace **su
+propio `require("electron")`** —y eso no lo intercepta el `vi.mock("electron")`
+de cada test: el mock vale para el módulo bajo prueba, no para lo que pida una
+dependencia por su cuenta—. Cuando la descarga del binario de Electron no
+llegaba en el runner, trece tests se caían con "Electron failed to install
+correctly". En local nunca, porque el binario está.
+
+Dos arreglos, uno por cada mitad del problema: un alias en `vitest.config.ts` que
+sustituye `electron-log/main` por un doble, y `ELECTRON_SKIP_BINARY_DOWNLOAD` en
+el flujo de verificación, que no necesita el binario para nada. Se comprobó
+escondiendo `path.txt` en local: `npm run verify` pasa entero sin él.
 
 ---
 
@@ -780,22 +952,28 @@ buscarlo **por nombre**, que es la clave frágil de **D5**.
 
 ### F4 · 🟡 La regla "teléfono ya registrado" está escrita dos veces y falta en un tercer lugar
 
-**[pendiente]** · `car.crud.endpoints.ts`, `client.endpoints.ts`
+**[a testear]** · `car.crud.endpoints.ts`, `client.endpoints.ts`
 
 Ver **A5**. La misma comprobación, con el mismo mensaje, copiada en `car:create` y
 en `car:reassign-owner`, y ausente en `client:create` y `client:update`. Es el
 argumento a favor de que las reglas de unicidad vivan en un solo módulo de dominio
 y no en cada endpoint.
 
+**Resuelto al hacer A5**: escribir la tercera copia para arreglar A5 habría sido
+absurdo, así que la regla se mudó a `clients.service.ts` y los cuatro caminos la
+comparten.
+
 ### F5 · 🟡 Tres formas distintas de escapar una búsqueda
 
-**[pendiente]** · `electron/pagination.ts` y los endpoints de búsqueda
+**[a testear]** · `electron/pagination.ts` y los endpoints de búsqueda
 
 - Los listados usan `escapeLike` (correcto).
 - `client:search` **reimplementa** el mismo `replace` a mano.
 - `global:search` **no escapa nada** (ver **A7**).
 
 Un helper, tres criterios.
+
+**Resuelto al hacer A7**: los tres caminos usan `escapeLike`.
 
 ### F6 · 🟡 El proyecto detecta "modo desarrollo" con `NODE_ENV` en vez de `app.isPackaged`
 
