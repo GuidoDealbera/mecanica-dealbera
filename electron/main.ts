@@ -47,6 +47,24 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL
   ? path.join(process.env.APP_ROOT, "public")
   : RENDERER_DIST;
 
+// Identidad de la aplicación en Windows. Sin esto las notificaciones nativas
+// pueden no mostrarse, o mostrarse atribuidas a `electron.app.…` en vez de a
+// Mecánica Dealbera —y la única que manda la aplicación es la de arranque, la de
+// "N vehículos requieren service"—.
+//
+// Tiene que coincidir con el `appId` de `electron-builder.json5`: es el mismo
+// identificador con el que el instalador registra el acceso directo, y Windows
+// empareja la notificación con la aplicación por ahí.
+//
+// En desarrollo se usa la ruta del ejecutable, que es lo que documenta Electron:
+// un identificador propio que no esté registrado en el menú de inicio hace que
+// las notificaciones directamente no aparezcan.
+if (process.platform === "win32") {
+  app.setAppUserModelId(
+    app.isPackaged ? "com.dealbera.mecanica" : process.execPath
+  );
+}
+
 const gotTheLock = app.requestSingleInstanceLock();
 if (!gotTheLock) {
   app.quit();

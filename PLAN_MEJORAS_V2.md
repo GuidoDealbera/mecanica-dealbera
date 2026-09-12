@@ -310,7 +310,7 @@ servía para confundir sobre el contrato.
 
 ### A11 · 🟠 Las notificaciones de Windows no declaran la identidad de la aplicación
 
-**[pendiente]** · `electron/main.ts`
+**[a testear]** · `electron/main.ts`
 
 No se llama a `app.setAppUserModelId("com.dealbera.mecanica")`. En Windows, sin
 eso las notificaciones nativas pueden no mostrarse, o mostrarse atribuidas a
@@ -318,6 +318,17 @@ eso las notificaciones nativas pueden no mostrarse, o mostrarse atribuidas a
 
 Es justo la notificación de arranque de "N vehículos requieren service", que es la
 única que la aplicación manda.
+
+**Resuelto.** El identificador coincide con el `appId` de
+`electron-builder.json5`, que es con el que el instalador registra el acceso
+directo: Windows empareja la notificación con la aplicación por ahí. En
+desarrollo se usa la ruta del ejecutable, que es lo que documenta Electron —un
+identificador propio sin registrar en el menú de inicio hace que la notificación
+no aparezca en absoluto—.
+
+Es lo único de este sprint que **no se puede verificar con una prueba**: depende
+del centro de notificaciones de Windows. Hay que mirarlo con la aplicación
+instalada, con algún vehículo con el service vencido.
 
 ### A12 · 🟠 La segunda instancia sigue arrancando después de pedir el cierre
 
