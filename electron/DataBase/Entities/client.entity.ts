@@ -13,10 +13,14 @@ export class Client {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
 
-  @Column("varchar", { unique: true, nullable: false })
+  // Ni el nombre ni el teléfono son únicos: dos clientes pueden llamarse igual
+  // y una familia puede compartir un número. Al cliente se lo identifica por
+  // `id`; el duplicado se avisa al cargarlo, no se impide. Ver la migración
+  // `AllowHomonymClients`.
+  @Column("varchar", { nullable: false })
   fullname!: string;
 
-  @Column("varchar", { unique: true, nullable: false })
+  @Column("varchar", { nullable: false })
   phone!: string;
 
   @Column("varchar", { nullable: false })

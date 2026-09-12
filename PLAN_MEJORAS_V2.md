@@ -1047,7 +1047,7 @@ que ahora dice dónde se la llama y cuáles son las dos vueltas de verdad.
 
 ### D5 · 🟠 El nombre del cliente es la clave única, así que no puede haber dos homónimos
 
-**[pendiente]** · `electron/DataBase/Entities/client.entity.ts`
+**[a testear]** · `electron/DataBase/Entities/client.entity.ts`
 
 `Client.fullname` es `unique`, y **es la clave por la que se busca al cliente** en
 casi todos lados: `client:find-by-name`, la reasignación de titular por
@@ -1064,6 +1064,63 @@ Consecuencias:
 Lo correcto de fondo es referenciar por `id` en toda la interfaz y quitar la
 unicidad de `fullname` (dejando quizás un aviso de duplicado, no un impedimento).
 Es un cambio grande: toca endpoints, hooks y pantallas.
+
+**Resuelto**, en ese orden y en dos partes, porque la segunda no se puede hacer
+sin la primera: mientras el nombre siga siendo la forma de encontrar al cliente,
+permitir homónimos sólo consigue que el sistema tome a uno por el otro.
+
+**Primero, referenciar por `id`.** `car:create` recibe un `ownerId` opcional y
+deja de buscar al titular por nombre: quién es lo decide el formulario, que es
+el único que sabe si el usuario eligió a alguien de la lista o escribió un
+nombre nuevo. `car:reassign-owner` pasó a `existingOwnerId`,
+`client:find-by-name` es `client:find-by-id`, y la ficha vive en `/clients/:id`,
+así que renombrar a un cliente ya no invalida el enlace a su ficha.
+
+En el camino apareció un detalle que sólo se ve leyendo: las opciones del
+autocompletar llevaban `textValue={client.key}`, y al pasar la clave a ser el
+`id` eso habría mostrado un uuid en el campo al elegir un titular.
+
+La decisión de qué titular quedó elegido salió del componente a
+`src/Utils/ownerSelection.ts`, que es donde el proyecto pone las reglas
+testeables. Vale aclarar el límite: eso cubre la regla, **no** el widget. Se
+intentó ejercitar el autocompletar contra la aplicación real por CDP y no se
+pudo —el desplegable de HeroUI no responde a eventos sintéticos, y el teclado
+por CDP no llega—; se comprobó que el código anterior se comporta igual bajo el
+mismo arnés, así que es una limitación de la herramienta y no del cambio. Lo que
+sí se ejercitó en la aplicación real es la ficha del cliente por `id`, entrando
+por la dirección y con un clic desde el listado.
+
+**Después, quitar la unicidad.** La migración `AllowHomonymClients` reconstruye
+la tabla `client` sin los `UNIQUE` de `fullname` ni de `phone` —el teléfono
+también, porque una familia que comparte un número tampoco podía tener dos
+fichas— y repone como índices normales los que traía la restricción, de los que
+dependen el orden del listado y la búsqueda del duplicado.
+
+Lo delicado ahí es que SQLite no puede quitar un `UNIQUE` de la tabla sin
+reconstruirla, y `car.ownerId` la referencia con `ON DELETE SET NULL`: al soltar
+la tabla vieja esa acción se dispara y **todos los autos se quedan sin dueño**,
+sin violar ninguna restricción. Se midió, y también que las dos formas de
+evitarlo desde adentro de la migración no sirven: el `PRAGMA foreign_keys` se
+ignora dentro de una transacción y `defer_foreign_keys` demora la comprobación
+pero no las acciones.
+
+Lo que salva a la migración es que el driver ya hace lo correcto —el
+`QueryRunner` de better-sqlite3 apaga las claves foráneas en `beforeMigration`—.
+Se llegó a agregar el `PRAGMA` a `applyPendingMigrations` antes de descubrirlo,
+y se sacó por redundante. Queda un caso que fija el resultado, porque es una
+garantía que damos por sentada y que no depende de nuestro código.
+
+Se corrió contra una base real del usuario, una previa a todas las migraciones:
+13 migraciones aplicadas, los mismos clientes y autos antes y después, cero
+huérfanos, `foreign_key_check` vacío e `integrity_check` en `ok`.
+
+**Y el duplicado ahora se avisa en vez de impedirse.** `findClientConflict` pasó
+a ser `describeClientDuplicates`: los cuatro caminos que cargan clientes guardan
+igual y suman el aviso a su mensaje de éxito, nombrando al otro cliente —sin
+eso, el usuario no tiene cómo saber si acaba de cargar dos veces a la misma
+persona—. Si coinciden el nombre **y** el teléfono, el aviso lo dice de una vez:
+es la señal más fuerte de que es un duplicado de verdad, y avisar de uno solo la
+escondería a medias.
 
 ### D6 · 🟡 El dinero se guarda en `integer` para el trabajo y en JSON libre para los repuestos
 

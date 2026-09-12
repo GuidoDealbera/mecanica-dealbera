@@ -10,7 +10,10 @@ import { Car } from "../Entities/car.entity";
 import { Client } from "../Entities/client.entity";
 import { invalidateDashboardStatsCache } from "../dashboardCache";
 import { ensureReminder } from "../serviceReminders.service";
-import { describeOwnerMismatch, findClientConflict } from "../clients.service";
+import {
+  describeClientDuplicates,
+  describeOwnerMismatch,
+} from "../clients.service";
 
 // Columnas por las que se permite ordenar el listado de autos (mapa
 // campo-de-la-UI → columna calificada de la query, para no interpolar texto
@@ -35,6 +38,7 @@ handleIpc("car:create", async (_event, payload: CreateCarDto) => {
   const qr = AppDataSource.createQueryRunner();
   await qr.connect();
   await qr.startTransaction();
+  let avisoDeDuplicado: string | null = null;
 
   try {
     const existingCar = await qr.manager.findOne(Car, {
@@ -79,14 +83,14 @@ handleIpc("car:create", async (_event, payload: CreateCarDto) => {
         };
       }
     } else {
-      const conflicto = await findClientConflict(
+      // No se eligió a nadie de la lista: el titular es nuevo. Si coincide con
+      // alguno que ya está, se avisa —abajo, con el vehículo ya guardado— pero
+      // no se impide: puede ser un homónimo, o una familia que comparte el
+      // teléfono.
+      avisoDeDuplicado = await describeClientDuplicates(
         qr.manager,
         createCarDto.owner
       );
-      if (conflicto) {
-        await qr.rollbackTransaction();
-        return { status: "failed", message: conflicto };
-      }
       owner = qr.manager.create(Client, createCarDto.owner);
     }
     const savedOwner = await qr.manager.save(Client, owner);
@@ -106,7 +110,12 @@ handleIpc("car:create", async (_event, payload: CreateCarDto) => {
 
     await qr.commitTransaction();
     invalidateDashboardStatsCache();
-    return { status: "success", message: "Vehículo registrado correctamente" };
+    return {
+      status: "success",
+      message: avisoDeDuplicado
+        ? `Vehículo registrado correctamente. ${avisoDeDuplicado}`
+        : "Vehículo registrado correctamente",
+    };
   } catch (error) {
     await qr.rollbackTransaction();
     logError("car:create", error);
@@ -361,6 +370,7 @@ handleIpc(
     const qr = AppDataSource.createQueryRunner();
     await qr.connect();
     await qr.startTransaction();
+    let aviso: string | null = null;
 
     try {
       const car = await qr.manager.findOne(Car, {
@@ -401,11 +411,7 @@ handleIpc(
         }
       } else {
         const datosNuevos = ownerValidado as CreateClientDto;
-        const conflicto = await findClientConflict(qr.manager, datosNuevos);
-        if (conflicto) {
-          await qr.rollbackTransaction();
-          return { status: "failed", message: conflicto };
-        }
+        aviso = await describeClientDuplicates(qr.manager, datosNuevos);
         newOwner = qr.manager.create(Client, {
           ...datosNuevos,
           isActive: true,
@@ -418,9 +424,10 @@ handleIpc(
 
       await qr.commitTransaction();
       invalidateDashboardStatsCache();
+      const hecho = `Titular actualizado a "${newOwner.fullname}"`;
       return {
         status: "success",
-        message: `Titular actualizado a "${newOwner.fullname}"`,
+        message: aviso ? `${hecho}. ${aviso}` : hecho,
         result: savedCar,
       };
     } catch (error) {

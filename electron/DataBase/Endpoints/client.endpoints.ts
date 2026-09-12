@@ -8,7 +8,7 @@ import type { ClientQueryParams, Paginated } from "../Types/types";
 import { Car } from "../Entities/car.entity";
 import { Client } from "../Entities/client.entity";
 import { invalidateDashboardStatsCache } from "../dashboardCache";
-import { findClientConflict } from "../clients.service";
+import { describeClientDuplicates } from "../clients.service";
 
 // Columnas por las que se permite ordenar el listado de clientes.
 const CLIENT_SORT_COLUMNS: Record<string, string> = {
@@ -23,22 +23,21 @@ handleIpc("client:create", async (_, payload: CreateClientDto) => {
   const createClientDto = validation.dto;
 
   const repo = getRepositories().clientRepository;
-  // Nombre **y** teléfono: los dos son `unique` en la base. Antes sólo se
-  // miraba el nombre, así que un teléfono repetido salía como el error crudo de
-  // SQLite en vez de decir de quién es.
-  const conflicto = await findClientConflict(
+  // El duplicado se avisa y no se impide: dos clientes pueden llamarse igual y
+  // una familia puede compartir el teléfono. Pero casi siempre es la misma
+  // persona cargada dos veces, y eso hay que decirlo en el momento.
+  const aviso = await describeClientDuplicates(
     AppDataSource.manager,
     createClientDto
   );
-  if (conflicto) {
-    return { status: "failed", message: conflicto };
-  }
   const newOwner = repo.create(createClientDto);
   await repo.save(newOwner);
   invalidateDashboardStatsCache();
   return {
     status: "success",
-    message: "Cliente registrado correctamente",
+    message: aviso
+      ? `Cliente registrado correctamente. ${aviso}`
+      : "Cliente registrado correctamente",
   };
 });
 
@@ -247,10 +246,9 @@ handleIpc("client:update", async (_, payload: UpdateClientDto) => {
       message: "El cliente que intenta modificar no se encuentra registrado",
     };
   }
-  // Sólo se comprueba lo que efectivamente cambia: contra el propio cliente no
-  // hay conflicto. El teléfono no se miraba, y también es `unique`: cambiarlo
-  // por uno tomado reventaba con el error de SQLite.
-  const conflicto = await findClientConflict(
+  // Sólo se mira lo que efectivamente cambia: contra el propio cliente no hay
+  // nada que avisar.
+  const aviso = await describeClientDuplicates(
     AppDataSource.manager,
     {
       fullname: fullname !== updateClient.fullname ? fullname : undefined,
@@ -258,9 +256,6 @@ handleIpc("client:update", async (_, payload: UpdateClientDto) => {
     },
     id
   );
-  if (conflicto) {
-    return { status: "failed", message: conflicto };
-  }
   if (fullname !== undefined) updateClient.fullname = fullname;
   if (address !== undefined) updateClient.address = address;
   if (city !== undefined) updateClient.city = city;
@@ -277,7 +272,9 @@ handleIpc("client:update", async (_, payload: UpdateClientDto) => {
   });
   return {
     status: "success",
-    message: "Cliente actualizado correctamente",
+    message: aviso
+      ? `Cliente actualizado correctamente. ${aviso}`
+      : "Cliente actualizado correctamente",
     result: withCars,
   };
 });

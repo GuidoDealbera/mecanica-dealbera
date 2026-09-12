@@ -10,6 +10,9 @@ import { MigrationInterface, QueryRunner } from "typeorm";
  *
  * `licensePlate`, `fullname` y `phone` NO se indexan aquí: su restricción
  * `UNIQUE` ya crea un índice automáticamente en SQLite.
+ *
+ * (Después dejó de valer para `fullname` y `phone`: `AllowHomonymClients` les
+ * quitó la unicidad, y por eso mismo les crea un índice normal.)
  */
 export class AddOwnerIndex1700000003000 implements MigrationInterface {
   name = "AddOwnerIndex1700000003000";
