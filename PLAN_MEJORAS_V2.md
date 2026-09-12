@@ -123,7 +123,7 @@ función, es que el contador de la barra se entere.
 
 ### A3 · 🔴 `service:save` puede dejar dos recordatorios vigentes en el mismo vehículo
 
-**[pendiente]** · `electron/DataBase/Endpoints/service.endpoints.ts`
+**[a testear]** · `electron/DataBase/Endpoints/service.endpoints.ts`
 
 La invariante del sistema es **un solo recordatorio vigente por vehículo**, y el
 endpoint la cuida sólo en la rama sin `id`: si no se pasa uno, reutiliza el
@@ -141,14 +141,22 @@ real.
 `service:reactivate` sí hace la comprobación con `findActiveReminder`; `save`
 tiene que hacer la misma.
 
+**Resuelto junto con A4**: los dos eran el mismo hueco —tomar el recordatorio del
+`id` sin mirar nada más— así que se cerró con un solo bloque de tres controles.
+
 ### A4 · 🔴 `service:save` puede mover un recordatorio de un vehículo a otro
 
-**[pendiente]** · `electron/DataBase/Endpoints/service.endpoints.ts`
+**[a testear]** · `electron/DataBase/Endpoints/service.endpoints.ts`
 
 El endpoint busca el recordatorio por `body.id` y después hace
 `reminder.car = car`, donde `car` sale de `body.licensePlate`. **No comprueba que
 el recordatorio pertenezca a ese vehículo.** Un `id` equivocado —o una pantalla
 con datos viejos— lo reasigna en silencio a otro auto.
+
+**Resuelto junto con A3.** Escribiendo los controles apareció un tercer caso que
+no estaba anotado: si el `id` **ya no existe**, el código caía en el `create` de
+más abajo y **creaba un recordatorio nuevo** sin decir nada. Ahora falla y lo
+explica.
 
 ### A5 · 🔴 Un teléfono repetido revienta con el error crudo de SQLite
 

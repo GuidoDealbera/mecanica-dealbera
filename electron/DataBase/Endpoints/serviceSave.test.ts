@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import "reflect-metadata";
 import type { DataSource } from "typeorm";
+import { ReminderStatus } from "../../../src/Types/apiTypes";
 
 /**
  * `service:save`: crear o corregir a mano el próximo service de un vehículo.
@@ -174,6 +175,94 @@ describe("service:save", () => {
         dueKm: 100000,
       });
       expect(autoInexistente.status).toBe("failed");
+    },
+    PLAZO
+  );
+  it(
+    "no deja dos recordatorios vigentes en el mismo vehículo",
+    async () => {
+      await preparar();
+      const carId = await crearAuto("AB123CD", "1");
+
+      // El vigente de siempre.
+      const primero = await invocar<Respuesta>("service:save", {
+        licensePlate: "AB123CD",
+        dueKm: 100000,
+      });
+      const idPrimero = (primero.result as { id: string }).id;
+
+      // Se cierra a mano, que es lo que hace completar un service: el viejo
+      // queda `done` y se genera uno nuevo `pending`.
+      await ds.query("UPDATE service_reminder SET status = ? WHERE id = ?", [
+        ReminderStatus.DONE,
+        idPrimero,
+      ]);
+      await invocar<Respuesta>("service:save", {
+        licensePlate: "AB123CD",
+        dueKm: 120000,
+      });
+
+      // Y ahora se edita el viejo desde el historial. Antes esto lo volvía a
+      // poner vigente y el vehículo aparecía duplicado en la bandeja.
+      const res = await invocar<Respuesta>("service:save", {
+        id: idPrimero,
+        licensePlate: "AB123CD",
+        dueKm: 105000,
+      });
+
+      expect(res.status).toBe("failed");
+      const activos = (await recordatorios(carId)).filter((r) =>
+        [ReminderStatus.PENDING, ReminderStatus.SNOOZED].includes(
+          r.status as ReminderStatus
+        )
+      );
+      expect(activos).toHaveLength(1);
+    },
+    PLAZO
+  );
+
+  it(
+    "un id que ya no existe no crea un recordatorio nuevo por la ventana",
+    async () => {
+      await preparar();
+      const carId = await crearAuto("AB123CD", "1");
+
+      const res = await invocar<Respuesta>("service:save", {
+        id: "un-id-que-no-esta",
+        licensePlate: "AB123CD",
+        dueKm: 100000,
+      });
+
+      expect(res.status).toBe("failed");
+      expect(await recordatorios(carId)).toHaveLength(0);
+    },
+    PLAZO
+  );
+
+  it(
+    "no mueve un recordatorio de un vehículo a otro",
+    async () => {
+      await preparar();
+      const primerAuto = await crearAuto("AB123CD", "1");
+      const otroAuto = await crearAuto("XY456ZW", "2");
+
+      const delPrimero = await invocar<Respuesta>("service:save", {
+        licensePlate: "AB123CD",
+        dueKm: 100000,
+      });
+      const idDelPrimero = (delPrimero.result as { id: string }).id;
+
+      // Mismo id, otra patente: una pantalla con datos viejos alcanza para
+      // llegar acá. Antes reasignaba el recordatorio sin decir nada.
+      const res = await invocar<Respuesta>("service:save", {
+        id: idDelPrimero,
+        licensePlate: "XY456ZW",
+        dueKm: 130000,
+      });
+
+      expect(res.status).toBe("failed");
+      expect(await recordatorios(primerAuto)).toHaveLength(1);
+      expect(await recordatorios(otroAuto)).toHaveLength(0);
     },
     PLAZO
   );
