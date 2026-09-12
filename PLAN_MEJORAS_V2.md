@@ -540,7 +540,7 @@ mal escrito, se corrige por el camino de verdad y queda `GOL / Fiat / 2015`.
 
 ### B5 · 🟠 Guardar una configuración inválida dice que salió bien
 
-**[pendiente]** · `electron/DataBase/serviceReminders.service.ts` →
+**[a testear]** · `electron/DataBase/serviceReminders.service.ts` →
 `saveServiceSettings`
 
 La función filtra los valores que no sean números positivos y **guarda sólo el
@@ -553,6 +553,19 @@ explicación.
 
 Tampoco hay techo: `intervalKm = 999999999` se acepta y deja el recordatorio
 programado para el año 3000.
+
+**Resuelto, y ahora es todo o nada.** Si algo de lo que vino está fuera de rango
+no se guarda nada, y el mensaje dice **qué campo** y **entre qué valores** tiene
+que estar. Guardar la mitad de un formulario es peor que no guardarlo: el usuario
+no tiene forma de saber qué quedó aplicado.
+
+Cada campo tiene piso y techo con un motivo, no un número redondo: diez años de
+intervalo ya es "no hacerle service", y avisar con más de un año de anticipación
+es tener todo siempre en la lista. El techo importa tanto como el piso —sin él,
+un intervalo enorme deja al vehículo fuera del circuito sin que nadie lo note—.
+
+Lo que **no** vino se sigue sin tocar, que es lo que permite mandar sólo lo que
+cambió; hay un caso que lo fija.
 
 ### B6 · 🟠 `document:issue` acepta totales negativos
 

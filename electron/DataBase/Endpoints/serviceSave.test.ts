@@ -240,3 +240,88 @@ describe("service:save", () => {
     expect(await recordatorios(otroAuto)).toHaveLength(0);
   });
 });
+
+describe("service:settings-set", () => {
+  const leer = async () =>
+    (await invocar<{
+      intervalMonths: number;
+      intervalKm: number;
+      soonDays: number;
+      soonKm: number;
+    }>("service:settings-get"))!;
+
+  it("guarda los valores que están en rango", async () => {
+    await preparar();
+
+    const res = await invocar<Respuesta>("service:settings-set", {
+      intervalMonths: 12,
+      soonDays: 45,
+    });
+
+    expect(res.status).toBe("success");
+    const actual = await leer();
+    expect(actual.intervalMonths).toBe(12);
+    expect(actual.soonDays).toBe(45);
+    // Lo que no vino queda como estaba: la pantalla puede mandar sólo lo que cambió.
+    expect(actual.intervalKm).toBe(10000);
+  });
+
+  it("avisa cuando un valor no sirve, en vez de decir que guardó", async () => {
+    await preparar();
+    const antes = await leer();
+
+    // El caso que motivó esto: un 0 en "avisar con N días" no hacía nada, el
+    // mensaje decía que sí, y el campo volvía al valor viejo sin explicación.
+    const res = await invocar<Respuesta>("service:settings-set", {
+      soonDays: 0,
+    });
+
+    expect(res.status).toBe("failed");
+    expect(res.message).toContain("Avisar (días antes)");
+    expect(await leer()).toEqual(antes);
+  });
+
+  it("pone techo además de piso", async () => {
+    await preparar();
+    const antes = await leer();
+
+    // Sin techo, esto dejaba el próximo service programado para dentro de un
+    // siglo: el vehículo fuera del circuito sin que nadie lo notara.
+    const res = await invocar<Respuesta>("service:settings-set", {
+      intervalKm: 999999999,
+    });
+
+    expect(res.status).toBe("failed");
+    expect(await leer()).toEqual(antes);
+  });
+
+  it("no guarda la mitad de un formulario", async () => {
+    await preparar();
+    const antes = await leer();
+
+    // Uno bueno y uno malo: guardar sólo el bueno deja al usuario sin forma de
+    // saber qué quedó aplicado.
+    const res = await invocar<Respuesta>("service:settings-set", {
+      intervalMonths: 12,
+      soonKm: -1,
+    });
+
+    expect(res.status).toBe("failed");
+    expect(await leer()).toEqual(antes);
+  });
+
+  it("rechaza lo que no es un número", async () => {
+    await preparar();
+    const antes = await leer();
+
+    for (const soonDays of ["treinta", null, NaN, {}]) {
+      const res = await invocar<Respuesta>("service:settings-set", {
+        soonDays,
+      });
+      // `null` significa "no lo mando", así que ése sí pasa sin tocar nada.
+      const esperado = soonDays === null ? "success" : "failed";
+      expect(res.status, JSON.stringify(soonDays)).toBe(esperado);
+    }
+    expect(await leer()).toEqual(antes);
+  });
+});

@@ -60,29 +60,79 @@ export const getServiceSettings = async (
   };
 };
 
-/** Guarda la configuración (sólo valores positivos; el resto queda como está). */
+/**
+ * Límites de cada valor, con el nombre que ve el usuario en la pantalla.
+ *
+ * El techo importa tanto como el piso: sin él, `intervalKm = 999999999` se
+ * aceptaba y dejaba el próximo service programado para dentro de un siglo, o
+ * sea al vehículo fuera del circuito sin que nadie lo notara.
+ */
+const LIMITES: Record<
+  keyof ServiceSettings,
+  { etiqueta: string; min: number; max: number }
+> = {
+  // Diez años de intervalo ya es "no hacerle service"; menos de un mes no es un
+  // intervalo, es un error de tipeo.
+  intervalMonths: { etiqueta: "Cada (meses)", min: 1, max: 120 },
+  intervalKm: { etiqueta: "Cada (km)", min: 100, max: 200_000 },
+  // Avisar con más de un año de anticipación es tener todo siempre en la lista.
+  soonDays: { etiqueta: "Avisar (días antes)", min: 1, max: 365 },
+  soonKm: { etiqueta: "Avisar (km antes)", min: 1, max: 50_000 },
+};
+
+export type GuardadoDeConfiguracion =
+  { ok: true; settings: ServiceSettings } | { ok: false; message: string };
+
+/**
+ * Guarda la configuración de service.
+ *
+ * Antes filtraba en silencio los valores que no fueran positivos y guardaba el
+ * resto, y el endpoint contestaba "Configuración actualizada" igual. Poner un
+ * `0` en "avisar con N días" no hacía nada, decía que sí, y el campo volvía al
+ * valor viejo sin explicación.
+ *
+ * Ahora es todo o nada: si algo de lo que vino está fuera de rango, no se guarda
+ * nada y se dice **qué campo** y **entre qué valores** tiene que estar. Guardar
+ * la mitad de un formulario es peor que no guardarlo, porque el usuario no tiene
+ * forma de saber qué quedó.
+ */
 export const saveServiceSettings = async (
   partial: Partial<ServiceSettings>,
   manager: EntityManager
-): Promise<ServiceSettings> => {
-  const entries = (
-    Object.keys(SETTING_KEYS) as (keyof ServiceSettings)[]
-  ).filter((field) => {
-    const value = partial[field];
-    return typeof value === "number" && Number.isFinite(value) && value > 0;
-  });
+): Promise<GuardadoDeConfiguracion> => {
+  const campos = Object.keys(SETTING_KEYS) as (keyof ServiceSettings)[];
+  const aGuardar: [keyof ServiceSettings, number][] = [];
 
-  for (const field of entries) {
+  for (const field of campos) {
+    const value = partial?.[field];
+    // Lo que no vino no se toca: la pantalla puede mandar sólo lo que cambió.
+    if (value === undefined || value === null) continue;
+
+    const { etiqueta, min, max } = LIMITES[field];
+    if (typeof value !== "number" || !Number.isFinite(value)) {
+      return { ok: false, message: `"${etiqueta}" tiene que ser un número` };
+    }
+    const redondeado = Math.round(value);
+    if (redondeado < min || redondeado > max) {
+      return {
+        ok: false,
+        message: `"${etiqueta}" tiene que estar entre ${min} y ${max}`,
+      };
+    }
+    aGuardar.push([field, redondeado]);
+  }
+
+  for (const [field, value] of aGuardar) {
     await manager.save(
       AppSetting,
       manager.create(AppSetting, {
         key: SETTING_KEYS[field],
-        value: String(Math.round(partial[field] as number)),
+        value: String(value),
       })
     );
   }
 
-  return getServiceSettings(manager);
+  return { ok: true, settings: await getServiceSettings(manager) };
 };
 
 /**

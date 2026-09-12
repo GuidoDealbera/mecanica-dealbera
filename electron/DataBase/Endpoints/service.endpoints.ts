@@ -82,17 +82,20 @@ handleIpc(
     _event,
     settings: Partial<ServiceSettings>
   ): Promise<APIResponse<ServiceSettings>> => {
-    const saved = await saveServiceSettings(
+    const guardado = await saveServiceSettings(
       settings ?? {},
       AppDataSource.manager
     );
+    if (!guardado.ok) {
+      return { status: "failed", message: guardado.message };
+    }
     // Cambiar los umbrales cambia cuántos recordatorios "vencen", así que el
     // conteo del dashboard queda viejo.
     invalidateDashboardStatsCache();
     return {
       status: "success",
       message: "Configuración de service actualizada",
-      result: saved,
+      result: guardado.settings,
     };
   }
 );
