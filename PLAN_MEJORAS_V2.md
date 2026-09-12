@@ -1228,7 +1228,7 @@ tiene motivo para ir a buscar los logs, que es el paso que cierra el circuito.
 
 ### E2 · 🟠 Si falla cargar la configuración de service, la pantalla ofrece guardar valores inventados
 
-**[pendiente]** · `src/Pages/ServiceAlertsPage.tsx`
+**[a testear]** · `src/Pages/ServiceAlertsPage.tsx`
 
 ```ts
 } catch {
@@ -1243,6 +1243,20 @@ configuración real con los defaults** sin haberse enterado de nada.
 
 Un fallo al leer configuración no puede ser silencioso si esa misma pantalla
 permite escribirla.
+
+**Resuelto.** El punto es que "todavía no llegó" y "no se pudo leer" eran el
+mismo estado, porque los dos se ven como los valores por defecto. Ahora se
+distinguen: si la lectura falla, el panel no muestra los campos —mostrarlos es
+ofrecer guardarlos— sino el motivo y un botón de reintentar, porque el fallo
+puede ser momentáneo y quedarse encerrado hasta reiniciar sería peor.
+
+El error además se avisa con un toast y queda en el log (E1), aclarando que la
+pantalla está evaluando los vencimientos con los valores por defecto: eso
+cambia qué recordatorios se ven como vencidos, y el usuario tiene que saberlo.
+
+Los tres casos son de componente, con Testing Library. Vale anotarlo porque en
+D5 di por no testeable un formulario por no haber podido manejarlo por CDP, y la
+herramienta para eso ya estaba en el proyecto.
 
 ### E3 · 🟠 El PDF se descarga sin preguntar y sin confirmar que se guardó
 

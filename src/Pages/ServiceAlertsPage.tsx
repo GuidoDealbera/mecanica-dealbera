@@ -38,6 +38,7 @@ import PageShell from "../Components/PageShell";
 import TableLoadingContent from "../Components/TableLoadingContent";
 import ReminderActions from "./Components/ReminderActions";
 import { useToasts } from "../Hooks/useToasts";
+import { reportarError } from "../Utils/reportarError";
 import { useDebounce } from "../Hooks/useDebounce";
 
 const PAGE_SIZE = 8;
@@ -99,15 +100,35 @@ const ServiceAlertsPage: React.FC = () => {
     DEFAULT_SERVICE_SETTINGS
   );
 
+  /**
+   * Si la configuración guardada se pudo leer.
+   *
+   * Hace falta distinguirlo de "todavía no llegó" porque el estado arranca con
+   * los valores por defecto: sin esta bandera, un fallo al leer dejaba el panel
+   * mostrando los defaults **como si fueran los guardados**, y apretar Guardar
+   * le pisaba al usuario su configuración real sin que se enterara de nada.
+   */
+  const [settingsCargados, setSettingsCargados] = React.useState(false);
+
   const fetchSettings = React.useCallback(async () => {
     try {
       const current = await window.api.service.getSettings();
       setSettings(current);
       setSettingsDraft(current);
-    } catch {
-      /* si falla, quedan los valores por defecto */
+      setSettingsCargados(true);
+    } catch (error) {
+      // Un fallo al leer no puede ser silencioso si esta misma pantalla deja
+      // escribir. Se avisa, queda en el log, y el panel no ofrece guardar.
+      setSettingsCargados(false);
+      reportarError("service:settings-get", error);
+      showToast(
+        "No se pudieron leer los intervalos de service configurados. " +
+          "La pantalla los está evaluando con los valores por defecto.",
+        "danger",
+        "Recordatorios"
+      );
     }
-  }, []);
+  }, [showToast]);
 
   // La página pedida, acotada a la última que existe. Se deriva al leer en vez
   // de corregirse después con un efecto: ver `clampPage`.
@@ -223,6 +244,9 @@ const ServiceAlertsPage: React.FC = () => {
   };
 
   const handleSaveSettings = async () => {
+    // No debería poder llamarse —el botón no está—, pero es la última puerta
+    // antes de escribir encima de una configuración que no se pudo leer.
+    if (!settingsCargados) return;
     const res = await window.api.service.setSettings(settingsDraft);
     showToast(
       res.message,
@@ -279,7 +303,25 @@ const ServiceAlertsPage: React.FC = () => {
       </div>
 
       {/* Configuración de intervalos */}
-      {showSettings && (
+      {showSettings && !settingsCargados && (
+        <div className="flex flex-wrap items-center gap-3 mb-4 p-3 rounded-lg border border-danger/40 bg-danger/10">
+          <p className="text-sm text-foreground flex-1 min-w-[240px]">
+            No se pudieron leer los intervalos guardados. No se muestran los
+            campos para no ofrecer guardar los valores por defecto encima de tu
+            configuración.
+          </p>
+          <Button
+            color="danger"
+            variant="flat"
+            size="sm"
+            onPress={fetchSettings}
+          >
+            Reintentar
+          </Button>
+        </div>
+      )}
+
+      {showSettings && settingsCargados && (
         <div className="flex flex-wrap items-end gap-3 mb-4 p-3 rounded-lg border border-divider">
           <Input
             label="Cada (meses)"
