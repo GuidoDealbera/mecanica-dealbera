@@ -496,6 +496,12 @@ handleIpc(
     const saved = await repo.save(reminder);
     saved.car = car;
 
+    // Cambiar la fecha o el kilometraje cambia si el recordatorio "vence", así
+    // que el conteo del badge y el del dashboard quedan viejos. Es la misma
+    // razón por la que invalidan `snooze`, `dismiss`, `reactivate`, `complete` y
+    // `settings-set`; acá faltaba.
+    invalidateDashboardStatsCache();
+
     return {
       status: "success",
       message: "Recordatorio guardado",

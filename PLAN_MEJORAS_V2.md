@@ -105,7 +105,7 @@ inexistente). Se comprobó que el test falla si se saca la corrección.
 
 ### A2 · 🔴 `service:save` no invalida la caché del dashboard
 
-**[pendiente]** · `electron/DataBase/Endpoints/service.endpoints.ts`
+**[a testear]** · `electron/DataBase/Endpoints/service.endpoints.ts`
 
 `snooze`, `dismiss`, `reactivate`, `complete` y `settings-set` llaman a
 `invalidateDashboardStatsCache()`. **`service:save` no.**
@@ -115,6 +115,11 @@ venza mañana. El recordatorio cambia, pero el badge de la barra y el dashboard
 siguen mostrando el conteo viejo hasta que otra cosa invalide la caché. Es
 información incorrecta en la pantalla principal, que es exactamente lo que una
 caché no puede permitirse.
+
+**Resuelto.** El test no espía la llamada sino la señal que sale de ella
+(`onDashboardStatsInvalidated`), que es la misma por la que el proceso principal
+manda `data-changed` al renderer: lo que importa no es que se invoque una
+función, es que el contador de la barra se entere.
 
 ### A3 · 🔴 `service:save` puede dejar dos recordatorios vigentes en el mismo vehículo
 
