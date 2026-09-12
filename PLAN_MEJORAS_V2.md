@@ -639,7 +639,7 @@ ejecutarse ahí.
 
 ### C1 · 🔴 El preload expone un `ipcRenderer` genérico que anula el puente tipado
 
-**[pendiente]** · `electron/preload.ts`
+**[a testear]** · `electron/preload.ts`
 
 Además del objeto `api` —bien diseñado, canal por canal, con tipos—, el preload
 hace:
@@ -666,6 +666,18 @@ código muerto**.
 Se saca el bloque del preload, se sacan los tres renglones de `main.tsx`, se saca
 el `send` de `main-process-message` en `electron/main.ts` y se limpia el tipo en
 `global.d.ts`.
+
+**Resuelto.** El tipo no estaba en `global.d.ts` sino en
+`electron/electron-env.d.ts`, que es lo que hacía que los tres renglones de la
+plantilla compilaran; también se fue de ahí.
+
+Queda un test que **no mira el nombre sino la capacidad**: falla si el preload
+expone cualquier objeto con un `invoke` o un `send` sin acotar el canal. Es la
+clase de cosa que se agrega "para probar algo" y se queda, así que el nombre
+`ipcRenderer` no es lo que hay que vigilar.
+
+Verificado además en la aplicación real: `window.ipcRenderer` es `undefined`,
+`window.api` conserva sus ocho áreas y el dashboard responde.
 
 ### C2 · 🟡 El renderer no tiene Content-Security-Policy
 

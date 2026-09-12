@@ -392,13 +392,11 @@ async function createWindow() {
     }
   });
 
-  // Test active push message to Renderer-process.
   win.webContents.on("did-finish-load", () => {
     // Al recargar, el renderer arranca de cero: lo que hubiera declarado el
     // anterior ya no existe. Sin esto, un recargado con el formulario sucio
     // dejaba la aplicación preguntando al cerrar para siempre.
     hayCambiosSinGuardar = false;
-    win?.webContents.send("main-process-message", new Date().toLocaleString());
   });
 
   // Red de seguridad: si la ventana nunca llega a `ready-to-show`, el splash
