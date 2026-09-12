@@ -518,6 +518,52 @@ async function createWindow() {
   }
 }
 
+/**
+ * La ventana es una aplicación, no un navegador.
+ *
+ * Sin esto, dos cosas que no tendrían que poder pasar:
+ *
+ * - Un `target="_blank"` o un `window.open()` abría **una ventana de Electron**
+ *   —con su propio proceso de renderizado y el preload cargado—, no el
+ *   navegador del sistema.
+ * - Una navegación a una URL externa convertía la ventana de la aplicación en
+ *   un navegador sin barra de direcciones ni forma de volver: la única salida
+ *   habría sido cerrar y abrir de nuevo.
+ *
+ * Va sobre `web-contents-created` y no sobre la ventana principal para que
+ * alcance a todo lo que exista, incluida la pantalla de carga.
+ *
+ * Los enlaces externos legítimos —el de WhatsApp al titular— siguen andando por
+ * `app:open-external`, que valida el esquema. Acá se deriva al navegador
+ * igualmente, para que un enlace que se agregue mañana no quede muerto.
+ */
+app.on("web-contents-created", (_event, contents) => {
+  contents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith("https://")) {
+      shell
+        .openExternal(url)
+        .catch((error) => logError("app:window-open", error));
+    } else {
+      logWarn("app:window-open", "Apertura de ventana bloqueada", { url });
+    }
+    return { action: "deny" };
+  });
+
+  contents.on("will-navigate", (event, url) => {
+    // Lo propio: en desarrollo el servidor de Vite, empaquetado los archivos de
+    // la aplicación. El enrutador usa el hash, que no dispara este evento.
+    const esPropia = VITE_DEV_SERVER_URL
+      ? url.startsWith(VITE_DEV_SERVER_URL)
+      : url.startsWith("file://");
+    if (esPropia) return;
+
+    event.preventDefault();
+    logWarn("app:navigate", "Navegación fuera de la aplicación bloqueada", {
+      url,
+    });
+  });
+});
+
 app.on("second-instance", () => {
   if (win) {
     if (win.isMinimized()) win.restore();

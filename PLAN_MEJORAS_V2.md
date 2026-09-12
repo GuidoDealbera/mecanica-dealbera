@@ -731,7 +731,7 @@ tabla existe en vez de atajar el error.
 
 ### C3 · 🟡 La ventana no restringe la navegación ni la apertura de ventanas
 
-**[pendiente]** · `electron/main.ts`
+**[a testear]** · `electron/main.ts`
 
 No hay `webContents.setWindowOpenHandler` ni un manejador de `will-navigate`.
 
@@ -743,6 +743,21 @@ No hay `webContents.setWindowOpenHandler` ni un manejador de `will-navigate`.
 Lo correcto: denegar toda apertura de ventana y toda navegación fuera de la
 aplicación, y derivar al navegador del sistema. El canal para eso ya existe
 (`app:open-external`, que además valida que sea `https://`).
+
+**Resuelto.** Va sobre `web-contents-created` y no sobre la ventana principal,
+para que alcance a todo lo que exista —incluida la pantalla de carga— y a lo que
+se agregue después.
+
+Una apertura de ventana se deniega siempre; si era `https://` se deriva al
+navegador del sistema, así un enlace que se agregue mañana no queda muerto. Una
+navegación fuera de lo propio se cancela y queda registrada: saber que pasó
+importa, porque significa que algo intentó salirse.
+
+Verificado en la aplicación empaquetada: `window.open("https://example.com")`
+devuelve `null` y abre el navegador, asignar `location.href` a un sitio externo
+no mueve la ventana y deja el aviso en el log, y la navegación por hash del
+enrutador sigue andando —que era el riesgo, porque un `will-navigate` mal puesto
+rompe la aplicación entera—.
 
 ### C4 · 🟡 El CSV exportado es vulnerable a inyección de fórmulas
 
