@@ -991,9 +991,9 @@ El contador no tenía **ninguna** cobertura, siendo lo que alimenta el badge, as
 que se le agregó: cuenta lo vencido por fecha y por kilometraje, y **no** cuenta
 lo que falta mucho ni lo que ya está cerrado.
 
-### D4 · 🟠 Un recordatorio descartado saca al vehículo del circuito para siempre
+### D4 · ⚪ Un recordatorio descartado saca al vehículo del circuito para siempre
 
-**[pendiente]** · `electron/DataBase/serviceReminders.service.ts`
+**[a testear]** · `electron/DataBase/serviceReminders.service.ts`
 
 `ensureReminder` dice en su documentación que se usa "al registrar un auto **y
 como red de seguridad**". Lo comprobé: **se llama en un solo lugar**, en
@@ -1008,6 +1008,42 @@ Hay dos salidas razonables y hay que elegir una: llamar a `ensureReminder` de
 verdad como red de seguridad (al abrir la ficha, o al cerrar cualquier trabajo), o
 sacar la frase de la documentación y hacer explícito en la interfaz que descartar
 es definitivo.
+
+**Resuelto**, pero la premisa era **falsa** y conviene dejar escrito por qué,
+porque el error estuvo en razonar sobre el código en vez de ejecutarlo.
+
+Lo de `ensureReminder` sí es cierto: se llama en un solo lugar y la "red de
+seguridad" que promete su documentación no existe. De ahí salté a "entonces
+descartar es permanente", y no lo es. Ejercitando los endpoints de verdad:
+
+```
+vigentes al alta       : 1
+tras descartar         : 0
+¿se puede reactivar?   : success :: Recordatorio reactivado
+tras reactivar         : 1
+descartado de nuevo    : 0
+cierra un trabajo service
+¿reingresa al circuito?: 1
+```
+
+Hay **dos** caminos de vuelta, y ninguno pasa por `ensureReminder`:
+
+- **Manual**: `service:reactivate`. La interfaz lo expone —el selector de la
+  pantalla de service tiene "Historial completo", donde el descartado aparece, y
+  ahí `ReminderActions` muestra el botón "Reactivar"—.
+- **Automático**: cerrar cualquier trabajo marcado como service.
+  `completeAndScheduleNext` crea uno nuevo cuando no hay ninguno vigente. O sea
+  que el vehículo vuelve al circuito solo, en cuanto vuelve al taller.
+
+Descartar no es una condena: es "no me lo recuerdes hasta que aparezca".
+
+Nada de esto estaba probado, que es lo que permitió que la premisa pareciera
+plausible. Ahora hay cuatro casos sobre los endpoints reales que fijan el ciclo
+completo, incluida la diferencia que importa: reactivar devuelve **el mismo**
+recordatorio y cerrar un service crea uno **nuevo**.
+
+Lo único que se corrigió en el código es la documentación de `ensureReminder`,
+que ahora dice dónde se la llama y cuáles son las dos vueltas de verdad.
 
 ### D5 · 🟠 El nombre del cliente es la clave única, así que no puede haber dos homónimos
 

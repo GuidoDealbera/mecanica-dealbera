@@ -152,8 +152,17 @@ export const findActiveReminder = async (
 
 /**
  * Crea el recordatorio inicial de un vehículo si todavía no tiene uno vigente.
- * Se usa al registrar un auto (para que aparezca en el circuito de service desde
- * el primer día) y como red de seguridad.
+ *
+ * Se llama en un solo lugar: el alta del vehículo (`car:create`), para que
+ * aparezca en el circuito de service desde el primer día. Decía además que
+ * servía "como red de seguridad", y eso era falso —no hay ninguna tarea que la
+ * invoque periódicamente ni la llama nadie más—, así que un vehículo sin
+ * recordatorio vigente **se queda así** hasta que alguien lo reactive a mano o
+ * se le cierre un service.
+ *
+ * Que no sea una red no es un problema, porque hay dos caminos de vuelta al
+ * circuito y `completeAndScheduleNext` es uno automático. Pero conviene saber
+ * cuál es cuál antes de apoyarse en esta función para algo.
  */
 export const ensureReminder = async (
   manager: EntityManager,
