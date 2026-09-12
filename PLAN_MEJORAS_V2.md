@@ -459,7 +459,7 @@ Comprobado sacando la validación: 5 de los 8 casos fallan.
 
 ### B2 · 🔴 `car:update-job` tampoco valida
 
-**[pendiente]** · `electron/DataBase/Endpoints/car.jobs.endpoints.ts`
+**[a testear]** · `electron/DataBase/Endpoints/car.jobs.endpoints.ts`
 
 Mismo problema que B1, con el agravante de que **el DTO correcto existe y está
 importado**: `UpdateJobDto` se usa sólo como tipo de TypeScript. Los decoradores
@@ -468,6 +468,15 @@ no corren nunca.
 Además, aunque se validara, `parts` está declarado como `@IsOptional()` **sin**
 `@ValidateNested()` ni `@Type()`, así que los ítems de adentro seguirían sin
 comprobarse.
+
+**Resuelto.** Editar era la puerta de atrás: todo lo que el alta rechaza —estado
+inventado, precio negativo o decimal, repuesto con precio de texto o nombre en
+blanco— entraba por acá. Ahora los dos endpoints comparten las mismas reglas, y
+hay un test que recorre esa lista sobre `car:update-job` y comprueba además que
+el trabajo **queda como estaba** cuando se rechaza.
+
+Los campos siguen siendo opcionales, que es lo que permite cambiar el estado sin
+remandar el resto; eso también quedó fijado con un caso.
 
 ### B3 · 🔴 `car:reassign-owner` crea clientes sin validar
 

@@ -141,20 +141,31 @@ export class UpdateCarDto {
   kilometers?: number;
 }
 
+/**
+ * Edición de un trabajo. Todos los campos son opcionales: se aplica sólo lo que
+ * viene, para poder cambiar el estado sin tener que remandar el resto.
+ *
+ * Estaba escrita entera y el endpoint la usaba **sólo como tipo de
+ * TypeScript**: los decoradores no corrían nunca, así que editar un trabajo era
+ * la puerta de atrás para meter lo mismo que el alta rechazaba.
+ */
 export class UpdateJobDto {
   @IsOptional()
-  @IsEnum(JobStatus)
+  @IsEnum(JobStatus, { message: "El estado del trabajo no es válido" })
   status?: JobStatus;
 
   @IsOptional()
-  @IsInt()
+  @IsInt({ message: "El precio del trabajo tiene que ser un número entero" })
+  @Min(0, { message: "El precio del trabajo no puede ser negativo" })
   price?: number;
 
+  // Mismas reglas que en el alta: sin `@ValidateNested` los ítems del arreglo
+  // no se miran, y de ahí sale el total que se imprime en el documento.
   @IsOptional()
-  parts?: {
-    name: string;
-    price: number;
-  }[];
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => JobPartDto)
+  parts?: JobPartDto[];
 
   @IsOptional()
   @IsString()

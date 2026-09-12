@@ -227,3 +227,81 @@ describe("car:add-job", () => {
     PLAZO
   );
 });
+
+describe("car:update-job", () => {
+  /** Deja un trabajo cargado y devuelve su id. */
+  const trabajoExistente = async () => {
+    const res = await invocar("car:add-job", "AB123CD", trabajo());
+    expect(res.status).toBe("success");
+    return (res.result as { id: string }).id;
+  };
+
+  it(
+    "aplica sólo los campos que vienen",
+    async () => {
+      const id = await trabajoExistente();
+
+      const res = await invocar("car:update-job", "AB123CD", id, {
+        status: JobStatus.COMPLETED,
+      });
+
+      expect(res.status).toBe("success");
+      const [fila] = (await ds.query(
+        "SELECT status, price, description FROM job WHERE id = ?",
+        [id]
+      )) as { status: string; price: number; description: string }[];
+      expect(fila.status).toBe(JobStatus.COMPLETED);
+      // Lo que no vino no se toca: se puede cambiar el estado sin remandar todo.
+      expect(fila.price).toBe(50000);
+      expect(fila.description).toBe("Cambio de aceite");
+    },
+    PLAZO
+  );
+
+  it(
+    "no deja entrar por la ventana lo que el alta rechaza",
+    async () => {
+      const id = await trabajoExistente();
+
+      const casos: Record<string, unknown>[] = [
+        { status: "inventado" },
+        { price: -100 },
+        { price: 1234.5 },
+        { parts: [{ name: "Filtro", price: "carísimo" }] },
+        { parts: [{ name: "   ", price: 100 }] },
+      ];
+
+      for (const cambio of casos) {
+        const res = await invocar("car:update-job", "AB123CD", id, cambio);
+        expect(res.status, JSON.stringify(cambio)).toBe("failed");
+      }
+
+      // Y el trabajo quedó como estaba.
+      const [fila] = (await ds.query(
+        "SELECT status, price FROM job WHERE id = ?",
+        [id]
+      )) as { status: string; price: number }[];
+      expect(fila.status).toBe(JobStatus.PENDING);
+      expect(fila.price).toBe(50000);
+    },
+    PLAZO
+  );
+
+  it(
+    "no deja editar un trabajo de otro vehículo",
+    async () => {
+      const id = await trabajoExistente();
+      await ds.query(
+        `INSERT INTO car (id, licensePlate, model, brand, year, kilometers, kmHistory, createdAt, updatedAt, ownerId)
+         VALUES ('auto-2', 'XY456ZW', 'PALIO', 'Fiat', 2010, 10000, '[]', '2026-01-01 09:00:00', '2026-01-01 09:00:00', 'cli-1')`
+      );
+
+      const res = await invocar("car:update-job", "XY456ZW", id, {
+        price: 1,
+      });
+
+      expect(res.status).toBe("failed");
+    },
+    PLAZO
+  );
+});

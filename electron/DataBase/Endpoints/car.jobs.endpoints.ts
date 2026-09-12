@@ -124,6 +124,14 @@ handleIpc("car:active-jobs-count", async (): Promise<number> => {
 handleIpc(
   "car:update-job",
   async (_, license: string, jobId: string, updateJobDto: UpdateJobDto) => {
+    // Editar era la puerta de atrás: el DTO estaba escrito y sólo se usaba como
+    // tipo, así que por acá entraba lo mismo que el alta rechazaba.
+    const validation = await validateDto(UpdateJobDto, updateJobDto);
+    if (!validation.ok) {
+      return { status: "failed", message: validation.message };
+    }
+    const cambios = validation.dto;
+
     const qr = AppDataSource.createQueryRunner();
     await qr.connect();
     await qr.startTransaction();
@@ -152,15 +160,12 @@ handleIpc(
       // hecho (y no cada vez que se edita un trabajo ya cerrado).
       const wasClosed = isClosed(job.status);
 
-      if (updateJobDto.status !== undefined) job.status = updateJobDto.status;
-      if (updateJobDto.price !== undefined) job.price = updateJobDto.price;
-      if (updateJobDto.parts !== undefined) job.parts = updateJobDto.parts;
-      if (updateJobDto.notes !== undefined) job.notes = updateJobDto.notes;
-      if (updateJobDto.clientNote !== undefined)
-        job.clientNote = updateJobDto.clientNote;
-      if (updateJobDto.isService !== undefined) {
-        job.isService = updateJobDto.isService;
-      }
+      if (cambios.status !== undefined) job.status = cambios.status;
+      if (cambios.price !== undefined) job.price = cambios.price;
+      if (cambios.parts !== undefined) job.parts = cambios.parts;
+      if (cambios.notes !== undefined) job.notes = cambios.notes;
+      if (cambios.clientNote !== undefined) job.clientNote = cambios.clientNote;
+      if (cambios.isService !== undefined) job.isService = cambios.isService;
 
       const saved = await qr.manager.save(Job, job);
 
