@@ -332,12 +332,21 @@ instalada, con algún vehículo con el service vencido.
 
 ### A12 · 🟠 La segunda instancia sigue arrancando después de pedir el cierre
 
-**[pendiente]** · `electron/main.ts`
+**[a testear]** · `electron/main.ts`
 
 `app.quit()` no interrumpe la ejecución del módulo: si no se obtuvo el lock, se
 siguen registrando `whenReady`, los handlers de IPC y el resto. En la práctica
 Electron termina cerrando antes, pero es una carrera contra un arranque que
 **abriría la misma base**. Corresponde salir de verdad y no seguir ejecutando.
+
+**Resuelto** enganchando el arranque sólo en la instancia principal, que es el
+patrón que documenta Electron. Lo demás que el módulo registra —handlers de IPC,
+listeners de `app`— es inofensivo en un proceso que se está yendo; abrir la base
+no lo sería.
+
+Verificado lanzando dos instancias contra la misma carpeta de datos: la segunda
+sale con código 0 y **no aparece ni una línea de `db:init` en su log**, mientras
+la primera sigue andando.
 
 ---
 

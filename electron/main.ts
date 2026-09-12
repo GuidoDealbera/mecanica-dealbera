@@ -65,8 +65,17 @@ if (process.platform === "win32") {
   );
 }
 
-const gotTheLock = app.requestSingleInstanceLock();
-if (!gotTheLock) {
+/**
+ * `false` cuando ya hay otra instancia corriendo.
+ *
+ * Pedir el lock avisa a la instancia que ya está (le dispara `second-instance`,
+ * que enfoca su ventana), así que a esta sólo le queda irse. `app.quit()` **no
+ * interrumpe la ejecución del módulo**: sin el corte de más abajo se seguía
+ * registrando `whenReady`, y eso es lo que abre la base de datos. Era una
+ * carrera contra el arranque para ver quién la abría primero.
+ */
+const esInstanciaPrincipal = app.requestSingleInstanceLock();
+if (!esInstanciaPrincipal) {
   app.quit();
 }
 
@@ -523,14 +532,19 @@ handleIpc("check-for-updates", async () => {
   }
 });
 
-app.whenReady().then(async () => {
-  logInfo("app:start", "App iniciando", { version: app.getVersion() });
-  try {
-    await createWindow();
-    setupAutoUpdater();
-  } catch (error) {
-    // `createWindow` ya atiende sus propios fallos; esto cubre lo que se le
-    // escape, para que un arranque fallido no quede como promesa rechazada.
-    fatalError("app:start", error);
-  }
-});
+// El arranque sólo se engancha en la instancia principal. Lo demás que este
+// módulo registra —los handlers de IPC, los listeners de `app`— es inofensivo en
+// un proceso que se está yendo; abrir la base no lo sería.
+if (esInstanciaPrincipal) {
+  app.whenReady().then(async () => {
+    logInfo("app:start", "App iniciando", { version: app.getVersion() });
+    try {
+      await createWindow();
+      setupAutoUpdater();
+    } catch (error) {
+      // `createWindow` ya atiende sus propios fallos; esto cubre lo que se le
+      // escape, para que un arranque fallido no quede como promesa rechazada.
+      fatalError("app:start", error);
+    }
+  });
+}
