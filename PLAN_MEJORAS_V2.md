@@ -420,7 +420,7 @@ fondo —"todo endpoint que reciba un objeto valida su DTO"— y no una por una.
 
 ### B1 · 🔴 `car:add-job` guarda lo que le manden, sin validar nada
 
-**[pendiente]** · `electron/DataBase/Endpoints/car.jobs.endpoints.ts`
+**[a testear]** · `electron/DataBase/Endpoints/car.jobs.endpoints.ts`
 
 El endpoint no valida ningún DTO y hace `price: jobDto.price as number` —un
 **cast**, que en TypeScript no comprueba nada en tiempo de ejecución—.
@@ -438,6 +438,24 @@ Qué entra sin control:
 
 `UpdateJobDto` ya declara `@IsEnum(JobStatus)` y `@IsInt()` para esto. Sólo hay
 que aplicarlo, y crear el DTO equivalente para el alta.
+
+**Resuelto.** El DTO del alta **ya existía**: era `JobsDto`, escrito completo y
+sin usar. Se renombró a `CreateJobDto` —para que se lea como sus hermanos
+`CreateCarDto` y `CreateClientDto`— y se conectó al endpoint.
+
+Los repuestos necesitaron una clase propia (`JobPartDto`): `@IsArray()` sólo
+comprueba que sea un arreglo, y lo de adentro seguía pasando sin mirar.
+
+Dos cosas que aparecieron escribiendo los tests:
+
+- **`@IsNotEmpty` no rechaza `"   "`.** Un repuesto llamado con puros espacios
+  pasaba la validación y salía en blanco en la factura. Se recorta antes de
+  validar, con el mismo `@Transform` que ya usaba la patente; vale también para
+  la descripción del trabajo, que se imprime en el presupuesto.
+- **`whitelist: true` bloquea de yapa un camino que nadie había mirado**: el
+  cliente podía mandar `id` o `carId` en el cuerpo. Quedó un test que lo fija.
+
+Comprobado sacando la validación: 5 de los 8 casos fallan.
 
 ### B2 · 🔴 `car:update-job` tampoco valida
 
