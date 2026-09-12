@@ -4,6 +4,7 @@ import fs from "node:fs";
 import { logError, logInfo } from "../../logger";
 import {
   AppDataSource,
+  applyPendingMigrations,
   getBackupDir,
   getDBPath,
   getRepositories,
@@ -150,6 +151,16 @@ handleIpc("backup:list", (): APIResponse<BackupEntry[]> => {
  * restauración (respaldo automático). Antes de tocar nada guarda la base actual
  * al lado, con sufijo `_pre_import_<marca>`: si el archivo nuevo resulta
  * ilegible, se vuelve solo.
+ *
+ * **El archivo entrante se migra igual que en el arranque.** Sin eso, restaurar
+ * un respaldo viejo dejaba la aplicación andando contra un esquema anterior
+ * —sin `service_reminder`, sin `document`, con `job.serviceType`— y cada
+ * pantalla que tocara esas columnas reventaba. `integrity_check` no lo detecta,
+ * y no es su culpa: mira la estructura del archivo, no si el esquema es el que
+ * la aplicación espera. Una base vieja está perfectamente sana.
+ *
+ * No hace falta una copia previa a esa migración: la red es la base que se
+ * acaba de apartar, y el archivo de origen sigue donde estaba.
  */
 const replaceDatabaseWith = async (sourcePath: string, scope: string) => {
   const destPath = getDBPath();
@@ -179,12 +190,25 @@ const replaceDatabaseWith = async (sourcePath: string, scope: string) => {
       );
     }
 
+    // Un respaldo puede ser de una versión anterior. Si falla, el `catch` de
+    // abajo vuelve a la base que se apartó recién.
+    const migradas = await applyPendingMigrations();
+
     invalidateDashboardStatsCache();
-    logInfo(scope, "Base de datos reemplazada", { sourcePath, previousPath });
+    logInfo(scope, "Base de datos reemplazada", {
+      sourcePath,
+      previousPath,
+      migraciones: migradas,
+    });
 
     return {
       status: "success",
-      message: "Base de datos restaurada. Los datos se actualizarán.",
+      message:
+        migradas > 0
+          ? `Base de datos restaurada y actualizada (${migradas} ${
+              migradas === 1 ? "cambio aplicado" : "cambios aplicados"
+            }). Los datos se actualizarán.`
+          : "Base de datos restaurada. Los datos se actualizarán.",
     };
   } catch (error) {
     logError(scope, error, { sourcePath });

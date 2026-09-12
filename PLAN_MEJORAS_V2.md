@@ -53,7 +53,7 @@ Cosas que están mal hoy, con el escenario concreto en el que muerden.
 
 ### A1 · 🔴 Restaurar un respaldo viejo deja la aplicación contra un esquema que no entiende
 
-**[pendiente]** · `electron/DataBase/Endpoints/backup.endpoints.ts` →
+**[a testear]** · `electron/DataBase/Endpoints/backup.endpoints.ts` →
 `replaceDatabaseWith`
 
 Restaurar o importar copia el archivo encima de la base y hace
@@ -73,6 +73,35 @@ vieja está perfectamente sana.
 Solución: después de reemplazar, correr el mismo camino que el arranque —copia
 previa, migraciones pendientes, verificación—. Si no se puede migrar, volver a la
 base anterior; el mecanismo de `_pre_import_` ya está escrito.
+
+**Resuelto.** El núcleo "migrar y verificar" se extrajo a `applyPendingMigrations`
+—exportado desde `dataSource.ts`— y ahora lo usan los dos caminos: el arranque
+(que le agrega la copia previa y el ofrecimiento de restaurar) y la restauración
+(cuya red es la base que se acaba de apartar). El mensaje avisa cuántos cambios se
+aplicaron: el respaldo ya no es idéntico a lo que quedó restaurado.
+
+De paso se cerró el caso inverso, que era el mismo agujero al revés: una base
+escrita por una versión **posterior** no tiene migraciones pendientes —para este
+código no las hay— así que pasaba el control igual. `findUnknownMigrations` la
+detecta y la aplicación no la toca.
+
+Dos cosas que sólo aparecieron probándolo de verdad:
+
+- **`constructor.name` no sirve para identificar una migración.** El bundle del
+  proceso principal va minificado, así que ahí el nombre de la clase es una
+  letra: la primera versión daba por desconocidas a las once migraciones propias
+  y la aplicación no arrancaba. Va por la propiedad `name` que cada migración
+  declara, que es lo que usa TypeORM por el mismo motivo. Hay un test que fija la
+  causa —que todas la declaren—, porque el síntoma no se reproduce sin minificar.
+- **La base real de la 1.0.3 ya tenía dos migraciones anotadas**
+  (`InitialSchema` y `AddPartsToExistingJobs`), así que al ponerla al día corren
+  nueve y no once. La afirmación de que la 1.0.3 no tenía ninguna migración, en la
+  descripción original de esta tarea, estaba equivocada.
+
+Cubierto por `electron/DataBase/applyPendingMigrations.test.ts` (4 casos) y
+`electron/DataBase/Endpoints/backupRestore.test.ts` (3 casos, sobre el handler
+real: respaldo viejo, archivo que no es una base —con la vuelta atrás— y respaldo
+inexistente). Se comprobó que el test falla si se saca la corrección.
 
 ### A2 · 🔴 `service:save` no invalida la caché del dashboard
 
