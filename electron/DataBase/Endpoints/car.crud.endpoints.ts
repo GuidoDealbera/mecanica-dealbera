@@ -10,7 +10,10 @@ import { Car } from "../Entities/car.entity";
 import { Client } from "../Entities/client.entity";
 import { invalidateDashboardStatsCache } from "../dashboardCache";
 import { ensureReminder } from "../serviceReminders.service";
-import { describeOwnerMismatch, findClientConflict } from "../clients.service";
+import {
+  describeClientDuplicates,
+  describeOwnerMismatch,
+} from "../clients.service";
 
 // Columnas por las que se permite ordenar el listado de autos (mapa
 // campo-de-la-UI → columna calificada de la query, para no interpolar texto
@@ -35,6 +38,7 @@ handleIpc("car:create", async (_event, payload: CreateCarDto) => {
   const qr = AppDataSource.createQueryRunner();
   await qr.connect();
   await qr.startTransaction();
+  let avisoDeDuplicado: string | null = null;
 
   try {
     const existingCar = await qr.manager.findOne(Car, {
@@ -45,39 +49,48 @@ handleIpc("car:create", async (_event, payload: CreateCarDto) => {
       return { status: "failed", message: "Patente ya registrada" };
     }
 
-    let owner = await qr.manager.findOne(Client, {
-      where: { fullname: createCarDto.owner.fullname },
-    });
+    // Quién es el titular lo decide el `id` que mandó el formulario, no el
+    // nombre. Buscarlo por nombre hacía que el nombre fuera la identidad del
+    // cliente: dos personas que se llaman igual eran la misma, y bastaba con
+    // escribir el nombre de alguien que ya existía para que el auto le quedara
+    // asociado sin haberlo elegido.
+    let owner = createCarDto.ownerId
+      ? await qr.manager.findOne(Client, {
+          where: { id: createCarDto.ownerId },
+        })
+      : null;
+
+    if (createCarDto.ownerId && !owner) {
+      await qr.rollbackTransaction();
+      return { status: "failed", message: "El cliente seleccionado no existe" };
+    }
 
     if (owner) {
-      // El titular ya existe con ese nombre, así que el vehículo se le asocia.
-      // Pero si los datos cargados **no son los suyos**, antes se descartaban
-      // en silencio y el mensaje decía "Vehículo registrado correctamente":
-      // el auto quedaba a nombre de otra persona, con el teléfono de otra
-      // persona, y a quien se llamaba por el recordatorio de service era a la
-      // equivocada. Ahora se frena y se explica.
+      // Se eligió un cliente de la lista. Si además se editaron sus datos,
+      // antes se descartaban en silencio y el mensaje decía "Vehículo
+      // registrado correctamente": el auto quedaba con el teléfono viejo, y a
+      // quien se llamaba por el recordatorio de service era a la persona
+      // equivocada. Se frena y se explica.
       const difieren = describeOwnerMismatch(owner, createCarDto.owner);
       if (difieren.length > 0) {
         await qr.rollbackTransaction();
         return {
           status: "failed",
           message:
-            `Ya hay un cliente llamado "${owner.fullname}" y ${difieren.join(
-              ", "
-            )} no coincide con lo cargado. ` +
-            "Si es la misma persona, actualizá sus datos desde Clientes; si es " +
-            "otra, usá un nombre que las distinga.",
+            `Elegiste a "${owner.fullname}" y ${difieren.join(", ")} no ` +
+            "coincide con lo cargado. Si es la misma persona, actualizá sus " +
+            "datos desde Clientes; si es otra, cargala como titular nuevo.",
         };
       }
     } else {
-      const conflicto = await findClientConflict(
+      // No se eligió a nadie de la lista: el titular es nuevo. Si coincide con
+      // alguno que ya está, se avisa —abajo, con el vehículo ya guardado— pero
+      // no se impide: puede ser un homónimo, o una familia que comparte el
+      // teléfono.
+      avisoDeDuplicado = await describeClientDuplicates(
         qr.manager,
         createCarDto.owner
       );
-      if (conflicto) {
-        await qr.rollbackTransaction();
-        return { status: "failed", message: conflicto };
-      }
       owner = qr.manager.create(Client, createCarDto.owner);
     }
     const savedOwner = await qr.manager.save(Client, owner);
@@ -97,7 +110,12 @@ handleIpc("car:create", async (_event, payload: CreateCarDto) => {
 
     await qr.commitTransaction();
     invalidateDashboardStatsCache();
-    return { status: "success", message: "Vehículo registrado correctamente" };
+    return {
+      status: "success",
+      message: avisoDeDuplicado
+        ? `Vehículo registrado correctamente. ${avisoDeDuplicado}`
+        : "Vehículo registrado correctamente",
+    };
   } catch (error) {
     await qr.rollbackTransaction();
     logError("car:create", error);
@@ -326,7 +344,7 @@ handleIpc(
     _,
     licensePlate: string,
     payload:
-      | { mode: "existing"; existingOwnerFullname: string }
+      | { mode: "existing"; existingOwnerId: string }
       | { mode: "new"; newOwner: CreateClientDto }
   ) => {
     // El modo se comprueba y no se da por sentado: un canal IPC recibe lo que le
@@ -352,6 +370,7 @@ handleIpc(
     const qr = AppDataSource.createQueryRunner();
     await qr.connect();
     await qr.startTransaction();
+    let aviso: string | null = null;
 
     try {
       const car = await qr.manager.findOne(Car, {
@@ -366,8 +385,15 @@ handleIpc(
       let newOwner;
 
       if (payload.mode === "existing") {
+        if (!esIdentificador(payload.existingOwnerId)) {
+          await qr.rollbackTransaction();
+          return {
+            status: "failed",
+            message: "El cliente seleccionado no existe",
+          };
+        }
         newOwner = await qr.manager.findOne(Client, {
-          where: { fullname: payload.existingOwnerFullname },
+          where: { id: payload.existingOwnerId },
         });
         if (!newOwner) {
           await qr.rollbackTransaction();
@@ -385,11 +411,7 @@ handleIpc(
         }
       } else {
         const datosNuevos = ownerValidado as CreateClientDto;
-        const conflicto = await findClientConflict(qr.manager, datosNuevos);
-        if (conflicto) {
-          await qr.rollbackTransaction();
-          return { status: "failed", message: conflicto };
-        }
+        aviso = await describeClientDuplicates(qr.manager, datosNuevos);
         newOwner = qr.manager.create(Client, {
           ...datosNuevos,
           isActive: true,
@@ -402,9 +424,10 @@ handleIpc(
 
       await qr.commitTransaction();
       invalidateDashboardStatsCache();
+      const hecho = `Titular actualizado a "${newOwner.fullname}"`;
       return {
         status: "success",
-        message: `Titular actualizado a "${newOwner.fullname}"`,
+        message: aviso ? `${hecho}. ${aviso}` : hecho,
         result: savedCar,
       };
     } catch (error) {

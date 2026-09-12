@@ -57,7 +57,15 @@ const AddJobForm: React.FC<AddJobFormProps> = ({
 
   return (
     <FormWrapper form={form}>
-      <form noValidate onSubmit={handleSubmit(onSubmit)}>
+      {/* `parts` puede venir en `null` de un trabajo viejo, pero lo que sale del
+          formulario siempre es un arreglo: "sin repuestos" se manda como lista
+          vacía y no como ausencia, así el backend recibe una sola forma. */}
+      <form
+        noValidate
+        onSubmit={handleSubmit((data) =>
+          onSubmit({ ...data, parts: data.parts ?? [] })
+        )}
+      >
         <div className="grid w-full grid-cols-12 gap-4">
           {/* ── Columna izquierda: info del trabajo ── */}
           <div className="col-span-full lg:col-span-6 flex flex-col gap-3 p-4 rounded-lg shadow shadow-primary">

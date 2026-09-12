@@ -10,6 +10,10 @@ import {
   handleCapitalizedChange,
 } from "../../Utils/utils";
 import { useDebounce } from "../../Hooks/useDebounce";
+import {
+  buscarTitularPorId,
+  seleccionTrasEditarNombre,
+} from "../../Utils/ownerSelection";
 
 interface AddCarFormProps {
   onSubmit: (data: CreateCarBody) => Promise<void>;
@@ -67,23 +71,23 @@ const AddCarForm: React.FC<AddCarFormProps> = ({
   const [clientResults, setClientResults] = React.useState<Clients[]>([]);
   const debouncedOwnerQuery = useDebounce(ownerQuery, 250);
 
-  const filterClient = React.useCallback(
-    (fullname: string | null) => {
-      const filtered = clientResults.find(
-        (client) => client.fullname === fullname
-      );
-      setSelectedOwner(filtered);
-    },
-    [clientResults]
-  );
-
+  // Las opciones se identifican por `id`, no por nombre. Con el nombre como
+  // clave, dos clientes homónimos colisionaban en la lista y, peor, escribir el
+  // nombre de alguien que ya existía alcanzaba para que el auto le quedara
+  // asociado sin haberlo elegido.
   const clientsNames = React.useMemo(
     () =>
       clientResults.map((client) => ({
-        key: client.fullname,
+        key: client.id,
         label: client.fullname,
       })),
     [clientResults]
+  );
+
+  // El `id` del titular elegido viaja aparte de sus datos: es lo único que le
+  // dice al backend "es este cliente" en vez de "es alguien que se llama así".
+  const enviar = handleSubmit((data) =>
+    onSubmit({ ...data, ownerId: selectedOwner?.id })
   );
 
   const shouldEnableSubmit = isEditing ? isDirty && isValid : isValid;
@@ -157,13 +161,15 @@ const AddCarForm: React.FC<AddCarFormProps> = ({
   }, [selectedOwner, setValue]);
 
   React.useEffect(() => {
-    if (initialValues) {
-      reset(initialValues);
-    }
+    if (!initialValues) return;
+    // El formulario siempre tiene campos de titular, aunque el vehículo no
+    // tenga uno: `null` se traduce a campos vacíos en vez de romper el `reset`.
+    const { owner, ...resto } = initialValues;
+    reset({ ...resto, owner: owner ?? undefined });
   }, [initialValues, reset]);
   return (
     <FormWrapper form={form}>
-      <form noValidate onSubmit={handleSubmit(onSubmit)} className="p-3">
+      <form noValidate onSubmit={enviar} className="p-3">
         <div className="grid w-full grid-cols-12 gap-2">
           <div className="p-3 col-span-full sm:col-span-6 shadow shadow-primary flex flex-col mt-2 gap-3 rounded-md">
             <h5 className="font-semibold w-fit text-2xl py-2 px-4 bg-primary-700 text-white rounded-md shadow shadow-primary-500">
@@ -189,13 +195,16 @@ const AddCarForm: React.FC<AddCarFormProps> = ({
                     label="Nombre completo"
                     allowsCustomValue
                     onSelectionChange={(key) => {
-                      filterClient(key as string);
-                      field.onChange(key);
+                      const elegido = buscarTitularPorId(clientResults, key);
+                      setSelectedOwner(elegido);
+                      field.onChange(elegido?.fullname ?? "");
                     }}
                     onInputChange={(value) => {
                       field.onChange(value);
                       setOwnerQuery(value);
-                      filterClient(value);
+                      setSelectedOwner((actual) =>
+                        seleccionTrasEditarNombre(actual, value)
+                      );
                     }}
                     items={clientsNames}
                     fullWidth
@@ -205,7 +214,13 @@ const AddCarForm: React.FC<AddCarFormProps> = ({
                     errorMessage={error?.message}
                   >
                     {(client) => (
-                      <AutocompleteItem key={client.key} textValue={client.key}>
+                      // `textValue` es el nombre y no la clave: la clave pasó
+                      // a ser el `id`, y dejarla acá haría que el campo
+                      // mostrara un uuid al elegir un titular.
+                      <AutocompleteItem
+                        key={client.key}
+                        textValue={client.label}
+                      >
                         {client.label}
                       </AutocompleteItem>
                     )}

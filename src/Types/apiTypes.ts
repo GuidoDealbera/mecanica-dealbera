@@ -33,6 +33,14 @@ export interface CreateCarBody {
   model: string;
   year: number;
   owner: Omit<Client, "id" | "cars">;
+  /**
+   * Titular ya registrado, cuando se lo eligió del autocompletar.
+   *
+   * Es lo que distingue "este auto es de un cliente que ya está" de "hay que
+   * darlo de alta". Antes lo decidía el backend buscando por nombre, y con eso
+   * el nombre era la identidad del cliente.
+   */
+  ownerId?: string;
   jobs?: Jobs[];
   kilometers: number;
 }

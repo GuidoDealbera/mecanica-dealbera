@@ -28,6 +28,9 @@ import { AddJobStatusIndex1700000008000 } from "./Migrations/AddJobStatusIndex17
 import { NormalizeJobDates1700000009000 } from "./Migrations/NormalizeJobDates1700000009000";
 import { AddClientNoteToJob1700000010000 } from "./Migrations/AddClientNoteToJob1700000010000";
 import { SimplifyServiceType1700000011000 } from "./Migrations/SimplifyServiceType1700000011000";
+import { UniqueActiveReminder1700000012000 } from "./Migrations/UniqueActiveReminder1700000012000";
+import { AllowHomonymClients1700000013000 } from "./Migrations/AllowHomonymClients1700000013000";
+import { RoundPartPrices1700000014000 } from "./Migrations/RoundPartPrices1700000014000";
 
 export const AppDataSource = new DataSource({
   type: "better-sqlite3",
@@ -51,6 +54,9 @@ export const AppDataSource = new DataSource({
     NormalizeJobDates1700000009000,
     AddClientNoteToJob1700000010000,
     SimplifyServiceType1700000011000,
+    UniqueActiveReminder1700000012000,
+    AllowHomonymClients1700000013000,
+    RoundPartPrices1700000014000,
   ],
   subscribers: [],
 });

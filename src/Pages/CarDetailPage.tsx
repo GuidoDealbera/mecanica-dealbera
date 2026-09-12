@@ -104,7 +104,12 @@ const CarDetailPage: React.FC = () => {
         year: data.year,
         kilometers: data.kilometers,
       });
-      await updateOwner({ ...data.owner, id: car!.owner.id });
+      // Un vehículo puede no tener titular —la FK lo permite—, y en ese caso no
+      // hay a quién actualizar. Asignarle uno es otra operación, la de
+      // reasignar titular.
+      if (car?.owner) {
+        await updateOwner({ ...data.owner, id: car.owner.id });
+      }
       await getCarDetail(car!.licensePlate);
       setIsEditing(false);
       showToast(
@@ -503,6 +508,7 @@ const CarDetailPage: React.FC = () => {
         onClose={() => setReassignOpen(false)}
         licensePlate={licence}
         currentOwnerName={car.owner?.fullname ?? ""}
+        currentOwnerId={car.owner?.id ?? ""}
         onSuccess={() => getCarDetail(licence)}
       />
     </div>

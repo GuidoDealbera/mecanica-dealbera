@@ -8,15 +8,15 @@ import type { DataSource } from "typeorm";
 /**
  * Nombre y teléfono repetidos, por los cuatro caminos que cargan clientes.
  *
- * Los dos campos son `unique` en la base. Cuando el endpoint no comprueba
- * antes, el `save` lanza `UNIQUE constraint failed: client.phone` y eso es lo
- * que ve el usuario. `client:create` sólo miraba el nombre y `client:update` no
- * miraba nada, mientras que los de vehículos sí lo hacían: la misma regla
- * escrita dos veces y faltando en otras dos.
+ * Los dos campos **eran** `unique` en la base y los cuatro endpoints rechazaban
+ * el duplicado. Ya no: dos clientes pueden llamarse igual y una familia puede
+ * compartir un número, y ninguna de las dos cosas es un error de carga. Lo que
+ * queda en su lugar es un aviso.
  *
- * Lo que se fija acá es que los cuatro respondan igual y con un mensaje que
- * sirva —que diga **a nombre de quién** está el teléfono—, porque sin eso el
- * usuario no sabe si es la misma persona cargada dos veces.
+ * Lo que se fija acá es que los cuatro caminos se comporten igual —que ninguno
+ * siga bloqueando por su cuenta— y que el aviso sirva: que diga **a nombre de
+ * quién** está el teléfono, porque sin eso el usuario no sabe si es la misma
+ * persona cargada dos veces.
  */
 
 const stub = vi.hoisted(() => ({
@@ -69,6 +69,17 @@ const cliente = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
+/**
+ * El `id` del cliente, que es lo que manda el formulario cuando se lo elige del
+ * autocompletar. Antes el alta buscaba al titular por nombre y no hacía falta.
+ */
+const idDe = async (fullname: string) =>
+  (
+    (await ds.query("SELECT id FROM client WHERE fullname = ?", [
+      fullname,
+    ])) as { id: string }[]
+  )[0].id;
+
 const cuantosClientes = async () =>
   Number(
     ((await ds.query("SELECT COUNT(*) c FROM client")) as { c: number }[])[0].c
@@ -86,34 +97,49 @@ afterEach(async () => {
 });
 
 describe("unicidad de clientes", () => {
-  it("client:create rechaza el teléfono repetido diciendo de quién es", async () => {
+  it("client:create acepta el teléfono repetido y avisa de quién es", async () => {
     expect((await invocar("client:create", cliente())).status).toBe("success");
 
+    // Una familia que comparte el número: antes era imposible.
     const res = await invocar(
       "client:create",
       cliente({ fullname: "Carlos Bravo" })
     );
 
-    expect(res.status).toBe("failed");
-    // El mensaje tiene que nombrar al otro cliente, no ser el error de SQLite.
+    expect(res.status).toBe("success");
+    expect(await cuantosClientes()).toBe(2);
+    // Pero el aviso tiene que nombrar al otro cliente, no ser el error de
+    // SQLite: es lo único con lo que el usuario puede darse cuenta de que
+    // cargó dos veces a la misma persona.
     expect(res.message).toContain("Ana Gómez");
     expect(res.message).not.toMatch(/UNIQUE|SQLITE/i);
-    expect(await cuantosClientes()).toBe(1);
   });
 
-  it("client:create sigue rechazando el nombre repetido", async () => {
+  it("client:create acepta dos clientes que se llaman igual", async () => {
     await invocar("client:create", cliente());
     const res = await invocar(
       "client:create",
       cliente({ phone: "3515123457" })
     );
 
-    expect(res.status).toBe("failed");
+    expect(res.status).toBe("success");
+    expect(await cuantosClientes()).toBe(2);
     expect(res.message).toContain("Ana Gómez");
-    expect(await cuantosClientes()).toBe(1);
   });
 
-  it("client:update rechaza mudarse a un teléfono ya tomado", async () => {
+  it("el aviso junta nombre y teléfono cuando coinciden los dos", async () => {
+    await invocar("client:create", cliente());
+
+    // Los dos repetidos es la señal más fuerte de que es la misma persona
+    // cargada de nuevo. Avisar de uno solo la escondería a medias.
+    const res = await invocar("client:create", cliente());
+
+    expect(res.status).toBe("success");
+    expect(res.message).toContain("llamado");
+    expect(res.message).toContain("teléfono");
+  });
+
+  it("client:update avisa al mudarse a un teléfono ya usado", async () => {
     await invocar("client:create", cliente());
     await invocar(
       "client:create",
@@ -131,12 +157,12 @@ describe("unicidad de clientes", () => {
       city: "Córdoba",
     });
 
-    expect(res.status).toBe("failed");
+    expect(res.status).toBe("success");
     expect(res.message).toContain("Ana Gómez");
     expect(res.message).not.toMatch(/UNIQUE|SQLITE/i);
   });
 
-  it("client:update deja guardar sin cambiar nombre ni teléfono", async () => {
+  it("client:update no avisa nada si no cambió nombre ni teléfono", async () => {
     await invocar("client:create", cliente());
     const [ana] = (await ds.query(
       "SELECT id FROM client WHERE fullname = 'Ana Gómez'"
@@ -153,6 +179,8 @@ describe("unicidad de clientes", () => {
     });
 
     expect(res.status).toBe("success");
+    // Y sin aviso: chocar consigo mismo no es un duplicado.
+    expect(res.message).not.toContain("Atención");
     const [guardado] = (await ds.query(
       "SELECT address FROM client WHERE id = ?",
       [ana.id]
@@ -160,9 +188,11 @@ describe("unicidad de clientes", () => {
     expect(guardado.address).toBe("Otra dirección 200");
   });
 
-  it("car:create rechaza el titular con un teléfono ya tomado", async () => {
+  it("car:create acepta un titular nuevo con un teléfono ya usado, avisando", async () => {
     await invocar("client:create", cliente());
 
+    // El hijo trae el auto y da el teléfono de la casa. El vehículo se registra
+    // igual; lo que no puede pasar es que se registre en silencio.
     const res = await invocar("car:create", {
       licensePlate: "AB123CD",
       brand: "Volkswagen",
@@ -172,13 +202,14 @@ describe("unicidad de clientes", () => {
       owner: cliente({ fullname: "Carlos Bravo" }),
     });
 
-    expect(res.status).toBe("failed");
+    expect(res.status).toBe("success");
     expect(res.message).toContain("Ana Gómez");
+    expect(await cuantosClientes()).toBe(2);
     expect(
       Number(
         ((await ds.query("SELECT COUNT(*) c FROM car")) as { c: number }[])[0].c
       )
-    ).toBe(0);
+    ).toBe(1);
   });
 
   it("car:create no descarta en silencio los datos del titular recién cargados", async () => {
@@ -194,6 +225,7 @@ describe("unicidad de clientes", () => {
       model: "Gol",
       year: 2016,
       kilometers: 90000,
+      ownerId: await idDe("Ana Gómez"),
       owner: cliente({ phone: "3515123457" }),
     });
 
@@ -217,6 +249,7 @@ describe("unicidad de clientes", () => {
       model: "Gol",
       year: 2016,
       kilometers: 90000,
+      ownerId: await idDe("Ana Gómez"),
       owner: cliente(),
     });
 
@@ -238,10 +271,57 @@ describe("unicidad de clientes", () => {
       model: "Gol",
       year: 2016,
       kilometers: 90000,
+      ownerId: await idDe("Ana Gómez"),
       owner: cliente({ email: "" }),
     });
 
     expect(res.status).toBe("success");
+  });
+
+  it("car:create sin id no reutiliza al cliente que se llama igual", async () => {
+    await invocar("client:create", cliente());
+
+    // Sin `ownerId` el usuario **no** eligió a nadie de la lista: escribió un
+    // nombre. Antes el backend lo buscaba por nombre y le asociaba el auto al
+    // cliente que ya existía, así que bastaba con escribir el nombre de otro
+    // para quedarse con su ficha.
+    const res = await invocar("car:create", {
+      licensePlate: "AB123CD",
+      brand: "Volkswagen",
+      model: "Gol",
+      year: 2016,
+      kilometers: 90000,
+      owner: cliente({ phone: "3515199999" }),
+    });
+
+    // Ahora se crea una ficha aparte —son dos personas distintas hasta que
+    // alguien diga lo contrario— y se avisa del homónimo.
+    expect(res.status).toBe("success");
+    expect(res.message).toContain("Ana Gómez");
+    expect(await cuantosClientes()).toBe(2);
+
+    const [auto] = (await ds.query(
+      "SELECT c.id, c.phone FROM car JOIN client c ON c.id = car.ownerId"
+    )) as { id: string; phone: string }[];
+    // Y el auto queda con el titular recién cargado, no con el que ya estaba.
+    expect(auto.phone).toBe("3515199999");
+  });
+
+  it("car:create rechaza un titular elegido que no existe", async () => {
+    const res = await invocar("car:create", {
+      licensePlate: "AB123CD",
+      brand: "Volkswagen",
+      model: "Gol",
+      year: 2016,
+      kilometers: 90000,
+      ownerId: "id-que-no-existe",
+      owner: cliente(),
+    });
+
+    // Y no cae en la rama de "cliente nuevo": si el id no resuelve, algo está
+    // mal en el pedido y crear otra ficha sería peor que fallar.
+    expect(res.status).toBe("failed");
+    expect(await cuantosClientes()).toBe(0);
   });
 
   it("car:reassign-owner valida el titular nuevo igual que el alta", async () => {
@@ -295,7 +375,7 @@ describe("unicidad de clientes", () => {
     expect(await cuantosClientes()).toBe(1);
   });
 
-  it("car:reassign-owner rechaza el titular nuevo con datos ya tomados", async () => {
+  it("car:reassign-owner acepta el titular nuevo con datos ya usados, avisando", async () => {
     await invocar("car:create", {
       licensePlate: "AB123CD",
       brand: "Volkswagen",
@@ -305,13 +385,15 @@ describe("unicidad de clientes", () => {
       owner: cliente(),
     });
 
+    // El auto pasa a nombre del hijo, que comparte el teléfono de la casa.
     const res = await invocar("car:reassign-owner", "AB123CD", {
       mode: "new",
       newOwner: cliente({ fullname: "Carlos Bravo" }),
     });
 
-    expect(res.status).toBe("failed");
+    expect(res.status).toBe("success");
+    expect(res.message).toContain("Carlos Bravo");
     expect(res.message).toContain("Ana Gómez");
-    expect(await cuantosClientes()).toBe(1);
+    expect(await cuantosClientes()).toBe(2);
   });
 });

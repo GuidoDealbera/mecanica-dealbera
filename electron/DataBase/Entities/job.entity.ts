@@ -38,8 +38,10 @@ export class Job {
 
   // Repuestos/insumos del trabajo. Se guardan como JSON: son ítems de línea
   // simples (nombre + precio), no ameritan una tabla propia.
+  // `| null` porque la columna lo es: los trabajos anteriores a que existieran
+  // los repuestos no tienen ninguno.
   @Column("simple-json", { nullable: true })
-  parts!: { name: string; price: number }[];
+  parts!: { name: string; price: number }[] | null;
 
   // Notas internas del taller. Uso interno: no se muestran al cliente ni se
   // incluyen en el presupuesto/factura.

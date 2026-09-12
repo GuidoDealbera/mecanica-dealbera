@@ -70,7 +70,7 @@ const routes: RouteObject[] = [
     ),
   },
   {
-    path: "/clients/:fullname",
+    path: "/clients/:id",
     element: (
       <LazyPage>
         <ClientDetailPage />

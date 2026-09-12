@@ -10,7 +10,7 @@ import {
   selectClientLoadingStates,
 } from "../Store/selectors";
 import {
-  fetchClientByName as fetchClientByNameThunk,
+  fetchClientById as fetchClientByIdThunk,
   fetchClients as fetchClientsThunk,
   updateClient as updateClientThunk,
 } from "../Store/clientAsync.methods";
@@ -39,8 +39,8 @@ export const useClientStore = () => {
     [dispatch]
   );
 
-  const fetchByName = useCallback(
-    (fullname: string) => dispatch(fetchClientByNameThunk(fullname)).unwrap(),
+  const fetchById = useCallback(
+    (id: string) => dispatch(fetchClientByIdThunk(id)).unwrap(),
     [dispatch]
   );
 
@@ -66,7 +66,7 @@ export const useClientStore = () => {
     loadingStates,
     // Acciones (devuelven la promesa desenvuelta)
     fetchList,
-    fetchByName,
+    fetchById,
     update,
     // Limpieza de estado
     clearOwners,

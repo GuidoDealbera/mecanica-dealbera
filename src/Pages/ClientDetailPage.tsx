@@ -69,19 +69,17 @@ const StatTile: React.FC<{
 );
 
 const ClientDetailPage: React.FC = () => {
-  const { fullname } = useParams<{ fullname: string }>();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const {
     client,
     clientLoaded,
-    getClientByName,
+    getClientById,
     updateOwner,
     loading,
     clearClient,
   } = useClientQueries();
   const [isEditing, setIsEditing] = React.useState(false);
-
-  const decodedName = fullname ? decodeURIComponent(fullname) : "";
 
   const {
     control,
@@ -91,8 +89,8 @@ const ClientDetailPage: React.FC = () => {
   } = useForm<Partial<Client>>({ mode: "onChange" });
 
   React.useEffect(() => {
-    if (decodedName) getClientByName(decodedName);
-  }, [decodedName, getClientByName]);
+    if (id) getClientById(id);
+  }, [id, getClientById]);
 
   // Limpieza al desmontar: sin esto `clientLoaded` queda en `true` con el
   // cliente anterior en el store, y al abrir otra ficha se vería la vieja
@@ -114,7 +112,7 @@ const ClientDetailPage: React.FC = () => {
     }
   }, [client, reset]);
 
-  // Los vehículos vienen en la propia relación del cliente (client:find-by-name
+  // Los vehículos vienen en la propia relación del cliente (client:find-by-id
   // carga `cars` y `cars.jobs`), así que no hace falta traer todos los autos.
   const clientCars = React.useMemo(() => client?.cars ?? [], [client]);
 
@@ -151,7 +149,7 @@ const ClientDetailPage: React.FC = () => {
     if (!client) return;
     try {
       await updateOwner({ ...data, id: client.id }, true);
-      await getClientByName(decodedName);
+      await getClientById(client.id);
       setIsEditing(false);
     } catch {
       // El hook ya avisó con el motivo que devolvió el backend (se le pasa
@@ -194,7 +192,7 @@ const ClientDetailPage: React.FC = () => {
             isLoading={loading}
             startContent={!loading ? <HiOutlineRefresh size={18} /> : undefined}
             color="primary"
-            onPress={() => getClientByName(decodedName)}
+            onPress={() => id && getClientById(id)}
           >
             {loading ? "Actualizando..." : "Actualizar"}
           </Button>

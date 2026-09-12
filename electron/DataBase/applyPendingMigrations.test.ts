@@ -152,7 +152,9 @@ describe("registro de migraciones", () => {
     await AppDataSource.destroy();
 
     expect(sinNombre).toEqual([]);
-    expect(total).toBe(11);
+    // Que haya alguna: sin esto el filtro de arriba pasaría sobre una lista
+    // vacía y el test estaría en verde sin comprobar nada.
+    expect(total).toBeGreaterThan(0);
   });
 });
 
@@ -163,10 +165,15 @@ describe("applyPendingMigrations", () => {
 
     const { AppDataSource, applyPendingMigrations } = await cargarDataSource();
     await AppDataSource.initialize();
+    const registradas = AppDataSource.migrations.length;
     const migradas = await applyPendingMigrations();
     await AppDataSource.destroy();
 
-    expect(migradas).toBe(11);
+    // Se compara contra las que hay registradas y no contra un número escrito a
+    // mano: una base sin tabla `migrations` tiene **todas** pendientes, y así
+    // agregar una migración no obliga a venir a corregir este test.
+    expect(migradas).toBe(registradas);
+    expect(registradas).toBeGreaterThan(0);
 
     // Lo que la aplicación necesita y la base vieja no tenía. Sin esto, cada
     // pantalla que las toque revienta.

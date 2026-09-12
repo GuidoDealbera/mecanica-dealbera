@@ -99,8 +99,8 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose }) => {
     onClose();
   };
 
-  const handleClientClick = (fullname: string) => {
-    navigate(`/clients/${encodeURIComponent(fullname)}`);
+  const handleClientClick = (id: string) => {
+    navigate(`/clients/${id}`);
     onClose();
   };
 
@@ -186,7 +186,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose }) => {
                 <div
                   key={client.id}
                   className="flex items-center gap-3 px-4 py-3 hover:bg-primary-500/20 cursor-pointer transition-colors border-b border-divider"
-                  onClick={() => handleClientClick(client.fullname)}
+                  onClick={() => handleClientClick(client.id)}
                 >
                   <div className="w-8 h-8 rounded-full bg-primary-800 flex items-center justify-center flex-shrink-0">
                     <span className="text-primary-300 text-sm font-bold">

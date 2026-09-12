@@ -20,14 +20,24 @@ import { ReminderStatus } from "../../../src/Types/apiTypes";
  *   eso la lista muestra siempre lo mismo y se vuelve ruido.
  * - **Historial**: queda registro de cuándo se avisó y de los services hechos.
  *
- * Invariante que mantienen los endpoints: como máximo **un recordatorio
- * vigente** (`pending`/`snoozed`) por vehículo y tipo de service.
+ * Invariante que **garantiza la base**: como máximo un recordatorio vigente
+ * (`pending`/`snoozed`) por vehículo. Antes la sostenían los endpoints a mano y
+ * no alcanzó —hubo que colapsar duplicados en una migración—, así que ahora hay
+ * un índice único parcial y el caso deja de poder ocurrir.
  *
  * A diferencia de `Document`, sí se borra en cascada con el vehículo: un
  * recordatorio de un auto que ya no existe no tiene sentido.
  */
 @Entity({ name: "service_reminder" })
 @Index("IDX_service_reminder_status_due", ["status", "dueDate"])
+// La invariante de "un solo vigente por vehículo" **está en la base**: es un
+// índice único parcial, que lo crea la migración UniqueActiveReminder. Se
+// declara acá para que la entidad y el esquema no se separen, con el mismo
+// nombre y la misma condición.
+@Index("IDX_service_reminder_vigente_por_auto", ["car"], {
+  unique: true,
+  where: "\"status\" IN ('pending', 'snoozed')",
+})
 export class ServiceReminder {
   @PrimaryGeneratedColumn("uuid")
   id!: string;

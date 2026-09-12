@@ -880,7 +880,7 @@ se porta bien.
 
 ### D1 · 🔴 La invariante "un recordatorio vigente por vehículo" no existe en la base
 
-**[pendiente]** · `electron/DataBase/Entities/serviceReminder.entity.ts`
+**[a testear]** · `electron/DataBase/Entities/serviceReminder.entity.ts`
 
 La regla está escrita en el comentario de la entidad y la cuidan los endpoints a
 mano. **La base no la impide**: no hay índice único ni restricción.
@@ -901,9 +901,28 @@ CREATE UNIQUE INDEX IDX_service_reminder_activo_por_auto
 
 Con eso, el bug deja de poder ocurrir en vez de tener que acordarse de evitarlo.
 
+**Resuelto.** La migración primero **colapsa** lo que hubiera quedado duplicado
+—o el índice no se puede crear— con el mismo criterio que usó
+`SimplifyServiceType`: sobrevive el más urgente y el resto se descarta con el
+motivo escrito, no se borra. Son historial.
+
+Lo que fija el test es lo que hace que el bug deje de poder ocurrir, que es
+distinto de arreglarlo: **la base rechaza el segundo vigente aunque el código se
+equivoque**. Y que siga dejando todos los `done` y `dismissed` que haga falta,
+que es el historial del vehículo.
+
+El riesgo del cambio no era el índice sino lo que pudiera romper, así que se
+ejercitó el circuito completo contra una copia de la base real: cerrar un service
+como trabajo entregado y completarlo a mano. En los dos casos queda exactamente
+un vigente y el historial se acumula.
+
+De paso, los dos tests que tenían el número de migraciones escrito a mano pasaron
+a compararse contra las registradas: agregar una migración ya no obliga a venir a
+corregirlos.
+
 ### D2 · 🔴 Los tipos de las entidades mienten sobre lo que puede ser nulo
 
-**[pendiente]** · `electron/DataBase/Entities/*.entity.ts`
+**[a testear]** · `electron/DataBase/Entities/*.entity.ts`
 
 Tres columnas están declaradas `nullable: true` en la base y **no nulas** en
 TypeScript:
@@ -924,9 +943,33 @@ lado porque le mintieron.
 Cambiar los tipos a `Client | null` y compañía va a hacer aparecer los sitios sin
 proteger. Ese es el punto.
 
+**Resuelto, y el resultado fue al revés de lo esperado.** Corregir las tres
+columnas en las entidades del backend dio **cero errores**: ahí ya se usaba
+encadenamiento opcional en todos lados.
+
+Donde estaba la mentira que importaba era en los tipos del **renderer**, que son
+otros (`src/Types/types.ts`). Ahí `owner` decía ser siempre un `Client`, y
+corregirlo destapó tres accesos sin proteger:
+
+- **`CarsTable`** pintaba `car.owner.fullname` directo. Un vehículo sin titular
+  no rompía esa celda: **volteaba el listado entero de vehículos**.
+- **`CarDetailPage`** hacía `car!.owner.id` al guardar. Ahora, si no hay titular,
+  no intenta actualizarlo —asignarle uno es otra operación—.
+- **`AddCarForm`** pasaba el vehículo entero al `reset` del formulario.
+
+Con `parts` pasó algo revelador: el tipo decía "siempre un arreglo" y **todos los
+usos ya escribían `?? []`**. Esa repetición era la señal de que el tipo no
+describía la realidad. Corregirlo dejó un solo punto por arreglar, el envío del
+formulario, que ahora manda lista vacía en vez de ausencia: al backend le llega
+una sola forma.
+
+Queda anotado como deuda aparte que "sin repuestos" tenga **dos
+representaciones** —`null` y `[]`—: es lo que obliga al `?? []` en cada uso, y se
+arregla con un `NOT NULL DEFAULT '[]'` y su migración.
+
 ### D3 · 🟠 `countDueReminders` usa `COUNT(columna)`, contra la regla del propio proyecto
 
-**[pendiente]** · `electron/DataBase/serviceReminders.service.ts`
+**[a testear]** · `electron/DataBase/serviceReminders.service.ts`
 
 ```ts
 .select("COUNT(reminder.id)", "count")
@@ -940,9 +983,17 @@ constante `COUNT_ALL = "COUNT(*)"` con el razonamiento escrito arriba.
 Es el único lugar del backend que se quedó afuera, y no es cualquiera: alimenta el
 badge de la barra y la notificación de arranque.
 
-### D4 · 🟠 Un recordatorio descartado saca al vehículo del circuito para siempre
+**Resuelto**, y se comprobó que no quedaba ningún otro. Lo único que aparece
+ahora es `COUNT(1)`, que lo genera TypeORM en `repository.count()` y no lee
+ninguna columna.
 
-**[pendiente]** · `electron/DataBase/serviceReminders.service.ts`
+El contador no tenía **ninguna** cobertura, siendo lo que alimenta el badge, así
+que se le agregó: cuenta lo vencido por fecha y por kilometraje, y **no** cuenta
+lo que falta mucho ni lo que ya está cerrado.
+
+### D4 · ⚪ Un recordatorio descartado saca al vehículo del circuito para siempre
+
+**[a testear]** · `electron/DataBase/serviceReminders.service.ts`
 
 `ensureReminder` dice en su documentación que se usa "al registrar un auto **y
 como red de seguridad**". Lo comprobé: **se llama en un solo lugar**, en
@@ -958,9 +1009,45 @@ verdad como red de seguridad (al abrir la ficha, o al cerrar cualquier trabajo),
 sacar la frase de la documentación y hacer explícito en la interfaz que descartar
 es definitivo.
 
+**Resuelto**, pero la premisa era **falsa** y conviene dejar escrito por qué,
+porque el error estuvo en razonar sobre el código en vez de ejecutarlo.
+
+Lo de `ensureReminder` sí es cierto: se llama en un solo lugar y la "red de
+seguridad" que promete su documentación no existe. De ahí salté a "entonces
+descartar es permanente", y no lo es. Ejercitando los endpoints de verdad:
+
+```
+vigentes al alta       : 1
+tras descartar         : 0
+¿se puede reactivar?   : success :: Recordatorio reactivado
+tras reactivar         : 1
+descartado de nuevo    : 0
+cierra un trabajo service
+¿reingresa al circuito?: 1
+```
+
+Hay **dos** caminos de vuelta, y ninguno pasa por `ensureReminder`:
+
+- **Manual**: `service:reactivate`. La interfaz lo expone —el selector de la
+  pantalla de service tiene "Historial completo", donde el descartado aparece, y
+  ahí `ReminderActions` muestra el botón "Reactivar"—.
+- **Automático**: cerrar cualquier trabajo marcado como service.
+  `completeAndScheduleNext` crea uno nuevo cuando no hay ninguno vigente. O sea
+  que el vehículo vuelve al circuito solo, en cuanto vuelve al taller.
+
+Descartar no es una condena: es "no me lo recuerdes hasta que aparezca".
+
+Nada de esto estaba probado, que es lo que permitió que la premisa pareciera
+plausible. Ahora hay cuatro casos sobre los endpoints reales que fijan el ciclo
+completo, incluida la diferencia que importa: reactivar devuelve **el mismo**
+recordatorio y cerrar un service crea uno **nuevo**.
+
+Lo único que se corrigió en el código es la documentación de `ensureReminder`,
+que ahora dice dónde se la llama y cuáles son las dos vueltas de verdad.
+
 ### D5 · 🟠 El nombre del cliente es la clave única, así que no puede haber dos homónimos
 
-**[pendiente]** · `electron/DataBase/Entities/client.entity.ts`
+**[a testear]** · `electron/DataBase/Entities/client.entity.ts`
 
 `Client.fullname` es `unique`, y **es la clave por la que se busca al cliente** en
 casi todos lados: `client:find-by-name`, la reasignación de titular por
@@ -978,9 +1065,66 @@ Lo correcto de fondo es referenciar por `id` en toda la interfaz y quitar la
 unicidad de `fullname` (dejando quizás un aviso de duplicado, no un impedimento).
 Es un cambio grande: toca endpoints, hooks y pantallas.
 
-### D6 · 🟡 El dinero se guarda en `integer` para el trabajo y en JSON libre para los repuestos
+**Resuelto**, en ese orden y en dos partes, porque la segunda no se puede hacer
+sin la primera: mientras el nombre siga siendo la forma de encontrar al cliente,
+permitir homónimos sólo consigue que el sistema tome a uno por el otro.
 
-**[pendiente]** · `electron/DataBase/Entities/job.entity.ts`
+**Primero, referenciar por `id`.** `car:create` recibe un `ownerId` opcional y
+deja de buscar al titular por nombre: quién es lo decide el formulario, que es
+el único que sabe si el usuario eligió a alguien de la lista o escribió un
+nombre nuevo. `car:reassign-owner` pasó a `existingOwnerId`,
+`client:find-by-name` es `client:find-by-id`, y la ficha vive en `/clients/:id`,
+así que renombrar a un cliente ya no invalida el enlace a su ficha.
+
+En el camino apareció un detalle que sólo se ve leyendo: las opciones del
+autocompletar llevaban `textValue={client.key}`, y al pasar la clave a ser el
+`id` eso habría mostrado un uuid en el campo al elegir un titular.
+
+La decisión de qué titular quedó elegido salió del componente a
+`src/Utils/ownerSelection.ts`, que es donde el proyecto pone las reglas
+testeables. Vale aclarar el límite: eso cubre la regla, **no** el widget. Se
+intentó ejercitar el autocompletar contra la aplicación real por CDP y no se
+pudo —el desplegable de HeroUI no responde a eventos sintéticos, y el teclado
+por CDP no llega—; se comprobó que el código anterior se comporta igual bajo el
+mismo arnés, así que es una limitación de la herramienta y no del cambio. Lo que
+sí se ejercitó en la aplicación real es la ficha del cliente por `id`, entrando
+por la dirección y con un clic desde el listado.
+
+**Después, quitar la unicidad.** La migración `AllowHomonymClients` reconstruye
+la tabla `client` sin los `UNIQUE` de `fullname` ni de `phone` —el teléfono
+también, porque una familia que comparte un número tampoco podía tener dos
+fichas— y repone como índices normales los que traía la restricción, de los que
+dependen el orden del listado y la búsqueda del duplicado.
+
+Lo delicado ahí es que SQLite no puede quitar un `UNIQUE` de la tabla sin
+reconstruirla, y `car.ownerId` la referencia con `ON DELETE SET NULL`: al soltar
+la tabla vieja esa acción se dispara y **todos los autos se quedan sin dueño**,
+sin violar ninguna restricción. Se midió, y también que las dos formas de
+evitarlo desde adentro de la migración no sirven: el `PRAGMA foreign_keys` se
+ignora dentro de una transacción y `defer_foreign_keys` demora la comprobación
+pero no las acciones.
+
+Lo que salva a la migración es que el driver ya hace lo correcto —el
+`QueryRunner` de better-sqlite3 apaga las claves foráneas en `beforeMigration`—.
+Se llegó a agregar el `PRAGMA` a `applyPendingMigrations` antes de descubrirlo,
+y se sacó por redundante. Queda un caso que fija el resultado, porque es una
+garantía que damos por sentada y que no depende de nuestro código.
+
+Se corrió contra una base real del usuario, una previa a todas las migraciones:
+13 migraciones aplicadas, los mismos clientes y autos antes y después, cero
+huérfanos, `foreign_key_check` vacío e `integrity_check` en `ok`.
+
+**Y el duplicado ahora se avisa en vez de impedirse.** `findClientConflict` pasó
+a ser `describeClientDuplicates`: los cuatro caminos que cargan clientes guardan
+igual y suman el aviso a su mensaje de éxito, nombrando al otro cliente —sin
+eso, el usuario no tiene cómo saber si acaba de cargar dos veces a la misma
+persona—. Si coinciden el nombre **y** el teléfono, el aviso lo dice de una vez:
+es la señal más fuerte de que es un duplicado de verdad, y avisar de uno solo la
+escondería a medias.
+
+### D6 · 🔴 El dinero se guarda en `integer` para el trabajo y en JSON libre para los repuestos
+
+**[a testear]** · `electron/DataBase/Entities/job.entity.ts`
 
 `Job.price` es `integer`, así que la mano de obra no admite centavos. Los
 repuestos viven en `Job.parts` como `simple-json`, donde `price` es un número de
@@ -993,6 +1137,44 @@ tenerlos. El documento impreso mezcla las dos cosas.
 Hay que decidir una representación y aplicarla a las dos: o todo en centavos
 (`integer`, que es lo más sano para dinero), o todo con decimales explícitos. Hoy
 es medio y medio por accidente.
+
+**Resuelto**, y buscando el escenario descrito apareció otro bastante peor. Sube
+de 🟡 a 🔴: se cobra mal.
+
+La representación no había que elegirla, ya estaba elegida. `job.price`,
+`document.total` y el número de documento son columnas `integer`, y `formatARS`
+imprime con `maximumFractionDigits: 0`. Son **pesos enteros**. El precio del
+repuesto es el único que se escapó, y no por decisión: vive dentro de un
+`simple-json`, donde no hay tipo que lo impida. Así que ahora `JobPartDto` lo
+valida con `@IsInt`, igual que el precio del trabajo, y una migración redondea
+lo que hubiera quedado guardado con centavos —sin eso, editar un trabajo viejo
+fallaría con un error sobre un dato que el usuario nunca escribió—.
+
+Lo que **no** pasa es lo que decía el escenario: el documento impreso no mezcla
+las dos cosas, porque todo se imprime con `formatARS` y los centavos
+desaparecen. El daño era invisible, que es distinto de inexistente.
+
+Lo grave está antes, en `parseNumber`, que es por donde entran los **tres**
+campos de dinero del programa: el precio del trabajo, el de cada repuesto y la
+edición del precio en la lista. Borraba todos los puntos y llamaba a `Number`,
+así que las dos maneras de escribir un decimal terminaban mal y ninguna avisaba:
+
+| lo que se escribe | lo que se guardaba |
+| ----------------- | ------------------ |
+| `1234,56`         | `0`                |
+| `1234.56`         | `123456`           |
+
+El segundo es el que importa: el precio queda **cien veces más caro** y el
+usuario no tiene forma de notarlo salvo mirando el total. Y se realimentaba
+solo, porque `formatThousands(1234.56)` devolvía `"1.234.56"`: abrir para editar
+un importe con decimales y volver a guardarlo lo multiplicaba por cien sin
+tocarlo.
+
+Ahora la coma es siempre el separador decimal, y un punto sólo es separador de
+miles si agrupa de a tres hasta el final; si no, es un punto decimal escrito a
+la inglesa. El resultado se redondea, que es lo que corresponde si el importe se
+guarda en pesos enteros: preferible un peso de más o de menos que cien veces de
+más.
 
 ---
 

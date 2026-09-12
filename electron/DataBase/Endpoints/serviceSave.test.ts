@@ -325,3 +325,41 @@ describe("service:settings-set", () => {
     expect(await leer()).toEqual(antes);
   });
 });
+
+describe("service:count-due", () => {
+  it("cuenta los que vencen por fecha y por kilometraje, y nada más", async () => {
+    await preparar();
+    const alDia = await crearAuto("AA111AA", "1");
+    const porFecha = await crearAuto("BB222BB", "2");
+    const porKm = await crearAuto("CC333CC", "3");
+    const cerrado = await crearAuto("DD444DD", "4");
+
+    const insertar = (
+      carId: string,
+      estado: string,
+      due: string | null,
+      km: number | null
+    ) =>
+      ds.query(
+        `INSERT INTO service_reminder (id, carId, status, dueDate, dueKm, snoozedUntil, contactedAt, notes, createdAt, updatedAt)
+         VALUES (?, ?, ?, ?, ?, NULL, NULL, '', '2026-01-01 09:00:00', '2026-01-01 09:00:00')`,
+        [`r-${carId}`, carId, estado, due, km]
+      );
+
+    // Falta mucho: no cuenta.
+    await insertar(alDia, "pending", "2099-01-01 00:00:00", null);
+    // Vencido por fecha.
+    await insertar(porFecha, "pending", "2020-01-01 00:00:00", null);
+    // Vencido por kilometraje: el auto tiene 90.000 y el objetivo es menor.
+    await insertar(porKm, "pending", null, 80000);
+    // Cerrado: no cuenta aunque su fecha haya pasado.
+    await insertar(cerrado, "done", "2020-01-01 00:00:00", null);
+
+    expect(await invocar<number>("service:count-due")).toBe(2);
+  });
+
+  it("sin recordatorios el contador es cero, no falla", async () => {
+    await preparar();
+    expect(await invocar<number>("service:count-due")).toBe(0);
+  });
+});

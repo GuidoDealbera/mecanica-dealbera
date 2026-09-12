@@ -49,7 +49,7 @@ contextBridge.exposeInMainWorld("api", {
     reassignOwner: async (
       licensePlate: string,
       payload:
-        | { mode: "existing"; existingOwnerFullname: string }
+        | { mode: "existing"; existingOwnerId: string }
         | {
             mode: "new";
             newOwner: CreateClientDto;
@@ -61,8 +61,8 @@ contextBridge.exposeInMainWorld("api", {
       await ipcRenderer.invoke("client:create", dto),
     getAll: async (params: ClientQueryParams) =>
       await ipcRenderer.invoke("client:get-all", params),
-    getByName: async (fullname: string) =>
-      await ipcRenderer.invoke("client:find-by-name", fullname),
+    getById: async (id: string) =>
+      await ipcRenderer.invoke("client:find-by-id", id),
     getCities: async () => await ipcRenderer.invoke("client:cities"),
     search: async (query: string) =>
       await ipcRenderer.invoke("client:search", query),

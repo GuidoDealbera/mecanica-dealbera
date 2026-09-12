@@ -33,7 +33,12 @@ export interface Car {
   jobs: Jobs[];
   kilometers: number;
   kmHistory?: KmRecord[];
-  owner: Client;
+  /**
+   * Puede no haber titular: la FK lo permite (`ON DELETE SET NULL`). El tipo
+   * decía que siempre había uno, así que el compilador no obligaba a
+   * contemplarlo y cada pantalla se defendía —o no— por su cuenta.
+   */
+  owner: Client | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -51,10 +56,13 @@ export interface Jobs {
   description: string;
   isThirdParty: boolean;
   status: JobStatus;
-  parts: {
-    name: string;
-    price: number;
-  }[];
+  /**
+   * Puede venir en `null`: la columna lo permite y los trabajos anteriores a
+   * que existieran los repuestos no tienen ninguno. El tipo decía que siempre
+   * era un arreglo, y sin embargo **cada uso ya se defendía con `?? []`** —eso
+   * era la señal de que el tipo no describía la realidad—.
+   */
+  parts: { name: string; price: number }[] | null;
   notes?: string;
   /** Observación para el cliente: **sí** se imprime en el documento. */
   clientNote?: string;
