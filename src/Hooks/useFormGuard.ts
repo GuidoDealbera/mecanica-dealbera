@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useBlocker } from "react-router-dom";
 import { useDisclosure } from "@heroui/react";
 
@@ -22,6 +22,18 @@ export const useFormGuard = ({ isDirty, onConfirm }: FormGuardProps) => {
     onOpen();
     return true;
   });
+
+  // El bloqueador de React Router sólo ve las navegaciones internas. Cerrar la
+  // ventana es cosa del proceso principal, así que se le avisa el estado del
+  // formulario y él decide si preguntar antes de cerrar.
+  //
+  // Va en un efecto y no durante el render porque avisa a algo de afuera. Se
+  // limpia al desmontar: una pantalla que ya no está no tiene cambios sin
+  // guardar, y sin eso la aplicación quedaría preguntando para siempre.
+  useEffect(() => {
+    window.api.global.setUnsavedChanges(isDirty);
+    return () => window.api.global.setUnsavedChanges(false);
+  }, [isDirty]);
 
   const confirmNavigation = () => {
     if (nextLocation) {

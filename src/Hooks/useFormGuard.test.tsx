@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {
@@ -21,11 +21,32 @@ import { useFormGuard } from "./useFormGuard";
  * comportamiento correcto del roto.
  */
 
+/**
+ * El guard le avisa al proceso principal si hay cambios sin guardar, para que
+ * cerrar la ventana también pregunte.
+ */
+const setUnsavedChanges = vi.fn();
+
+beforeEach(() => {
+  setUnsavedChanges.mockClear();
+  Object.defineProperty(window, "api", {
+    configurable: true,
+    writable: true,
+    value: { global: { setUnsavedChanges } },
+  });
+});
+
 /** Pantalla con cambios sin guardar y un botón para intentar irse. */
-const Formulario = ({ onConfirm = vi.fn() }: { onConfirm?: () => void }) => {
+const Formulario = ({
+  onConfirm = vi.fn(),
+  isDirty = true,
+}: {
+  onConfirm?: () => void;
+  isDirty?: boolean;
+}) => {
   const navigate = useNavigate();
   const { isOpen, confirmNavigation, cancelNavigation } = useFormGuard({
-    isDirty: true,
+    isDirty,
     onConfirm,
   });
 
@@ -43,16 +64,19 @@ const Formulario = ({ onConfirm = vi.fn() }: { onConfirm?: () => void }) => {
   );
 };
 
-const montar = (onConfirm = vi.fn()) => {
+const montar = (onConfirm = vi.fn(), isDirty = true) => {
   const router = createMemoryRouter(
     [
-      { path: "/", element: <Formulario onConfirm={onConfirm} /> },
+      {
+        path: "/",
+        element: <Formulario onConfirm={onConfirm} isDirty={isDirty} />,
+      },
       { path: "/otra", element: <h1>Otra pantalla</h1> },
     ],
     { initialEntries: ["/"] }
   );
-  render(<RouterProvider router={router} />);
-  return { user: userEvent.setup(), onConfirm };
+  const { unmount } = render(<RouterProvider router={router} />);
+  return { user: userEvent.setup(), onConfirm, unmount };
 };
 
 describe("useFormGuard", () => {
@@ -78,6 +102,30 @@ describe("useFormGuard", () => {
 
     expect(screen.getByRole("dialog")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Formulario" })).toBeVisible();
+  });
+
+  it("le avisa al proceso principal que hay cambios sin guardar", () => {
+    // Sin esto, cerrar la ventana se lleva el formulario sin preguntar: el
+    // bloqueador de React Router sólo ve las navegaciones internas.
+    montar();
+    expect(setUnsavedChanges).toHaveBeenCalledWith(true);
+  });
+
+  it("retira el aviso al desmontarse", () => {
+    const { unmount } = montar();
+    setUnsavedChanges.mockClear();
+
+    unmount();
+
+    // Una pantalla que ya no está no tiene cambios sin guardar. Sin esto la
+    // aplicación quedaría preguntando al cerrar para siempre.
+    expect(setUnsavedChanges).toHaveBeenCalledWith(false);
+  });
+
+  it("un formulario sin tocar no avisa nada", () => {
+    montar(vi.fn(), false);
+    expect(setUnsavedChanges).toHaveBeenCalledWith(false);
+    expect(setUnsavedChanges).not.toHaveBeenCalledWith(true);
   });
 
   it("deja salir al confirmar, y avisa hacia arriba", async () => {

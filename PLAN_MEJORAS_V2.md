@@ -262,11 +262,29 @@ confirmar y salir).
 
 ### A9 · 🟠 Cerrar la aplicación con cambios sin guardar no avisa nada
 
-**[pendiente]** · `src/Hooks/useFormGuard.ts`, `electron/main.ts`
+**[a testear]** · `src/Hooks/useFormGuard.ts`, `electron/main.ts`
 
 El guard sólo intercepta navegaciones de React Router. **Cerrar la ventana no está
 cubierto**: se pierde el formulario sin una palabra. Hace falta atender el `close`
 de la ventana principal y preguntar.
+
+**Resuelto.** `useFormGuard` —que ya es el único lugar que sabe si el formulario
+está sucio— le avisa al proceso principal por un canal nuevo, y el proceso
+principal atiende el `close` de la ventana y pregunta antes de cerrar. El aviso se
+retira al desmontar: una pantalla que ya no está no tiene cambios sin guardar, y
+sin eso la aplicación quedaría preguntando para siempre. También se limpia en
+`did-finish-load`, porque al recargar el renderer arranca de cero.
+
+Detalles que aparecieron probándolo contra la aplicación real:
+
+- **El cuadro va en su variante sincrónica.** `close` no espera promesas: con la
+  asíncrona la ventana se cierra igual mientras el cuadro se dibuja.
+- **`window.close()` desde el renderer no pasa por `BrowserWindow.on("close")`.**
+  Se descubrió porque la primera prueba —hecha justamente con eso— cerraba la
+  aplicación sin disparar el guard. Los caminos reales (la X, Alt+F4, `app.quit`)
+  sí pasan, y se verificó que ahí el guard frena el cierre y muestra el cuadro.
+  Ningún archivo del renderer llama a `window.close()`, así que no hay una vía de
+  escape; queda anotado por si alguien la agrega.
 
 ### A10 · 🟠 Los hooks devuelven el `Error` donde el llamador espera la respuesta del backend
 

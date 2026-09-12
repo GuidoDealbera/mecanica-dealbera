@@ -147,6 +147,14 @@ contextBridge.exposeInMainWorld("api", {
       await ipcRenderer.invoke("app:open-logs-folder"),
     openExternal: async (url: string) =>
       await ipcRenderer.invoke("app:open-external", url),
+    /**
+     * Avisa si hay cambios sin guardar en pantalla. El guard de navegación de
+     * React Router sólo cubre moverse **dentro** de la aplicación; cerrar la
+     * ventana se llevaba el formulario sin decir una palabra, y eso lo tiene
+     * que atajar el proceso principal, que es el dueño de la ventana.
+     */
+    setUnsavedChanges: (dirty: boolean) =>
+      ipcRenderer.send("app:unsaved-changes", dirty),
   },
 });
 

@@ -87,6 +87,20 @@ async function performAutoBackup(): Promise<void> {
 let win: BrowserWindow | null;
 let splash: BrowserWindow | null;
 
+/**
+ * Si el renderer avisó que hay un formulario con cambios sin guardar.
+ *
+ * El guard de React Router sólo intercepta las navegaciones **dentro** de la
+ * aplicación: cerrar la ventana se llevaba el formulario sin decir nada. Lo
+ * mantiene al día `useFormGuard`, que es el mismo lugar que decide si preguntar
+ * al navegar.
+ */
+let hayCambiosSinGuardar = false;
+
+ipcMain.on("app:unsaved-changes", (_event, dirty: unknown) => {
+  hayCambiosSinGuardar = dirty === true;
+});
+
 // Cada vez que una mutación invalida la caché del dashboard se le avisa al
 // renderer. Antes los contadores de la barra se recalculaban en cada cambio de
 // pantalla: alcanzaba, pero seguía siendo un sondeo atado a navegar, y un
@@ -324,8 +338,39 @@ async function createWindow() {
   });
 
   win.setMenuBarVisibility(false);
+
+  // Cerrar con un formulario a medio llenar pregunta antes. Se usa la variante
+  // sincrónica del cuadro a propósito: `close` no espera promesas, así que con
+  // la asíncrona la ventana se cierra igual mientras el cuadro se dibuja.
+  //
+  // El `win.close()` de adentro vuelve a entrar acá, y por eso se baja la
+  // bandera primero: en la segunda pasada sale por el corte de arriba.
+  win.on("close", (event) => {
+    if (!hayCambiosSinGuardar) return;
+
+    event.preventDefault();
+    const respuesta = dialog.showMessageBoxSync({
+      type: "warning",
+      title: "Cambios sin guardar",
+      message: "Hay un formulario con cambios sin guardar.",
+      detail: "Si cerrás ahora se pierden.",
+      buttons: ["Volver al formulario", "Cerrar y perder los cambios"],
+      defaultId: 0,
+      cancelId: 0,
+    });
+
+    if (respuesta === 1) {
+      hayCambiosSinGuardar = false;
+      win?.close();
+    }
+  });
+
   // Test active push message to Renderer-process.
   win.webContents.on("did-finish-load", () => {
+    // Al recargar, el renderer arranca de cero: lo que hubiera declarado el
+    // anterior ya no existe. Sin esto, un recargado con el formulario sucio
+    // dejaba la aplicación preguntando al cerrar para siempre.
+    hayCambiosSinGuardar = false;
     win?.webContents.send("main-process-message", new Date().toLocaleString());
   });
 
