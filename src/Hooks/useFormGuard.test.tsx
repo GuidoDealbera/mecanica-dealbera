@@ -1,0 +1,95 @@
+// @vitest-environment jsdom
+import { describe, expect, it, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import {
+  createMemoryRouter,
+  RouterProvider,
+  useNavigate,
+} from "react-router-dom";
+import { useFormGuard } from "./useFormGuard";
+
+/**
+ * El aviso de "tenés cambios sin guardar".
+ *
+ * Lo que se prueba es el ciclo completo, no una sola salida: `useBlocker` deja
+ * el bloqueador en estado `blocked` hasta que se llame a `proceed()` o a
+ * `reset()`. Faltaba el `reset` al elegir "quedarme", así que el bloqueador
+ * quedaba trabado y **el segundo intento de salir no volvía a preguntar**.
+ *
+ * Por eso los casos de acá salen dos veces: una sola salida no distingue el
+ * comportamiento correcto del roto.
+ */
+
+/** Pantalla con cambios sin guardar y un botón para intentar irse. */
+const Formulario = ({ onConfirm = vi.fn() }: { onConfirm?: () => void }) => {
+  const navigate = useNavigate();
+  const { isOpen, confirmNavigation, cancelNavigation } = useFormGuard({
+    isDirty: true,
+    onConfirm,
+  });
+
+  return (
+    <div>
+      <h1>Formulario</h1>
+      <button onClick={() => navigate("/otra")}>Salir</button>
+      {isOpen && (
+        <div role="dialog">
+          <button onClick={confirmNavigation}>Salir igual</button>
+          <button onClick={cancelNavigation}>Quedarme</button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const montar = (onConfirm = vi.fn()) => {
+  const router = createMemoryRouter(
+    [
+      { path: "/", element: <Formulario onConfirm={onConfirm} /> },
+      { path: "/otra", element: <h1>Otra pantalla</h1> },
+    ],
+    { initialEntries: ["/"] }
+  );
+  render(<RouterProvider router={router} />);
+  return { user: userEvent.setup(), onConfirm };
+};
+
+describe("useFormGuard", () => {
+  it("pregunta antes de salir con cambios sin guardar", async () => {
+    const { user } = montar();
+
+    await user.click(screen.getByRole("button", { name: "Salir" }));
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Formulario" })).toBeVisible();
+  });
+
+  it("vuelve a preguntar si la primera vez se decidió quedarse", async () => {
+    const { user } = montar();
+
+    await user.click(screen.getByRole("button", { name: "Salir" }));
+    await user.click(screen.getByRole("button", { name: "Quedarme" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    // Acá estaba el bug: sin `reset()` el bloqueador quedaba en `blocked` y
+    // este segundo intento no abría nada, o dejaba salir sin preguntar.
+    await user.click(screen.getByRole("button", { name: "Salir" }));
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Formulario" })).toBeVisible();
+  });
+
+  it("deja salir al confirmar, y avisa hacia arriba", async () => {
+    const onConfirm = vi.fn();
+    const { user } = montar(onConfirm);
+
+    await user.click(screen.getByRole("button", { name: "Salir" }));
+    await user.click(screen.getByRole("button", { name: "Salir igual" }));
+
+    expect(
+      await screen.findByRole("heading", { name: "Otra pantalla" })
+    ).toBeVisible();
+    expect(onConfirm).toHaveBeenCalledTimes(1);
+  });
+});

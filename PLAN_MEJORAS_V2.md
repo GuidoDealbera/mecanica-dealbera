@@ -32,7 +32,7 @@ están en los sprints de más abajo, que son de calidad y no de corrección.
 
 | Sprint                               | Tareas | 🔴  | 🟠  | 🟡  | ⚪  |
 | ------------------------------------ | ------ | --- | --- | --- | --- |
-| A — Bugs confirmados                 | 12     | 7   | 5   | 0   | 0   |
+| A — Bugs confirmados                 | 12     | 7   | 4   | 0   | 1   |
 | B — Validación que existe y no corre | 7      | 3   | 3   | 1   | 0   |
 | C — Seguridad y endurecimiento       | 7      | 1   | 0   | 5   | 1   |
 | D — Integridad de datos              | 6      | 2   | 3   | 1   | 0   |
@@ -43,7 +43,7 @@ están en los sprints de más abajo, que son de calidad y no de corrección.
 | I — Interfaz y accesibilidad         | 6      | 0   | 2   | 2   | 2   |
 | J — Tests                            | 7      | 0   | 0   | 5   | 2   |
 | K — Empaquetado y mantenimiento      | 7      | 0   | 1   | 4   | 2   |
-| **Total**                            | **84** | 14  | 27  | 31  | 12  |
+| **Total**                            | **84** | 14  | 26  | 31  | 13  |
 
 ---
 
@@ -237,17 +237,28 @@ ahora un término que no sea texto, que era una vía de caída
 
 Se comprobó que los tests fallan si se saca el escape.
 
-### A8 · 🟠 `useFormGuard` nunca resetea el bloqueador de navegación
+### A8 · ⚪ `useFormGuard` nunca resetea el bloqueador de navegación
 
-**[pendiente]** · `src/Hooks/useFormGuard.ts`
+**[a testear]** · `src/Hooks/useFormGuard.ts`
 
 `useBlocker` de React Router deja el bloqueador en estado `blocked` hasta que se
 llame a `proceed()` o a `reset()`. `confirmNavigation` llama a `proceed()`, pero
 **`cancelNavigation` sólo cierra el modal**: nunca llama a `blocker.reset()`.
 
-Escenario: se está editando un vehículo, se intenta salir y se elige "quedarme".
-El bloqueador queda trabado, y el siguiente intento de salir puede no volver a
-preguntar.
+**El síntoma que decía esta tarea no existe, y estaba mal anotado acá.** Yo
+había escrito que el siguiente intento de salir podía no volver a preguntar. Se
+probó y no pasa: React Router evalúa el bloqueador otra vez en cada navegación y
+la vuelve a frenar. Midiendo los estados por los que pasa sin el `reset`, la
+secuencia es `unblocked → blocked → blocked`, y la pantalla no se abandona
+ninguna de las dos veces.
+
+Así que baja de 🟠 a ⚪: el `reset()` **se agregó igual** —es el uso que documenta
+la API, deja `blocker.state` diciendo la verdad y suelta los `proceed`/`reset`
+viejos— pero no arregla nada que el usuario pudiera ver.
+
+Lo que sí quedó de valor es la cobertura: el guard no tenía ninguna, y ahora hay
+tres casos sobre el ciclo completo (preguntar, quedarse y volver a intentar,
+confirmar y salir).
 
 ### A9 · 🟠 Cerrar la aplicación con cambios sin guardar no avisa nada
 

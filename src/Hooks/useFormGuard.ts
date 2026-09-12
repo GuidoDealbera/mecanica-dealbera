@@ -34,6 +34,11 @@ export const useFormGuard = ({ isDirty, onConfirm }: FormGuardProps) => {
   const cancelNavigation = () => {
     onClose();
     setNextLocation(null);
+    // `useBlocker` deja el bloqueador en estado `blocked` hasta que se llame a
+    // `proceed()` o a `reset()`. Sin este `reset`, quedarse en el formulario lo
+    // dejaba trabado: el siguiente intento de salir no volvía a preguntar,
+    // porque para React Router seguía habiendo una navegación pendiente.
+    blocker.reset?.();
   };
 
   return {
