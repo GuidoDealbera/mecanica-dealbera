@@ -32,7 +32,7 @@ están en los sprints de más abajo, que son de calidad y no de corrección.
 
 | Sprint                               | Tareas | 🔴  | 🟠  | 🟡  | ⚪  |
 | ------------------------------------ | ------ | --- | --- | --- | --- |
-| A — Bugs confirmados                 | 12     | 7   | 4   | 0   | 1   |
+| A — Bugs confirmados                 | 13     | 7   | 4   | 1   | 1   |
 | B — Validación que existe y no corre | 7      | 3   | 3   | 1   | 0   |
 | C — Seguridad y endurecimiento       | 7      | 1   | 0   | 5   | 1   |
 | D — Integridad de datos              | 6      | 2   | 3   | 1   | 0   |
@@ -43,7 +43,7 @@ están en los sprints de más abajo, que son de calidad y no de corrección.
 | I — Interfaz y accesibilidad         | 6      | 0   | 2   | 2   | 2   |
 | J — Tests                            | 7      | 0   | 0   | 5   | 2   |
 | K — Empaquetado y mantenimiento      | 7      | 0   | 1   | 4   | 2   |
-| **Total**                            | **84** | 14  | 26  | 31  | 13  |
+| **Total**                            | **85** | 14  | 26  | 32  | 13  |
 
 ---
 
@@ -347,6 +347,35 @@ no lo sería.
 Verificado lanzando dos instancias contra la misma carpeta de datos: la segunda
 sale con código 0 y **no aparece ni una línea de `db:init` en su log**, mientras
 la primera sigue andando.
+
+---
+
+### A13 · 🟡 El linter arrastraba once avisos que nadie iba a mirar
+
+**[a testear]** · `src/Routes/index.tsx`, `src/Components/Forms/*`,
+`package.json`
+
+`npm run lint` terminaba con **11 avisos** en cada corrida, local y en CI. Un
+aviso permanente no se lee: se vuelve parte del paisaje, y el día que aparece uno
+nuevo tampoco se lee.
+
+Eran dos causas distintas:
+
+- **Nueve de `react-refresh/only-export-components`**, todas en el archivo del
+  router. Definía las nueve pantallas diferidas pero exportaba un objeto, no un
+  componente, así que cualquier cambio ahí obligaba a recargar la página entera
+  en desarrollo. Se resolvió como pedía la regla: las pantallas se mudaron a
+  `src/Routes/lazyPages.ts`, que exporta sólo componentes, y el router quedó
+  exportando sólo el router.
+- **Dos de `react-hooks/incompatible-library`**, en los dos formularios que usan
+  `watch()` de react-hook-form. Acá **no hay nada que corregir**: el compilador de
+  React avisa que no puede memoizar esos componentes y ya hace lo correcto,
+  saltearlos; la alternativa sería dejar react-hook-form. Se silencian en el
+  lugar y con el motivo escrito, no apagando la regla, para que si mañana otro
+  componente usa una librería incompatible el aviso aparezca.
+
+Y para que no vuelvan: `npm run lint` pasó a correr con `--max-warnings 0`. Sin
+eso, llegar a cero es cuestión de tiempo hasta que deje de estarlo.
 
 ---
 

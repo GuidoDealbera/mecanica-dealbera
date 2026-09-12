@@ -12,7 +12,7 @@
     "dev": "vite",
     "build": "tsc && vite build && electron-builder",
     "release": "tsc && vite build && electron-builder --publish always",
-    "lint": "eslint src electron",
+    "lint": "eslint src electron --max-warnings 0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
