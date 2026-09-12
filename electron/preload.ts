@@ -10,6 +10,7 @@ import {
   ReminderQueryParams,
   SaveReminderBody,
   ServiceSettings,
+  UpdateCarBody,
 } from "../src/Types/apiTypes";
 import { UpdateInfo, UpdateProgress } from "../global";
 
@@ -47,8 +48,8 @@ contextBridge.exposeInMainWorld("api", {
       await ipcRenderer.invoke("car:active-jobs-count"),
     getByLicense: async (licence: string) =>
       await ipcRenderer.invoke("car:get-by-license", licence),
-    update: async (id: string, kilometers: number) =>
-      await ipcRenderer.invoke("car:update", id, kilometers),
+    update: async (id: string, cambios: UpdateCarBody) =>
+      await ipcRenderer.invoke("car:update", id, cambios),
     delete: async (licence: string) =>
       await ipcRenderer.invoke("car:delete", licence),
     addJob: async (licence: string, job: CreateCarJob) =>

@@ -315,6 +315,11 @@ const AddCarForm: React.FC<AddCarFormProps> = ({
             <h5 className="font-semibold w-fit text-2xl py-2 px-4 bg-primary-700 text-white rounded-md shadow shadow-primary-500">
               Datos del vehículo
             </h5>
+            {/* La patente es lo único del vehículo que no se puede editar: es
+                su identidad, y la usan las rutas de la aplicación, los
+                recordatorios y el registro de documentos ya emitidos. Marca,
+                modelo y año sí, que antes obligaban a borrar el vehículo entero
+                para corregir un tipeo. */}
             <Controller
               name="licensePlate"
               control={control}
@@ -346,7 +351,7 @@ const AddCarForm: React.FC<AddCarFormProps> = ({
               rules={{
                 required: { value: true, message: "Campo obligatorio" },
               }}
-              disabled={isLoading || readonly || isEditing}
+              disabled={isLoading || readonly}
               render={({
                 field: { value, onChange, ref },
                 fieldState: { error },
@@ -360,7 +365,7 @@ const AddCarForm: React.FC<AddCarFormProps> = ({
                   defaultItems={BRANDS_OPTIONS}
                   fullWidth
                   isRequired
-                  isDisabled={isLoading || readonly || isEditing}
+                  isDisabled={isLoading || readonly}
                   isInvalid={!!error}
                   errorMessage={error?.message}
                 >
@@ -378,7 +383,7 @@ const AddCarForm: React.FC<AddCarFormProps> = ({
               rules={{
                 required: { value: true, message: "Campo obligatorio" },
               }}
-              disabled={isLoading || readonly || isEditing}
+              disabled={isLoading || readonly}
               render={({ field, fieldState: { error } }) => (
                 <Input
                   {...field}
@@ -386,7 +391,7 @@ const AddCarForm: React.FC<AddCarFormProps> = ({
                   isRequired
                   onChange={(e) => field.onChange(e.target.value.toUpperCase())}
                   isInvalid={!!error}
-                  isDisabled={isLoading || readonly || isEditing}
+                  isDisabled={isLoading || readonly}
                   errorMessage={error?.message}
                   fullWidth
                 />
@@ -404,7 +409,7 @@ const AddCarForm: React.FC<AddCarFormProps> = ({
                   return true;
                 },
               }}
-              disabled={isLoading || readonly || isEditing}
+              disabled={isLoading || readonly}
               render={({
                 field: { value, onChange, ...field },
                 fieldState: { error },
@@ -417,7 +422,7 @@ const AddCarForm: React.FC<AddCarFormProps> = ({
                     const cleanValue = e.target.value.replace(/[^\d]/g, "");
                     onChange(Number(cleanValue));
                   }}
-                  isDisabled={isLoading || readonly || isEditing}
+                  isDisabled={isLoading || readonly}
                   fullWidth
                   isRequired
                   isInvalid={!!error}

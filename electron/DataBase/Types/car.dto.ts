@@ -129,15 +129,42 @@ export class CreateJobDto {
   isService?: boolean;
 }
 
+/**
+ * Edición de un vehículo.
+ *
+ * Estaba escrita y **no la usaba nadie**: el endpoint recibía `(id, kilometers)`
+ * y nada más, así que un modelo mal escrito o un año equivocado sólo se podían
+ * arreglar borrando el vehículo —perdiendo sus trabajos, su historial de
+ * kilometraje y su recordatorio— y volviéndolo a cargar.
+ *
+ * **La patente no está acá a propósito.** Es la identidad del vehículo: la usan
+ * las rutas de la aplicación, los recordatorios y el registro de documentos ya
+ * emitidos. Cambiarla es otra operación, no una corrección de tipeo.
+ *
+ * Todos los campos son opcionales: se aplica sólo lo que viene.
+ */
 export class UpdateCarDto {
   @IsOptional()
-  @ValidateNested()
-  @Type(() => CreateClientDto)
-  owner?: CreateClientDto;
+  @IsEnum(CarsBrands, { message: "La marca no es válida" })
+  brand?: CarBrand;
 
-  @IsInt()
-  @Min(0, { message: "Los kilómetros no pueden ser negativos" })
   @IsOptional()
+  @IsString()
+  @Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
+  @IsNotEmpty({ message: "El modelo no puede quedar vacío" })
+  model?: string;
+
+  @IsOptional()
+  @IsInt({ message: "El año tiene que ser un número entero" })
+  // El piso es el del automóvil, no una fecha redonda: por debajo de eso es un
+  // error de tipeo, no un vehículo. El techo lo comprueba el endpoint, que es
+  // quien sabe en qué año estamos.
+  @Min(1886, { message: "El año no parece un año" })
+  year?: number;
+
+  @IsOptional()
+  @IsInt({ message: "El kilometraje tiene que ser un número entero" })
+  @Min(0, { message: "Los kilómetros no pueden ser negativos" })
   kilometers?: number;
 }
 

@@ -24,6 +24,7 @@ import {
   CreateCarBody,
   CreateCarJob,
   UpdateJobBody,
+  UpdateCarBody,
 } from "../Types/apiTypes";
 
 /**
@@ -66,8 +67,8 @@ export const useCarStore = () => {
   );
 
   const update = useCallback(
-    (carId: string, kilometers: number) =>
-      dispatch(updatedCarThunk({ carId, kilometers })).unwrap(),
+    (carId: string, cambios: UpdateCarBody) =>
+      dispatch(updatedCarThunk({ carId, cambios })).unwrap(),
     [dispatch]
   );
 

@@ -8,6 +8,7 @@ import {
   CreateCarJob,
   Paginated,
   UpdateJobBody,
+  UpdateCarBody,
 } from "../Types/apiTypes";
 import { Cars, Jobs } from "../Types/types";
 
@@ -75,11 +76,11 @@ export const addJob = createAsyncThunk<
 
 export const updatedCar = createAsyncThunk<
   APIResponse<Cars>,
-  { carId: string; kilometers: number },
+  { carId: string; cambios: UpdateCarBody },
   { rejectValue: AppError }
->("cars/updateCar", async ({ carId, kilometers }, { rejectWithValue }) => {
+>("cars/updateCar", async ({ carId, cambios }, { rejectWithValue }) => {
   try {
-    return await carService.updateCar(carId, kilometers);
+    return await carService.updateCar(carId, cambios);
   } catch (error) {
     return rejectWithValue(toAppError(error));
   }

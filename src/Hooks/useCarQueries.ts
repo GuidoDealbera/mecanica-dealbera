@@ -8,6 +8,7 @@ import {
   CarQueryParams,
   CreateCarBody,
   CreateCarJob,
+  UpdateCarBody,
   UpdateJobBody,
 } from "../Types/apiTypes";
 
@@ -170,14 +171,14 @@ export const useCarQueries = () => {
   );
 
   const updateCar = useCallback(
-    async (carId: string, kilometers: number, isOnly?: boolean) => {
+    async (carId: string, cambios: UpdateCarBody, isOnly?: boolean) => {
       setLoading(true);
       try {
         // `ensureSuccess` es lo que hace que un rechazo del backend (por ejemplo
         // bajar los kilómetros) llegue al usuario: el thunk resuelve igual con
         // `status: "failed"`, así que sin esto la pantalla seguía adelante y
         // avisaba que la actualización había salido bien.
-        const response = await updateInStore(carId, kilometers);
+        const response = await updateInStore(carId, cambios);
         ensureSuccess(response);
         if (isOnly) {
           showToast(response.message, "success", CarActions.UPDATE);

@@ -96,9 +96,14 @@ const CarDetailPage: React.FC = () => {
 
   const handleSubmit = async (data: CreateCarBody): Promise<void> => {
     try {
-      // El kilometraje va primero: si el backend lo rechaza se corta acá y no se
+      // El vehículo va primero: si el backend rechaza algo se corta acá y no se
       // aplica nada, así el formulario queda abierto con los datos del usuario.
-      await updateCar(car!.id, data.kilometers);
+      await updateCar(car!.id, {
+        brand: data.brand,
+        model: data.model,
+        year: data.year,
+        kilometers: data.kilometers,
+      });
       await updateOwner({ ...data.owner, id: car!.owner.id });
       await getCarDetail(car!.licensePlate);
       setIsEditing(false);

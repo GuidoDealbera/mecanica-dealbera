@@ -504,7 +504,7 @@ están en `vitest.config.ts` y la constante que cada archivo repetía se fue.
 
 ### B4 · 🟠 El vehículo no se puede editar: sólo el kilometraje
 
-**[pendiente]** · `electron/DataBase/Endpoints/car.crud.endpoints.ts`
+**[a testear]** · `electron/DataBase/Endpoints/car.crud.endpoints.ts`
 
 `car:update` recibe `(id, kilometers)` y **nada más**. Marca, modelo, año e
 intervalos propios de service no se pueden corregir desde ningún lado.
@@ -515,6 +515,28 @@ kilometraje y su recordatorio— y volver a cargarlo.
 
 `UpdateCarDto` ya está definido con `owner` y `kilometers`, sin usarse. Ni siquiera
 cubre marca/modelo/año.
+
+**Resuelto de punta a punta.** `UpdateCarDto` se reescribió con marca, modelo,
+año y kilometraje —todos opcionales, se aplica sólo lo que viene— y el endpoint
+pasó de recibir `(id, kilometers)` a recibir el objeto. Eso cambió la cadena
+entera: preload, tipos, servicio, thunk, hooks y la pantalla. En el formulario,
+marca, modelo y año dejaron de estar deshabilitados al editar.
+
+**La patente sigue sin poder editarse, y es a propósito**: es la identidad del
+vehículo —la usan las rutas de la aplicación, los recordatorios y el registro de
+documentos ya emitidos—. Cambiarla es otra operación, no una corrección de tipeo.
+`whitelist` la descarta si igual la mandan, y hay un test que lo fija.
+
+Las reglas del kilometraje que ya existían se conservaron, que era el riesgo del
+cambio: no baja, y **sólo deja un punto en el historial cuando cambia de verdad**
+—el formulario lo manda siempre, aunque se haya editado otra cosa—. Las dos
+tienen su caso.
+
+El techo del año lo pone el endpoint y no un decorador, porque depende de cuándo
+se ejecute y un decorador se evalúa una sola vez al cargar el módulo.
+
+Verificado además contra la aplicación real: se carga un vehículo con el modelo
+mal escrito, se corrige por el camino de verdad y queda `GOL / Fiat / 2015`.
 
 ### B5 · 🟠 Guardar una configuración inválida dice que salió bien
 

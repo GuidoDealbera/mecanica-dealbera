@@ -78,7 +78,10 @@ declare global {
         getAll: (params: CarQueryParams) => Promise<Paginated<Car>>;
         getActiveJobsCount: () => Promise<number>;
         getByLicense: (license: string) => Promise<APIResponse<Car>>;
-        update: (id: string, kilometers: number) => Promise<APIResponse<Car>>;
+        update: (
+          id: string,
+          cambios: UpdateCarBody
+        ) => Promise<APIResponse<Car>>;
         delete: (licence: string) => Promise<APIResponse>;
         addJob: (
           licence: string,
