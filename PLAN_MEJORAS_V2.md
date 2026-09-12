@@ -969,7 +969,7 @@ arregla con un `NOT NULL DEFAULT '[]'` y su migración.
 
 ### D3 · 🟠 `countDueReminders` usa `COUNT(columna)`, contra la regla del propio proyecto
 
-**[pendiente]** · `electron/DataBase/serviceReminders.service.ts`
+**[a testear]** · `electron/DataBase/serviceReminders.service.ts`
 
 ```ts
 .select("COUNT(reminder.id)", "count")
@@ -982,6 +982,14 @@ constante `COUNT_ALL = "COUNT(*)"` con el razonamiento escrito arriba.
 
 Es el único lugar del backend que se quedó afuera, y no es cualquiera: alimenta el
 badge de la barra y la notificación de arranque.
+
+**Resuelto**, y se comprobó que no quedaba ningún otro. Lo único que aparece
+ahora es `COUNT(1)`, que lo genera TypeORM en `repository.count()` y no lee
+ninguna columna.
+
+El contador no tenía **ninguna** cobertura, siendo lo que alimenta el badge, así
+que se le agregó: cuenta lo vencido por fecha y por kilometraje, y **no** cuenta
+lo que falta mucho ni lo que ya está cerrado.
 
 ### D4 · 🟠 Un recordatorio descartado saca al vehículo del circuito para siempre
 
