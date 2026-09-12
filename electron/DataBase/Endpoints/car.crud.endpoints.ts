@@ -10,7 +10,7 @@ import { Car } from "../Entities/car.entity";
 import { Client } from "../Entities/client.entity";
 import { invalidateDashboardStatsCache } from "../dashboardCache";
 import { ensureReminder } from "../serviceReminders.service";
-import { findClientConflict } from "../clients.service";
+import { describeOwnerMismatch, findClientConflict } from "../clients.service";
 
 // Columnas por las que se permite ordenar el listado de autos (mapa
 // campo-de-la-UI → columna calificada de la query, para no interpolar texto
@@ -49,7 +49,27 @@ handleIpc("car:create", async (_event, payload: CreateCarDto) => {
       where: { fullname: createCarDto.owner.fullname },
     });
 
-    if (!owner) {
+    if (owner) {
+      // El titular ya existe con ese nombre, así que el vehículo se le asocia.
+      // Pero si los datos cargados **no son los suyos**, antes se descartaban
+      // en silencio y el mensaje decía "Vehículo registrado correctamente":
+      // el auto quedaba a nombre de otra persona, con el teléfono de otra
+      // persona, y a quien se llamaba por el recordatorio de service era a la
+      // equivocada. Ahora se frena y se explica.
+      const difieren = describeOwnerMismatch(owner, createCarDto.owner);
+      if (difieren.length > 0) {
+        await qr.rollbackTransaction();
+        return {
+          status: "failed",
+          message:
+            `Ya hay un cliente llamado "${owner.fullname}" y ${difieren.join(
+              ", "
+            )} no coincide con lo cargado. ` +
+            "Si es la misma persona, actualizá sus datos desde Clientes; si es " +
+            "otra, usá un nombre que las distinga.",
+        };
+      }
+    } else {
       const conflicto = await findClientConflict(
         qr.manager,
         createCarDto.owner

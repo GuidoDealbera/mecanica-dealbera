@@ -208,6 +208,82 @@ describe("unicidad de clientes", () => {
   );
 
   it(
+    "car:create no descarta en silencio los datos del titular recién cargados",
+    async () => {
+      await invocar("client:create", cliente());
+
+      // Mismo nombre, otro teléfono: o es otra persona que se llama igual, o es
+      // la misma que cambió de número. En los dos casos, guardar el auto a
+      // nombre del cliente viejo y tirar el dato nuevo es lo peor que se puede
+      // hacer: después se llama a la persona equivocada.
+      const res = await invocar("car:create", {
+        licensePlate: "AB123CD",
+        brand: "Volkswagen",
+        model: "Gol",
+        year: 2016,
+        kilometers: 90000,
+        owner: cliente({ phone: "3515123457" }),
+      });
+
+      expect(res.status).toBe("failed");
+      expect(res.message).toContain("el teléfono");
+      expect(
+        Number(
+          ((await ds.query("SELECT COUNT(*) c FROM car")) as { c: number }[])[0]
+            .c
+        )
+      ).toBe(0);
+    },
+    PLAZO
+  );
+
+  it(
+    "car:create asocia el vehículo al cliente existente cuando los datos son los suyos",
+    async () => {
+      await invocar("client:create", cliente());
+
+      // El flujo normal: se elige el cliente del autocompletar, que rellena sus
+      // datos, así que llegan idénticos. Esto **no** puede romperse.
+      const res = await invocar("car:create", {
+        licensePlate: "AB123CD",
+        brand: "Volkswagen",
+        model: "Gol",
+        year: 2016,
+        kilometers: 90000,
+        owner: cliente(),
+      });
+
+      expect(res.status).toBe("success");
+      expect(await cuantosClientes()).toBe(1);
+      const [auto] = (await ds.query(
+        "SELECT c.fullname FROM car JOIN client c ON c.id = car.ownerId"
+      )) as { fullname: string }[];
+      expect(auto.fullname).toBe("Ana Gómez");
+    },
+    PLAZO
+  );
+
+  it(
+    "car:create no se queja por un campo que el usuario dejó en blanco",
+    async () => {
+      await invocar("client:create", cliente({ email: "ana@ejemplo.com" }));
+
+      // Dejar un campo vacío es no haberlo retipeado, no pedir que se borre.
+      const res = await invocar("car:create", {
+        licensePlate: "AB123CD",
+        brand: "Volkswagen",
+        model: "Gol",
+        year: 2016,
+        kilometers: 90000,
+        owner: cliente({ email: "" }),
+      });
+
+      expect(res.status).toBe("success");
+    },
+    PLAZO
+  );
+
+  it(
     "car:reassign-owner rechaza el titular nuevo con datos ya tomados",
     async () => {
       await invocar("car:create", {

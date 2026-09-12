@@ -54,3 +54,39 @@ export const findClientConflict = async (
 
   return null;
 };
+
+/** Campos del titular que se comparan, con el nombre que ve el usuario. */
+const CAMPOS_COMPARABLES = [
+  ["phone", "el teléfono"],
+  ["address", "la dirección"],
+  ["city", "la localidad"],
+  ["email", "el correo"],
+] as const;
+
+const normalizar = (valor: unknown): string =>
+  typeof valor === "string" ? valor.trim() : "";
+
+/**
+ * Compara los datos del titular que se acaban de cargar contra los del cliente
+ * que ya existe con ese nombre, y devuelve en qué difieren.
+ *
+ * Existe porque al registrar un vehículo, si había un cliente con el mismo
+ * nombre, se lo reutilizaba y **se descartaban en silencio** el teléfono, la
+ * dirección, la localidad y el correo recién escritos. El mensaje decía
+ * "Vehículo registrado correctamente". Dos formas de que eso muerda: un cliente
+ * nuevo que se llama igual que uno viejo queda con el teléfono del otro —y a
+ * quien se llama por el recordatorio de service es a la persona equivocada—, o
+ * es la misma persona que cambió de teléfono y el dato nuevo se pierde.
+ *
+ * Sólo se comparan los campos que vinieron con algo: dejar uno en blanco es no
+ * haberlo retipeado, no pedir que se borre. El flujo normal —elegir el cliente
+ * del autocompletar, que rellena sus datos— no dispara nada.
+ */
+export const describeOwnerMismatch = (
+  existente: Client,
+  entrantes: Partial<Client>
+): string[] =>
+  CAMPOS_COMPARABLES.filter(([campo]) => {
+    const nuevo = normalizar(entrantes[campo]);
+    return nuevo !== "" && nuevo !== normalizar(existente[campo]);
+  }).map(([, etiqueta]) => etiqueta);

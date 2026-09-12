@@ -187,7 +187,7 @@ con formato válido de verdad.
 
 ### A6 · 🔴 `car:create` descarta en silencio los datos del titular recién cargados
 
-**[pendiente]** · `electron/DataBase/Endpoints/car.crud.endpoints.ts`
+**[a testear]** · `electron/DataBase/Endpoints/car.crud.endpoints.ts`
 
 Al registrar un vehículo, si ya existe un cliente **con el mismo nombre**, se
 reutiliza ese cliente y **se ignoran el teléfono, la dirección, la localidad y el
@@ -202,6 +202,17 @@ Y si es la misma persona pero cambió de teléfono, el dato nuevo se pierde igua
 
 Mínimo: avisar que se va a asociar a un cliente existente y mostrar sus datos para
 que el usuario confirme. Ver también **D5**.
+
+**Resuelto sin tocar la interfaz.** Se compara lo cargado contra el cliente que ya
+existe con ese nombre: si coincide, el vehículo se le asocia como siempre; si
+difiere, se frena y el mensaje dice **qué campo** no coincide y qué hacer —si es
+la misma persona, actualizarla desde Clientes; si es otra, usar un nombre que las
+distinga—.
+
+El flujo normal no se ve afectado, y eso está probado: el autocompletar del
+formulario rellena los datos del cliente elegido, así que llegan idénticos. Y un
+campo que el usuario dejó en blanco no cuenta como diferencia: no retipearlo no es
+pedir que se borre.
 
 ### A7 · 🔴 La búsqueda global trata los comodines de `LIKE` como comodines
 
