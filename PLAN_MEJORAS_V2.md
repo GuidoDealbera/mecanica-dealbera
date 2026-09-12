@@ -845,19 +845,31 @@ o sale un aviso—, así que lo que quedaba mudo era que fallara la apertura en 
 Comprobado en la aplicación real con cadena vacía, `http://`, `javascript:` y un
 valor que no es texto: los cuatro devuelven el envelope con su motivo.
 
-### C7 · ⚪ La firma del instalador no está configurada en ningún lado
+### C7 · ⚪ El instalador no se firma
 
-**[pendiente]** · `electron-builder.json5`
+**[pendiente — depende de comprar un certificado]** · `electron-builder.json5`
 
 No hay **ninguna** configuración de firma: ni `certificateFile`, ni
-`certificateSubjectName`, ni secretos de firma en el flujo de publicación. Lo que
-pase depende de lo que haya en el almacén de certificados de la máquina que
-compile, que no es lo mismo compilando en local que en el runner de GitHub.
+`certificateSubjectName`, ni secretos en el flujo de publicación.
 
-Consecuencia concreta: SmartScreen advierte "editor desconocido" en cada
-instalación. No es urgente para uso interno, pero es lo que separa un instalador
-que inspira confianza de uno que no —y hoy ni siquiera es reproducible, que es lo
-que más molesta—.
+**Corrección de lo que decía antes esta tarea.** Yo había escrito que el
+resultado dependía del almacén de certificados de la máquina que compilara. Se
+comprobó sobre el ejecutable armado y no es así: `Get-AuthenticodeSignature`
+devuelve `NotSigned`, siempre. Lo que confundía era el
+`signing with signtool.exe` que aparece en el registro del build —
+electron-builder lo escribe igual y saltea la firma cuando no encuentra
+certificado—. O sea que sí es reproducible: reproduciblemente sin firmar.
+
+Consecuencia: SmartScreen avisa "editor desconocido" en cada instalación y el
+usuario tiene que entrar en "Más información → Ejecutar de todas formas".
+
+**Esto no se puede cerrar desde el código.** Hace falta un certificado de firma
+de código (OV o EV), que es una compra con verificación de identidad. Un
+autofirmado no sirve: SmartScreen lo trata peor que a un binario sin firma.
+
+Lo que sí quedó hecho es que el día que haya certificado **no haya que tocar
+nada**: electron-builder toma `CSC_LINK` y `CSC_KEY_PASSWORD` del entorno, y eso
+está anotado en la configuración junto con el porqué del estado actual.
 
 ---
 
