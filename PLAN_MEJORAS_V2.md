@@ -880,7 +880,7 @@ se porta bien.
 
 ### D1 · 🔴 La invariante "un recordatorio vigente por vehículo" no existe en la base
 
-**[pendiente]** · `electron/DataBase/Entities/serviceReminder.entity.ts`
+**[a testear]** · `electron/DataBase/Entities/serviceReminder.entity.ts`
 
 La regla está escrita en el comentario de la entidad y la cuidan los endpoints a
 mano. **La base no la impide**: no hay índice único ni restricción.
@@ -900,6 +900,25 @@ CREATE UNIQUE INDEX IDX_service_reminder_activo_por_auto
 ```
 
 Con eso, el bug deja de poder ocurrir en vez de tener que acordarse de evitarlo.
+
+**Resuelto.** La migración primero **colapsa** lo que hubiera quedado duplicado
+—o el índice no se puede crear— con el mismo criterio que usó
+`SimplifyServiceType`: sobrevive el más urgente y el resto se descarta con el
+motivo escrito, no se borra. Son historial.
+
+Lo que fija el test es lo que hace que el bug deje de poder ocurrir, que es
+distinto de arreglarlo: **la base rechaza el segundo vigente aunque el código se
+equivoque**. Y que siga dejando todos los `done` y `dismissed` que haga falta,
+que es el historial del vehículo.
+
+El riesgo del cambio no era el índice sino lo que pudiera romper, así que se
+ejercitó el circuito completo contra una copia de la base real: cerrar un service
+como trabajo entregado y completarlo a mano. En los dos casos queda exactamente
+un vigente y el historial se acumula.
+
+De paso, los dos tests que tenían el número de migraciones escrito a mano pasaron
+a compararse contra las registradas: agregar una migración ya no obliga a venir a
+corregirlos.
 
 ### D2 · 🔴 Los tipos de las entidades mienten sobre lo que puede ser nulo
 
