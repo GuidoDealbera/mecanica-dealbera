@@ -18,7 +18,7 @@ const cabeceras = { nombre: "Titular", telefono: "Teléfono" };
 
 const celdas = (csv: string) =>
   csv
-    .replace(/^﻿/, "")
+    .replace(/^\uFEFF/, "")
     .split("\n")
     .map((l) => l.split(";"));
 
@@ -36,14 +36,14 @@ describe("toCsv", () => {
 
   it("arranca con BOM, que es lo que hace que Excel lo abra como UTF-8", () => {
     // Sin esto los acentos y la eñe salen rotos en Windows.
-    expect(toCsv<Fila>(cabeceras, [])).toMatch(/^﻿/);
+    expect(toCsv<Fila>(cabeceras, [])).toMatch(/^\uFEFF/);
   });
 
   it("entrecomilla lo que traiga el separador, comillas o saltos", () => {
     const csv = toCsv<Fila>(cabeceras, [
       { nombre: 'Gómez; Ana "la jefa"', telefono: "351\n512" },
     ]);
-    const [, fila] = csv.replace(/^﻿/, "").split("\n");
+    const [, fila] = csv.replace(/^\uFEFF/, "").split("\n");
 
     expect(fila).toContain('"Gómez; Ana ""la jefa"""');
   });
@@ -60,7 +60,7 @@ describe("toCsv", () => {
 
     for (const valor of peligrosos) {
       const csv = toCsv<Fila>(cabeceras, [{ nombre: valor, telefono: "1" }]);
-      const fila = csv.replace(/^﻿/, "").split("\n")[1];
+      const fila = csv.replace(/^\uFEFF/, "").split("\n")[1];
       expect(fila.startsWith("'") || fila.startsWith("\"'"), valor).toBe(true);
     }
   });

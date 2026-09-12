@@ -61,7 +61,7 @@ export function toCsv<T extends object>(
   headers: Partial<Record<keyof T, string>>,
   rows: T[]
 ): string {
-  const BOM = "﻿";
+  const BOM = "\uFEFF";
   const keys = Object.keys(headers) as (keyof T)[];
   const headerRow = keys.map((k) => escaparCelda(headers[k])).join(";");
   const dataRows = rows.map((row) =>
