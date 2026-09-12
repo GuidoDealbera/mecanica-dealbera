@@ -8,7 +8,6 @@ import {
   formatARS,
   formatNumbers,
   normalizeText,
-  toCsv,
   toWhatsappNumber,
   buildWhatsappUrl,
 } from "./utils";
@@ -125,41 +124,6 @@ describe("normalizeText", () => {
 
   it("permite matching insensible a acentos", () => {
     expect(normalizeText("MARÍA").includes(normalizeText("mari"))).toBe(true);
-  });
-});
-
-describe("toCsv", () => {
-  // BOM UTF-8 sin escribir el carácter literal (dispara no-irregular-whitespace).
-  const BOM = String.fromCharCode(0xfeff);
-
-  it("genera encabezados y filas separadas por ';'", () => {
-    const csv = toCsv({ name: "Nombre", age: "Edad" }, [
-      { name: "Juan", age: 30 },
-    ]);
-    const lines = csv.replace(BOM, "").split("\n");
-    expect(lines[0]).toBe("Nombre;Edad");
-    expect(lines[1]).toBe("Juan;30");
-  });
-
-  it("incluye el BOM UTF-8 al inicio", () => {
-    const csv = toCsv({ name: "Nombre" }, [{ name: "Juan" }]);
-    expect(csv.startsWith(BOM)).toBe(true);
-  });
-
-  it("escapa valores que contienen el separador", () => {
-    const csv = toCsv({ note: "Nota" }, [{ note: "hola; chau" }]);
-    expect(csv).toContain('"hola; chau"');
-  });
-
-  it("escapa comillas dobles duplicándolas", () => {
-    const csv = toCsv({ note: "Nota" }, [{ note: 'dijo "hola"' }]);
-    expect(csv).toContain('"dijo ""hola"""');
-  });
-
-  it("representa valores nulos como celda vacía", () => {
-    const csv = toCsv({ note: "Nota" }, [{ note: null as unknown as string }]);
-    const lines = csv.replace(BOM, "").split("\n");
-    expect(lines[1]).toBe("");
   });
 });
 

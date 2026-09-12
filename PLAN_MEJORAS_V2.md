@@ -789,6 +789,11 @@ esté bien (comillas dobladas, celdas entrecomilladas) y que la planilla no
 **ejecute** lo de adentro. Son problemas distintos: un archivo bien formado
 ejecuta la fórmula igual.
 
+Y apareció una segunda copia: `src/Utils/utils.ts` exportaba **otro `toCsv`**,
+idéntico al viejo, que **no usaba ninguna pantalla** —sólo su propio test—. Se
+eliminó. Código muerto que duplica una función con una vulnerabilidad recién
+arreglada es justo lo que alguien copia el mes que viene.
+
 ### C5 · 🟡 El menú por defecto de Electron sigue activo
 
 **[a testear]** · `electron/main.ts`
