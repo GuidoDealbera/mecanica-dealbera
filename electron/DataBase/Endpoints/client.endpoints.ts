@@ -142,8 +142,12 @@ handleIpc(
 );
 
 handleIpc("client:search", async (_, query: string) => {
+  if (typeof query !== "string") {
+    return { status: "success", message: "Sin resultados", result: [] };
+  }
   const repo = getRepositories().clientRepository;
-  const sanitized = query.replace(/[\\%_]/g, "\\$&");
+  // `escapeLike` y no un `replace` a mano: era la misma expresión copiada.
+  const sanitized = escapeLike(query);
   const result = await repo
     .createQueryBuilder("client")
     .where("client.fullname LIKE :q ESCAPE :esc", {

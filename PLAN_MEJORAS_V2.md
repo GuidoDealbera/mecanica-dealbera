@@ -216,7 +216,7 @@ pedir que se borre.
 
 ### A7 · 🔴 La búsqueda global trata los comodines de `LIKE` como comodines
 
-**[pendiente]** · `electron/DataBase/Endpoints/car.search.endpoints.ts`
+**[a testear]** · `electron/DataBase/Endpoints/car.search.endpoints.ts`
 
 `global:search` arma su patrón **sin escapar** `%` ni `_`, cuando el proyecto
 tiene un helper (`escapeLike`) escrito justamente para eso y usado en todos los
@@ -228,6 +228,14 @@ no hay inyección— pero los resultados son incorrectos.
 
 De paso, `client:search` **reimplementa** el escape a mano en vez de usar
 `escapeLike`, que hace exactamente eso.
+
+**Resuelto, y con él F5.** `global:search` pasó de `Like()` —que no admite
+cláusula `ESCAPE`— a un query builder con `escapeLike`, igual que el resto de los
+listados, y `client:search` usa el helper en vez de su copia. Los dos ignoran
+ahora un término que no sea texto, que era una vía de caída
+(`query.replace` sobre `undefined`).
+
+Se comprobó que los tests fallan si se saca el escape.
 
 ### A8 · 🟠 `useFormGuard` nunca resetea el bloqueador de navegación
 
@@ -856,13 +864,15 @@ comparten.
 
 ### F5 · 🟡 Tres formas distintas de escapar una búsqueda
 
-**[pendiente]** · `electron/pagination.ts` y los endpoints de búsqueda
+**[a testear]** · `electron/pagination.ts` y los endpoints de búsqueda
 
 - Los listados usan `escapeLike` (correcto).
 - `client:search` **reimplementa** el mismo `replace` a mano.
 - `global:search` **no escapa nada** (ver **A7**).
 
 Un helper, tres criterios.
+
+**Resuelto al hacer A7**: los tres caminos usan `escapeLike`.
 
 ### F6 · 🟡 El proyecto detecta "modo desarrollo" con `NODE_ENV` en vez de `app.isPackaged`
 
