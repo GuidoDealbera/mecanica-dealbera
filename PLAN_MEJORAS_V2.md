@@ -639,7 +639,7 @@ ejecutarse ahí.
 
 ### C1 · 🔴 El preload expone un `ipcRenderer` genérico que anula el puente tipado
 
-**[pendiente]** · `electron/preload.ts`
+**[a testear]** · `electron/preload.ts`
 
 Además del objeto `api` —bien diseñado, canal por canal, con tipos—, el preload
 hace:
@@ -667,9 +667,21 @@ Se saca el bloque del preload, se sacan los tres renglones de `main.tsx`, se sac
 el `send` de `main-process-message` en `electron/main.ts` y se limpia el tipo en
 `global.d.ts`.
 
+**Resuelto.** El tipo no estaba en `global.d.ts` sino en
+`electron/electron-env.d.ts`, que es lo que hacía que los tres renglones de la
+plantilla compilaran; también se fue de ahí.
+
+Queda un test que **no mira el nombre sino la capacidad**: falla si el preload
+expone cualquier objeto con un `invoke` o un `send` sin acotar el canal. Es la
+clase de cosa que se agrega "para probar algo" y se queda, así que el nombre
+`ipcRenderer` no es lo que hay que vigilar.
+
+Verificado además en la aplicación real: `window.ipcRenderer` es `undefined`,
+`window.api` conserva sus ocho áreas y el dashboard responde.
+
 ### C2 · 🟡 El renderer no tiene Content-Security-Policy
 
-**[pendiente]** · `index.html`
+**[a testear]** · `index.html`
 
 No hay ninguna CSP declarada. Con `contextIsolation: true` y `nodeIntegration:
 false` el daño posible está acotado, pero una CSP es la diferencia entre "un
@@ -680,9 +692,46 @@ Mínimo razonable: `default-src 'self'`, `script-src 'self'`, `connect-src 'none
 `img-src 'self' data:`. Hay que verificar que Tailwind y HeroUI no necesiten
 `'unsafe-inline'` para estilos.
 
+**Resuelto**, y aplicarla destapó dos cosas que la aplicación hacía sin que
+nadie lo supiera.
+
+Va por cabecera desde el proceso principal y no con un `<meta>` en el HTML,
+porque así puede ser **estricta en producción sin romper el desarrollo**: el
+servidor de Vite inyecta scripts en línea y abre un websocket, y una política que
+los permita en el paquete final no sirve de nada.
+
+**`connect-src 'none'` en producción**: la aplicación no habla con la red, todo
+pasa por IPC. Para poder afirmarlo hubo que arreglar lo que sí hablaba:
+
+- **Las tipografías se bajaban de Google en cada arranque**, con un `@import`
+  remoto en `index.css`. O sea que el arranque dependía de internet: en un taller
+  sin conexión la interfaz caía a las fuentes por defecto y el logo perdía su
+  identidad. Ahora viajan con la aplicación, sólo el subconjunto `latin` que
+  cubre el castellano: 68 kB entre las dos, contra los doce archivos que servía
+  Google para alfabetos que esta aplicación no usa.
+- **El script que evita el parpadeo del tema estaba en línea en el HTML.** Se
+  mudó a `public/tema-inicial.js`, que `'self'` cubre. La alternativa era un hash
+  en la política, que hay que acordarse de actualizar cada vez que se toque ese
+  código.
+
+El único permiso amplio que queda es `style-src 'unsafe-inline'`, y no hay forma
+de evitarlo: HeroUI y framer-motion escriben estilos en el atributo `style` de los
+elementos que animan.
+
+Verificado en la aplicación empaquetada recorriendo las nueve pantallas y
+**emitiendo un documento de verdad** —el camino más pesado, con jsPDF y la fuente
+de patentes embebida—: cero violaciones y cero errores en la consola del
+renderer. Y en `npm run dev`, que arranca limpio.
+
+Se coló además un arreglo de A1: en una base nueva, consultar la tabla
+`migrations` fallaba y TypeORM lo registraba como error —tiene el registro de
+consultas encendido en desarrollo—. Un `SqliteError: no such table: migrations` en
+el arranque que no era ningún problema pero parecía uno. Ahora se pregunta si la
+tabla existe en vez de atajar el error.
+
 ### C3 · 🟡 La ventana no restringe la navegación ni la apertura de ventanas
 
-**[pendiente]** · `electron/main.ts`
+**[a testear]** · `electron/main.ts`
 
 No hay `webContents.setWindowOpenHandler` ni un manejador de `will-navigate`.
 
@@ -695,9 +744,24 @@ Lo correcto: denegar toda apertura de ventana y toda navegación fuera de la
 aplicación, y derivar al navegador del sistema. El canal para eso ya existe
 (`app:open-external`, que además valida que sea `https://`).
 
+**Resuelto.** Va sobre `web-contents-created` y no sobre la ventana principal,
+para que alcance a todo lo que exista —incluida la pantalla de carga— y a lo que
+se agregue después.
+
+Una apertura de ventana se deniega siempre; si era `https://` se deriva al
+navegador del sistema, así un enlace que se agregue mañana no queda muerto. Una
+navegación fuera de lo propio se cancela y queda registrada: saber que pasó
+importa, porque significa que algo intentó salirse.
+
+Verificado en la aplicación empaquetada: `window.open("https://example.com")`
+devuelve `null` y abre el navegador, asignar `location.href` a un sitio externo
+no mueve la ventana y deja el aviso en el log, y la navegación por hash del
+enrutador sigue andando —que era el riesgo, porque un `will-navigate` mal puesto
+rompe la aplicación entera—.
+
 ### C4 · 🟡 El CSV exportado es vulnerable a inyección de fórmulas
 
-**[pendiente]** · `electron/DataBase/Endpoints/backup.endpoints.ts` → `toCsv`
+**[a testear]** · `electron/DataBase/Endpoints/backup.endpoints.ts` → `toCsv`
 
 `toCsv` escapa comillas y separadores —correcto para el formato— pero no neutraliza
 los valores que **empiezan con `=`, `+`, `-` o `@`**. Excel y LibreOffice los
@@ -710,9 +774,29 @@ CSV injection, y acá los datos los escribe una persona en un formulario.
 Se resuelve anteponiendo un apóstrofo a los valores que arranquen con esos
 caracteres.
 
+**Resuelto**, y `toCsv` se mudó a su propio módulo (`electron/DataBase/csv.ts`).
+No necesita Electron ni la base y **hay que poder probarlo**: lo que hace no es
+obvio y equivocarse produce un archivo que se ve perfecto.
+
+Se agregaron el tabulador y el retorno de carro a la lista, porque algunas
+versiones los saltean y evalúan lo que sigue. Y se escapa también un valor que
+empiece con `-` aunque sea un número negativo: en este CSV no hay ninguno
+—kilometraje, año y cantidad de trabajos son siempre positivos— y el arranque
+clásico de una carga por DDE es justamente un `-`.
+
+Los seis casos cubren las dos cosas que es fácil confundir: que el **formato**
+esté bien (comillas dobladas, celdas entrecomilladas) y que la planilla no
+**ejecute** lo de adentro. Son problemas distintos: un archivo bien formado
+ejecuta la fórmula igual.
+
+Y apareció una segunda copia: `src/Utils/utils.ts` exportaba **otro `toCsv`**,
+idéntico al viejo, que **no usaba ninguna pantalla** —sólo su propio test—. Se
+eliminó. Código muerto que duplica una función con una vulnerabilidad recién
+arreglada es justo lo que alguien copia el mes que viene.
+
 ### C5 · 🟡 El menú por defecto de Electron sigue activo
 
-**[pendiente]** · `electron/main.ts`
+**[a testear]** · `electron/main.ts`
 
 Se llama a `setMenuBarVisibility(false)`, que **oculta** la barra pero no quita el
 menú: los aceleradores siguen funcionando. `Ctrl+Shift+I` abre las herramientas de
@@ -721,9 +805,18 @@ desarrollo y `Ctrl+R` recarga la aplicación en medio de lo que se esté haciend
 Para una aplicación de taller conviene `Menu.setApplicationMenu(null)` en
 producción y dejar el menú sólo en desarrollo.
 
+**Resuelto.** `Ctrl+R` recargando la aplicación con un formulario a medio llenar
+no es una función, es una forma de perder trabajo por un dedo mal puesto.
+
+Verificado en las dos ramas, que es lo que importa acá: **hay que empaquetar de
+verdad para que `app.isPackaged` sea `true`**, así que se armó el paquete y se
+corrió el ejecutable —`empaquetada: true | menú: quitado`— y después el mismo
+código sin empaquetar —`empaquetada: false | menú: presente`—. Correr sólo la
+versión sin empaquetar habría dejado la rama que importa sin probar.
+
 ### C6 · 🟡 `app:open-external` falla en silencio hacia el renderer
 
-**[pendiente]** · `electron/main.ts`
+**[a testear]** · `electron/main.ts`
 
 Si la URL no empieza con `https://`, se registra el error y se hace `return`. El
 renderer recibe `undefined`, que es indistinguible del éxito: el usuario aprieta
@@ -732,19 +825,51 @@ renderer recibe `undefined`, que es indistinguible del éxito: el usuario apriet
 Corresponde devolver el envelope `{ status: "failed", message }` como el resto de
 los canales.
 
-### C7 · ⚪ La firma del instalador no está configurada en ningún lado
+**Resuelto**, y conectarlo a las pantallas destapó algo peor. La bandeja de
+recordatorios hacía:
 
-**[pendiente]** · `electron-builder.json5`
+```ts
+window.api.global.openExternal(url);
+runAction(reminder.id, () => window.api.service.markContacted(reminder.id));
+```
+
+O sea que **marcaba el recordatorio como "ya avisado" sin esperar a que el
+enlace abriera**. Si WhatsApp no llegaba a abrirse, el vehículo quedaba
+registrado como contactado sin que nadie hubiera contactado a nadie, y
+desaparecía del filtro de pendientes: el titular no se entera nunca de que le
+toca el service. Ahora el contacto se registra sólo si el enlace abrió.
+
+Las dos pantallas ya cubrían el caso de la URL vacía —el botón se deshabilita,
+o sale un aviso—, así que lo que quedaba mudo era que fallara la apertura en sí.
+
+Comprobado en la aplicación real con cadena vacía, `http://`, `javascript:` y un
+valor que no es texto: los cuatro devuelven el envelope con su motivo.
+
+### C7 · ⚪ El instalador no se firma
+
+**[pendiente — depende de comprar un certificado]** · `electron-builder.json5`
 
 No hay **ninguna** configuración de firma: ni `certificateFile`, ni
-`certificateSubjectName`, ni secretos de firma en el flujo de publicación. Lo que
-pase depende de lo que haya en el almacén de certificados de la máquina que
-compile, que no es lo mismo compilando en local que en el runner de GitHub.
+`certificateSubjectName`, ni secretos en el flujo de publicación.
 
-Consecuencia concreta: SmartScreen advierte "editor desconocido" en cada
-instalación. No es urgente para uso interno, pero es lo que separa un instalador
-que inspira confianza de uno que no —y hoy ni siquiera es reproducible, que es lo
-que más molesta—.
+**Corrección de lo que decía antes esta tarea.** Yo había escrito que el
+resultado dependía del almacén de certificados de la máquina que compilara. Se
+comprobó sobre el ejecutable armado y no es así: `Get-AuthenticodeSignature`
+devuelve `NotSigned`, siempre. Lo que confundía era el
+`signing with signtool.exe` que aparece en el registro del build —
+electron-builder lo escribe igual y saltea la firma cuando no encuentra
+certificado—. O sea que sí es reproducible: reproduciblemente sin firmar.
+
+Consecuencia: SmartScreen avisa "editor desconocido" en cada instalación y el
+usuario tiene que entrar en "Más información → Ejecutar de todas formas".
+
+**Esto no se puede cerrar desde el código.** Hace falta un certificado de firma
+de código (OV o EV), que es una compra con verificación de identidad. Un
+autofirmado no sirve: SmartScreen lo trata peor que a un binario sin firma.
+
+Lo que sí quedó hecho es que el día que haya certificado **no haya que tocar
+nada**: electron-builder toma `CSC_LINK` y `CSC_KEY_PASSWORD` del entorno, y eso
+está anotado en la configuración junto con el porqué del estado actual.
 
 ---
 

@@ -14,31 +14,17 @@ import {
 } from "../src/Types/apiTypes";
 import { UpdateInfo, UpdateProgress } from "../global";
 
-// --------- Expose some API to the Renderer process ---------
-contextBridge.exposeInMainWorld("ipcRenderer", {
-  on(...args: Parameters<typeof ipcRenderer.on>) {
-    const [channel, listener] = args;
-    return ipcRenderer.on(channel, (event, ...args) =>
-      listener(event, ...args)
-    );
-  },
-  off(...args: Parameters<typeof ipcRenderer.off>) {
-    const [channel, ...omit] = args;
-    return ipcRenderer.off(channel, ...omit);
-  },
-  send(...args: Parameters<typeof ipcRenderer.send>) {
-    const [channel, ...omit] = args;
-    return ipcRenderer.send(channel, ...omit);
-  },
-  invoke(...args: Parameters<typeof ipcRenderer.invoke>) {
-    const [channel, ...omit] = args;
-    return ipcRenderer.invoke(channel, ...omit);
-  },
-
-  // You can expose other APTs you need here.
-  // ...
-});
-
+/**
+ * Todo lo que el renderer puede pedirle al proceso principal está acá abajo,
+ * canal por canal y con tipos.
+ *
+ * Antes convivía con un `ipcRenderer` genérico —`invoke`, `send`, `on` sobre
+ * **cualquier** canal— que dejaba sin efecto este trabajo: con él a mano,
+ * `window.ipcRenderer.invoke("car:delete", ...)` funcionaba igual. Venía de la
+ * plantilla de electron-vite y no lo usaba nadie salvo tres renglones de
+ * ejemplo que hacían un `console.log` de la fecha. La superficie estaba abierta
+ * para sostener código muerto.
+ */
 contextBridge.exposeInMainWorld("api", {
   cars: {
     create: (car: CreateCarDto) => ipcRenderer.invoke("car:create", car),

@@ -1,8 +1,40 @@
-@import url("https://fonts.googleapis.com/css2?family=Michroma&family=Nunito+Sans:ital,opsz,wght@0,6..12,200..1000;1,6..12,200..1000&display=swap");
 @import "tailwindcss";
 @plugin "../hero.ts";
 @source "../node_modules/@heroui/theme/dist/**/*.{js,ts,jsx,tsx}";
 @custom-variant oscuro ( & : es ( .dark * ) );
+
+/*
+ * Las tipografías viajan con la aplicación.
+ *
+ * Antes se traían de Google con un `@import` remoto, o sea que **el arranque
+ * dependía de internet**: en un taller sin conexión la interfaz caía a las
+ * fuentes por defecto y el logo perdía su identidad. Además era la única
+ * llamada a la red que hacía la aplicación, y con eso no se podía cerrar la
+ * política de seguridad del renderer.
+ *
+ * Se guarda sólo el subconjunto `latin`, que es el que cubre el castellano
+ * —acentos, eñe, signos de apertura—: son 68 kB entre las dos, contra los
+ * doce archivos que servía Google para alfabetos que esta aplicación no usa.
+ *
+ * De Michroma no hay itálica y no hace falta: la única que se usa es la del
+ * logo, que el navegador sintetiza.
+ */
+@font-face {
+  font-family: "Michroma";
+  src: url(./assets/fonts/michroma-latin.woff2) format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Nunito Sans";
+  src: url(./assets/fonts/nunito-sans-latin.woff2) format("woff2");
+  /* Es una fuente variable: un solo archivo cubre todo el rango de grosor. */
+  font-weight: 200 1000;
+  font-style: normal;
+  font-display: swap;
+}
 
 @font-face {
   font-family: "FE-FONT";

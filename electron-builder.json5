@@ -44,6 +44,24 @@
   ],
 
   win: {
+    // **El instalador no se firma, y hoy no se puede.**
+    //
+    // Comprobado sobre el ejecutable armado: `Get-AuthenticodeSignature` dice
+    // `NotSigned`. El "signing with signtool.exe" que aparece en el registro del
+    // build engaña: electron-builder lo escribe igual y saltea la firma cuando
+    // no encuentra certificado. El resultado es determinista —siempre sin
+    // firmar—, no depende de la máquina que compile.
+    //
+    // Consecuencia: SmartScreen avisa "editor desconocido" en cada instalación,
+    // y el usuario tiene que entrar en "Más información → Ejecutar de todas
+    // formas". Nada lo evita sin un certificado de firma de código (OV o EV),
+    // que es una compra con verificación de identidad, no una opción de
+    // configuración.
+    //
+    // **Cuando haya certificado no hay que tocar este archivo**:
+    // electron-builder toma `CSC_LINK` (ruta o base64 del .pfx) y
+    // `CSC_KEY_PASSWORD` del entorno. En el flujo de publicación van como
+    // secretos del repositorio.
     target: [
       {
         target: "nsis",

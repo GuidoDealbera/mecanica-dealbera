@@ -11,8 +11,10 @@ import {
   app,
   BrowserWindow,
   dialog,
+  Menu,
   Notification,
   ipcMain,
+  session,
   shell,
 } from "electron";
 import { autoUpdater } from "electron-updater";
@@ -29,6 +31,7 @@ import {
 import { createDailyBackup } from "./DataBase/backups";
 import { onDashboardStatsInvalidated } from "./DataBase/dashboardCache";
 import { countDueReminders } from "./DataBase/serviceReminders.service";
+import type { APIResponse } from "../src/Types/apiTypes";
 
 log.initialize();
 log.transports.file.level = "info";
@@ -270,6 +273,62 @@ function setupAutoUpdater() {
 }
 
 /**
+ * Content-Security-Policy del renderer.
+ *
+ * No había ninguna. Con `contextIsolation` y sin `nodeIntegration` el daño
+ * posible ya estaba acotado, pero una CSP es la diferencia entre "un script
+ * inyectado no puede hacer nada" y "puede hablar con la red y con lo que el
+ * preload exponga".
+ *
+ * Se aplica por cabecera desde el proceso principal y no con un `<meta>` en el
+ * HTML porque así puede ser **estricta en producción sin romper el desarrollo**:
+ * el servidor de Vite inyecta scripts en línea y abre un websocket para el
+ * recargado en caliente, y una política que los permita en el paquete final no
+ * sirve de nada.
+ *
+ * Por qué cada permiso, que es lo que no se puede deducir leyendo la cadena:
+ *
+ * - **`style-src` con `'unsafe-inline'`**: HeroUI y framer-motion escriben
+ *   estilos en el atributo `style` de los elementos que animan. Sin esto la
+ *   interfaz se ve rota. Es el único permiso amplio y no hay forma de evitarlo
+ *   sin cambiar de librería de animación.
+ * - **`img-src` con `data:` y `blob:`**: los íconos embebidos y las vistas
+ *   previas de PDF.
+ * - **`connect-src 'none'`** en producción: la aplicación **no habla con la
+ *   red**. Todo pasa por IPC. Si algún día hace falta, que sea una decisión y
+ *   no un descuido.
+ */
+const aplicarCSP = (): void => {
+  const enDesarrollo = Boolean(VITE_DEV_SERVER_URL);
+
+  const politica = [
+    "default-src 'self'",
+    enDesarrollo
+      ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
+      : "script-src 'self'",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob:",
+    "font-src 'self' data:",
+    enDesarrollo ? "connect-src 'self' ws: http:" : "connect-src 'none'",
+    // Nada de esto tiene lugar en la aplicación: si aparece, es que algo se
+    // inyectó.
+    "object-src 'none'",
+    "frame-src 'none'",
+    "base-uri 'self'",
+    "form-action 'none'",
+  ].join("; ");
+
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        "Content-Security-Policy": [politica],
+      },
+    });
+  });
+};
+
+/**
  * Muestra la pantalla de carga. Es puramente cosmética, así que un fallo acá
  * (por ejemplo que `splash.html` no esté empaquetado) se registra y se sigue: no
  * puede impedir que la aplicación arranque.
@@ -306,6 +365,7 @@ function showSplash(): void {
 }
 
 async function createWindow() {
+  aplicarCSP();
   showSplash();
 
   try {
@@ -366,6 +426,17 @@ async function createWindow() {
 
   win.setMenuBarVisibility(false);
 
+  // Ocultar la barra **no quita el menú**: los aceleradores siguen andando, así
+  // que `Ctrl+Shift+I` abre las herramientas de desarrollo y `Ctrl+R` recarga la
+  // aplicación en medio de lo que se esté haciendo —con un formulario a medio
+  // llenar, por ejemplo—. En el taller eso no es una función, es una forma de
+  // perder trabajo por un dedo mal puesto.
+  //
+  // En desarrollo el menú se conserva, que es donde esos atajos sirven.
+  if (app.isPackaged) {
+    Menu.setApplicationMenu(null);
+  }
+
   // Cerrar con un formulario a medio llenar pregunta antes. Se usa la variante
   // sincrónica del cuadro a propósito: `close` no espera promesas, así que con
   // la asíncrona la ventana se cierra igual mientras el cuadro se dibuja.
@@ -392,13 +463,11 @@ async function createWindow() {
     }
   });
 
-  // Test active push message to Renderer-process.
   win.webContents.on("did-finish-load", () => {
     // Al recargar, el renderer arranca de cero: lo que hubiera declarado el
     // anterior ya no existe. Sin esto, un recargado con el formulario sucio
     // dejaba la aplicación preguntando al cerrar para siempre.
     hayCambiosSinGuardar = false;
-    win?.webContents.send("main-process-message", new Date().toLocaleString());
   });
 
   // Red de seguridad: si la ventana nunca llega a `ready-to-show`, el splash
@@ -462,6 +531,52 @@ async function createWindow() {
   }
 }
 
+/**
+ * La ventana es una aplicación, no un navegador.
+ *
+ * Sin esto, dos cosas que no tendrían que poder pasar:
+ *
+ * - Un `target="_blank"` o un `window.open()` abría **una ventana de Electron**
+ *   —con su propio proceso de renderizado y el preload cargado—, no el
+ *   navegador del sistema.
+ * - Una navegación a una URL externa convertía la ventana de la aplicación en
+ *   un navegador sin barra de direcciones ni forma de volver: la única salida
+ *   habría sido cerrar y abrir de nuevo.
+ *
+ * Va sobre `web-contents-created` y no sobre la ventana principal para que
+ * alcance a todo lo que exista, incluida la pantalla de carga.
+ *
+ * Los enlaces externos legítimos —el de WhatsApp al titular— siguen andando por
+ * `app:open-external`, que valida el esquema. Acá se deriva al navegador
+ * igualmente, para que un enlace que se agregue mañana no quede muerto.
+ */
+app.on("web-contents-created", (_event, contents) => {
+  contents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith("https://")) {
+      shell
+        .openExternal(url)
+        .catch((error) => logError("app:window-open", error));
+    } else {
+      logWarn("app:window-open", "Apertura de ventana bloqueada", { url });
+    }
+    return { action: "deny" };
+  });
+
+  contents.on("will-navigate", (event, url) => {
+    // Lo propio: en desarrollo el servidor de Vite, empaquetado los archivos de
+    // la aplicación. El enrutador usa el hash, que no dispara este evento.
+    const esPropia = VITE_DEV_SERVER_URL
+      ? url.startsWith(VITE_DEV_SERVER_URL)
+      : url.startsWith("file://");
+    if (esPropia) return;
+
+    event.preventDefault();
+    logWarn("app:navigate", "Navegación fuera de la aplicación bloqueada", {
+      url,
+    });
+  });
+});
+
 app.on("second-instance", () => {
   if (win) {
     if (win.isMinimized()) win.restore();
@@ -492,15 +607,45 @@ handleIpc("app:open-logs-folder", () => {
   shell.showItemInFolder(logPath);
 });
 
-// Abre una URL en el navegador/app externa por defecto (ej. el link wa.me de
-// WhatsApp). Se restringe a https para no abrir esquemas arbitrarios.
-handleIpc("app:open-external", async (_event, url: string) => {
-  if (typeof url !== "string" || !url.startsWith("https://")) {
-    logError("app:open-external", new Error(`URL no permitida: ${url}`));
-    return;
+/**
+ * Abre una URL en la aplicación externa que corresponda —hoy el enlace `wa.me`
+ * de WhatsApp—. Se restringe a `https` para no abrir esquemas arbitrarios.
+ *
+ * Devuelve el envelope como el resto de los canales. Antes registraba el error y
+ * hacía `return`: el renderer recibía `undefined`, que es indistinguible del
+ * éxito. El caso concreto es un titular sin teléfono válido —`buildWhatsappUrl`
+ * devuelve cadena vacía—: se apretaba el botón, no pasaba nada, y nadie decía
+ * por qué.
+ */
+handleIpc(
+  "app:open-external",
+  async (_event, url: unknown): Promise<APIResponse> => {
+    if (typeof url !== "string" || !url.startsWith("https://")) {
+      logWarn("app:open-external", "URL no permitida", { url: String(url) });
+      return {
+        status: "failed",
+        message: "No hay un enlace válido para abrir",
+        result: undefined,
+      };
+    }
+
+    try {
+      await shell.openExternal(url);
+      return {
+        status: "success",
+        message: "Enlace abierto",
+        result: undefined,
+      };
+    } catch (error) {
+      logError("app:open-external", error, { url });
+      return {
+        status: "failed",
+        message: "No se pudo abrir el enlace",
+        result: undefined,
+      };
+    }
   }
-  await shell.openExternal(url);
-});
+);
 
 ipcMain.on("start-update-download", () => {
   // `downloadUpdate()` también emite `error` y rechaza: el rechazo se atiende

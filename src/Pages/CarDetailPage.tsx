@@ -435,10 +435,14 @@ const CarDetailPage: React.FC = () => {
                       fullWidth
                       startContent={<FaWhatsapp size={18} />}
                       isDisabled={!whatsappUrl}
-                      onPress={() =>
-                        whatsappUrl &&
-                        window.api.global.openExternal(whatsappUrl)
-                      }
+                      onPress={async () => {
+                        if (!whatsappUrl) return;
+                        const abierto =
+                          await window.api.global.openExternal(whatsappUrl);
+                        if (abierto.status !== "success") {
+                          showToast(abierto.message, "danger", "WhatsApp");
+                        }
+                      }}
                       className="text-success-500 font-semibold mt-1"
                     >
                       {whatsappUrl ? "Enviar WhatsApp" : "Sin teléfono"}

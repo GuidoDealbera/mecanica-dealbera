@@ -11,29 +11,9 @@ import {
 } from "../dataSource";
 import { invalidateDashboardStatsCache } from "../dashboardCache";
 import { listBackups } from "../backups";
+import { toCsv } from "../csv";
 import { checkDatabaseHealth } from "../migrationSafety";
 import type { APIResponse, BackupEntry } from "../../../src/Types/apiTypes";
-
-function toCsv<T extends object>(
-  headers: Partial<Record<keyof T, string>>,
-  rows: T[]
-): string {
-  const BOM = "﻿";
-  const keys = Object.keys(headers) as (keyof T)[];
-  const headerRow = keys.map((k) => headers[k]).join(";");
-  const dataRows = rows.map((row) =>
-    keys
-      .map((k) => {
-        const v = row[k];
-        const str = v == null ? "" : String(v);
-        return str.includes(";") || str.includes('"') || str.includes("\n")
-          ? `"${str.replace(/"/g, '""')}"`
-          : str;
-      })
-      .join(";")
-  );
-  return BOM + [headerRow, ...dataRows].join("\n");
-}
 
 handleIpc("data:export-csv", async () => {
   const { carRepository } = getRepositories();

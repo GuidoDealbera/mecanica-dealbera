@@ -105,15 +105,19 @@ export const findUnknownMigrations = async (
     )
   );
 
-  let rows: { name: string }[];
-  try {
-    rows = await dataSource.query<{ name: string }[]>(
-      "SELECT name FROM migrations"
-    );
-  } catch {
-    return [];
-  }
+  // Se pregunta si la tabla existe en vez de consultarla y atajar el error. Con
+  // el `try/catch`, en una base nueva el `SELECT` fallaba igual y TypeORM lo
+  // registraba como error —tiene el registro de consultas encendido en
+  // desarrollo—: un "SqliteError: no such table: migrations" en el arranque que
+  // no era ningún problema pero parecía uno.
+  const existe = await dataSource.query<{ n: number }[]>(
+    "SELECT COUNT(*) AS n FROM sqlite_master WHERE type = 'table' AND name = 'migrations'"
+  );
+  if (!Number(existe?.[0]?.n)) return [];
 
+  const rows = await dataSource.query<{ name: string }[]>(
+    "SELECT name FROM migrations"
+  );
   return rows.map((row) => row.name).filter((name) => !conocidas.has(name));
 };
 
