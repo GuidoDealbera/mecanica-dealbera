@@ -761,7 +761,7 @@ rompe la aplicación entera—.
 
 ### C4 · 🟡 El CSV exportado es vulnerable a inyección de fórmulas
 
-**[pendiente]** · `electron/DataBase/Endpoints/backup.endpoints.ts` → `toCsv`
+**[a testear]** · `electron/DataBase/Endpoints/backup.endpoints.ts` → `toCsv`
 
 `toCsv` escapa comillas y separadores —correcto para el formato— pero no neutraliza
 los valores que **empiezan con `=`, `+`, `-` o `@`**. Excel y LibreOffice los
@@ -773,6 +773,21 @@ CSV injection, y acá los datos los escribe una persona en un formulario.
 
 Se resuelve anteponiendo un apóstrofo a los valores que arranquen con esos
 caracteres.
+
+**Resuelto**, y `toCsv` se mudó a su propio módulo (`electron/DataBase/csv.ts`).
+No necesita Electron ni la base y **hay que poder probarlo**: lo que hace no es
+obvio y equivocarse produce un archivo que se ve perfecto.
+
+Se agregaron el tabulador y el retorno de carro a la lista, porque algunas
+versiones los saltean y evalúan lo que sigue. Y se escapa también un valor que
+empiece con `-` aunque sea un número negativo: en este CSV no hay ninguno
+—kilometraje, año y cantidad de trabajos son siempre positivos— y el arranque
+clásico de una carga por DDE es justamente un `-`.
+
+Los seis casos cubren las dos cosas que es fácil confundir: que el **formato**
+esté bien (comillas dobladas, celdas entrecomilladas) y que la planilla no
+**ejecute** lo de adentro. Son problemas distintos: un archivo bien formado
+ejecuta la fórmula igual.
 
 ### C5 · 🟡 El menú por defecto de Electron sigue activo
 
