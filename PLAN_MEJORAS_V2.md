@@ -1184,7 +1184,7 @@ Qué pasa cuando algo sale mal, y si queda rastro.
 
 ### E1 · 🔴 Un error de la interfaz no deja **ningún** rastro en los logs
 
-**[pendiente]** · `src/Pages/Components/ErrorBoundary.tsx`
+**[a testear]** · `src/Pages/Components/ErrorBoundary.tsx`
 
 Cuando una pantalla revienta, el `ErrorBoundary` la reemplaza por "Algo salió mal"
 y hace `console.error`. Nada más.
@@ -1200,6 +1200,31 @@ error que importaba es el único que no se registró.
 
 Hay que mandarlo al proceso principal por IPC y registrarlo con `logError`, como
 todo lo demás.
+
+**Resuelto.** Hay un canal `app:log-renderer-error` y un único camino de la
+interfaz al archivo, `reportarError`. Es `send` y no `invoke` a propósito:
+registrar no puede bloquear ni fallar hacia una pantalla que ya está rota, y por
+lo mismo `reportarError` no lanza nunca —se lo llama siempre encima de un error
+que ya ocurrió, y romper ahí lo taparía con otro peor y sin traza—.
+
+Se aprovechó para cubrir lo que el `ErrorBoundary` **no** ve, que tenía el mismo
+problema y ni siquiera un cartel: un error en un manejador de evento, en un
+`setTimeout` o una promesa sin `catch`. React no los atrapa porque no ocurren
+durante el renderizado. Van por `window.onerror` y `unhandledrejection`.
+
+Lo que se guarda es nombre, mensaje, traza, ruta y traza de componentes, todo
+acotado: el archivo de log rota, y una traza de React sin límite se lleva por
+delante los errores anteriores, que son los que dan contexto. Se rearma un
+`Error` de verdad en el proceso principal en vez de pasar el objeto plano,
+porque `serializeError` sólo sabe sacarle `name`/`message`/`stack` a un `Error`
+—con un objeto cualquiera escribiría `"[object Object]"` y se perdería la traza,
+que es lo único por lo que este canal existe—.
+
+Verificado contra la aplicación real, disparando los tres caminos: los tres
+quedan en `main.log` con su scope, su ruta y su traza completa.
+
+Y el cartel ahora dice que el detalle quedó registrado. Sin eso el usuario no
+tiene motivo para ir a buscar los logs, que es el paso que cierra el circuito.
 
 ### E2 · 🟠 Si falla cargar la configuración de service, la pantalla ofrece guardar valores inventados
 

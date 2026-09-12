@@ -158,6 +158,14 @@ declare global {
         openLogsFolder: () => Promise<void>;
         openExternal: (url: string) => Promise<APIResponse>;
         setUnsavedChanges: (dirty: boolean) => void;
+        logError: (payload: {
+          scope: string;
+          name?: string;
+          message: string;
+          stack?: string;
+          componentStack?: string;
+          route?: string;
+        }) => void;
       };
     };
     updater: UpdaterAPI;

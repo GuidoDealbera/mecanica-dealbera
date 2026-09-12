@@ -142,6 +142,19 @@ contextBridge.exposeInMainWorld("api", {
      */
     setUnsavedChanges: (dirty: boolean) =>
       ipcRenderer.send("app:unsaved-changes", dirty),
+    /**
+     * Manda al archivo de log un error de la interfaz. Sin esto no llegaba
+     * ninguno: `console.error` del renderer va a las herramientas de
+     * desarrollo, no al archivo que el usuario puede mandar.
+     */
+    logError: (payload: {
+      scope: string;
+      name?: string;
+      message: string;
+      stack?: string;
+      componentStack?: string;
+      route?: string;
+    }) => ipcRenderer.send("app:log-renderer-error", payload),
   },
 });
 
