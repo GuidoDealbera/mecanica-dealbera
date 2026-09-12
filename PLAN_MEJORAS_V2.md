@@ -681,7 +681,7 @@ Verificado además en la aplicación real: `window.ipcRenderer` es `undefined`,
 
 ### C2 · 🟡 El renderer no tiene Content-Security-Policy
 
-**[pendiente]** · `index.html`
+**[a testear]** · `index.html`
 
 No hay ninguna CSP declarada. Con `contextIsolation: true` y `nodeIntegration:
 false` el daño posible está acotado, pero una CSP es la diferencia entre "un
@@ -691,6 +691,43 @@ preload exponga".
 Mínimo razonable: `default-src 'self'`, `script-src 'self'`, `connect-src 'none'`,
 `img-src 'self' data:`. Hay que verificar que Tailwind y HeroUI no necesiten
 `'unsafe-inline'` para estilos.
+
+**Resuelto**, y aplicarla destapó dos cosas que la aplicación hacía sin que
+nadie lo supiera.
+
+Va por cabecera desde el proceso principal y no con un `<meta>` en el HTML,
+porque así puede ser **estricta en producción sin romper el desarrollo**: el
+servidor de Vite inyecta scripts en línea y abre un websocket, y una política que
+los permita en el paquete final no sirve de nada.
+
+**`connect-src 'none'` en producción**: la aplicación no habla con la red, todo
+pasa por IPC. Para poder afirmarlo hubo que arreglar lo que sí hablaba:
+
+- **Las tipografías se bajaban de Google en cada arranque**, con un `@import`
+  remoto en `index.css`. O sea que el arranque dependía de internet: en un taller
+  sin conexión la interfaz caía a las fuentes por defecto y el logo perdía su
+  identidad. Ahora viajan con la aplicación, sólo el subconjunto `latin` que
+  cubre el castellano: 68 kB entre las dos, contra los doce archivos que servía
+  Google para alfabetos que esta aplicación no usa.
+- **El script que evita el parpadeo del tema estaba en línea en el HTML.** Se
+  mudó a `public/tema-inicial.js`, que `'self'` cubre. La alternativa era un hash
+  en la política, que hay que acordarse de actualizar cada vez que se toque ese
+  código.
+
+El único permiso amplio que queda es `style-src 'unsafe-inline'`, y no hay forma
+de evitarlo: HeroUI y framer-motion escriben estilos en el atributo `style` de los
+elementos que animan.
+
+Verificado en la aplicación empaquetada recorriendo las nueve pantallas y
+**emitiendo un documento de verdad** —el camino más pesado, con jsPDF y la fuente
+de patentes embebida—: cero violaciones y cero errores en la consola del
+renderer. Y en `npm run dev`, que arranca limpio.
+
+Se coló además un arreglo de A1: en una base nueva, consultar la tabla
+`migrations` fallaba y TypeORM lo registraba como error —tiene el registro de
+consultas encendido en desarrollo—. Un `SqliteError: no such table: migrations` en
+el arranque que no era ningún problema pero parecía uno. Ahora se pregunta si la
+tabla existe en vez de atajar el error.
 
 ### C3 · 🟡 La ventana no restringe la navegación ni la apertura de ventanas
 

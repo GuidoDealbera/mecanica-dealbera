@@ -13,6 +13,7 @@ import {
   dialog,
   Notification,
   ipcMain,
+  session,
   shell,
 } from "electron";
 import { autoUpdater } from "electron-updater";
@@ -270,6 +271,62 @@ function setupAutoUpdater() {
 }
 
 /**
+ * Content-Security-Policy del renderer.
+ *
+ * No había ninguna. Con `contextIsolation` y sin `nodeIntegration` el daño
+ * posible ya estaba acotado, pero una CSP es la diferencia entre "un script
+ * inyectado no puede hacer nada" y "puede hablar con la red y con lo que el
+ * preload exponga".
+ *
+ * Se aplica por cabecera desde el proceso principal y no con un `<meta>` en el
+ * HTML porque así puede ser **estricta en producción sin romper el desarrollo**:
+ * el servidor de Vite inyecta scripts en línea y abre un websocket para el
+ * recargado en caliente, y una política que los permita en el paquete final no
+ * sirve de nada.
+ *
+ * Por qué cada permiso, que es lo que no se puede deducir leyendo la cadena:
+ *
+ * - **`style-src` con `'unsafe-inline'`**: HeroUI y framer-motion escriben
+ *   estilos en el atributo `style` de los elementos que animan. Sin esto la
+ *   interfaz se ve rota. Es el único permiso amplio y no hay forma de evitarlo
+ *   sin cambiar de librería de animación.
+ * - **`img-src` con `data:` y `blob:`**: los íconos embebidos y las vistas
+ *   previas de PDF.
+ * - **`connect-src 'none'`** en producción: la aplicación **no habla con la
+ *   red**. Todo pasa por IPC. Si algún día hace falta, que sea una decisión y
+ *   no un descuido.
+ */
+const aplicarCSP = (): void => {
+  const enDesarrollo = Boolean(VITE_DEV_SERVER_URL);
+
+  const politica = [
+    "default-src 'self'",
+    enDesarrollo
+      ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
+      : "script-src 'self'",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob:",
+    "font-src 'self' data:",
+    enDesarrollo ? "connect-src 'self' ws: http:" : "connect-src 'none'",
+    // Nada de esto tiene lugar en la aplicación: si aparece, es que algo se
+    // inyectó.
+    "object-src 'none'",
+    "frame-src 'none'",
+    "base-uri 'self'",
+    "form-action 'none'",
+  ].join("; ");
+
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        "Content-Security-Policy": [politica],
+      },
+    });
+  });
+};
+
+/**
  * Muestra la pantalla de carga. Es puramente cosmética, así que un fallo acá
  * (por ejemplo que `splash.html` no esté empaquetado) se registra y se sigue: no
  * puede impedir que la aplicación arranque.
@@ -306,6 +363,7 @@ function showSplash(): void {
 }
 
 async function createWindow() {
+  aplicarCSP();
   showSplash();
 
   try {
