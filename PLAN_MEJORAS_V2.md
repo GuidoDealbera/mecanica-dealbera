@@ -791,7 +791,7 @@ ejecuta la fórmula igual.
 
 ### C5 · 🟡 El menú por defecto de Electron sigue activo
 
-**[pendiente]** · `electron/main.ts`
+**[a testear]** · `electron/main.ts`
 
 Se llama a `setMenuBarVisibility(false)`, que **oculta** la barra pero no quita el
 menú: los aceleradores siguen funcionando. `Ctrl+Shift+I` abre las herramientas de
@@ -799,6 +799,15 @@ desarrollo y `Ctrl+R` recarga la aplicación en medio de lo que se esté haciend
 
 Para una aplicación de taller conviene `Menu.setApplicationMenu(null)` en
 producción y dejar el menú sólo en desarrollo.
+
+**Resuelto.** `Ctrl+R` recargando la aplicación con un formulario a medio llenar
+no es una función, es una forma de perder trabajo por un dedo mal puesto.
+
+Verificado en las dos ramas, que es lo que importa acá: **hay que empaquetar de
+verdad para que `app.isPackaged` sea `true`**, así que se armó el paquete y se
+corrió el ejecutable —`empaquetada: true | menú: quitado`— y después el mismo
+código sin empaquetar —`empaquetada: false | menú: presente`—. Correr sólo la
+versión sin empaquetar habría dejado la rama que importa sin probar.
 
 ### C6 · 🟡 `app:open-external` falla en silencio hacia el renderer
 

@@ -11,6 +11,7 @@ import {
   app,
   BrowserWindow,
   dialog,
+  Menu,
   Notification,
   ipcMain,
   session,
@@ -423,6 +424,17 @@ async function createWindow() {
   });
 
   win.setMenuBarVisibility(false);
+
+  // Ocultar la barra **no quita el menú**: los aceleradores siguen andando, así
+  // que `Ctrl+Shift+I` abre las herramientas de desarrollo y `Ctrl+R` recarga la
+  // aplicación en medio de lo que se esté haciendo —con un formulario a medio
+  // llenar, por ejemplo—. En el taller eso no es una función, es una forma de
+  // perder trabajo por un dedo mal puesto.
+  //
+  // En desarrollo el menú se conserva, que es donde esos atajos sirven.
+  if (app.isPackaged) {
+    Menu.setApplicationMenu(null);
+  }
 
   // Cerrar con un formulario a medio llenar pregunta antes. Se usa la variante
   // sincrónica del cuadro a propósito: `close` no espera promesas, así que con
