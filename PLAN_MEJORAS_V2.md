@@ -160,7 +160,7 @@ explica.
 
 ### A5 · 🔴 Un teléfono repetido revienta con el error crudo de SQLite
 
-**[pendiente]** · `electron/DataBase/Endpoints/client.endpoints.ts`
+**[a testear]** · `electron/DataBase/Endpoints/client.endpoints.ts`
 
 `Client.phone` es `unique` en la base. `client:create` comprueba el **nombre**
 duplicado y devuelve un mensaje claro, pero **no comprueba el teléfono**;
@@ -174,6 +174,16 @@ ya está registrado a nombre de X".
 Lo llamativo es que **el mensaje bueno ya existe**: `car:create` y
 `car:reassign-owner` sí hacen esa comprobación. Es la misma regla escrita dos
 veces y faltando en un tercer lugar.
+
+**Resuelto, y de paso F4.** En vez de escribir la tercera y la cuarta copia, la
+regla se mudó a `clients.service.ts` (`findClientConflict`) y ahora la usan los
+cuatro caminos. Recibe el `EntityManager` por parámetro, como el resto del
+dominio, así que funciona igual dentro de las transacciones de `car:create` y
+`car:reassign-owner`.
+
+Detalle que apareció escribiendo el test: `@IsPhoneNumber("AR")` es estricto y
+rechaza números inventados como `3510000001`. Los datos de prueba usan números
+con formato válido de verdad.
 
 ### A6 · 🔴 `car:create` descarta en silencio los datos del titular recién cargados
 
@@ -822,12 +832,16 @@ buscarlo **por nombre**, que es la clave frágil de **D5**.
 
 ### F4 · 🟡 La regla "teléfono ya registrado" está escrita dos veces y falta en un tercer lugar
 
-**[pendiente]** · `car.crud.endpoints.ts`, `client.endpoints.ts`
+**[a testear]** · `car.crud.endpoints.ts`, `client.endpoints.ts`
 
 Ver **A5**. La misma comprobación, con el mismo mensaje, copiada en `car:create` y
 en `car:reassign-owner`, y ausente en `client:create` y `client:update`. Es el
 argumento a favor de que las reglas de unicidad vivan en un solo módulo de dominio
 y no en cada endpoint.
+
+**Resuelto al hacer A5**: escribir la tercera copia para arreglar A5 habría sido
+absurdo, así que la regla se mudó a `clients.service.ts` y los cuatro caminos la
+comparten.
 
 ### F5 · 🟡 Tres formas distintas de escapar una búsqueda
 

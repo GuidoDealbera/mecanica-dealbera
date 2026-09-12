@@ -2,13 +2,13 @@ import { handleIpc } from "../../ipc";
 import { logError } from "../../logger";
 import { validateDto } from "../../validation";
 import { escapeLike, resolvePage } from "../../pagination";
-import { Not } from "typeorm";
 import { CreateClientDto, UpdateClientDto } from "../Types/client.dto";
 import { AppDataSource, getRepositories } from "../dataSource";
 import type { ClientQueryParams, Paginated } from "../Types/types";
 import { Car } from "../Entities/car.entity";
 import { Client } from "../Entities/client.entity";
 import { invalidateDashboardStatsCache } from "../dashboardCache";
+import { findClientConflict } from "../clients.service";
 
 // Columnas por las que se permite ordenar el listado de clientes.
 const CLIENT_SORT_COLUMNS: Record<string, string> = {
@@ -23,16 +23,15 @@ handleIpc("client:create", async (_, payload: CreateClientDto) => {
   const createClientDto = validation.dto;
 
   const repo = getRepositories().clientRepository;
-  const owner = await repo.findOne({
-    where: {
-      fullname: createClientDto.fullname,
-    },
-  });
-  if (owner) {
-    return {
-      status: "failed",
-      message: "Cliente ya registrado",
-    };
+  // Nombre **y** teléfono: los dos son `unique` en la base. Antes sólo se
+  // miraba el nombre, así que un teléfono repetido salía como el error crudo de
+  // SQLite en vez de decir de quién es.
+  const conflicto = await findClientConflict(
+    AppDataSource.manager,
+    createClientDto
+  );
+  if (conflicto) {
+    return { status: "failed", message: conflicto };
   }
   const newOwner = repo.create(createClientDto);
   await repo.save(newOwner);
@@ -235,19 +234,21 @@ handleIpc("client:update", async (_, payload: UpdateClientDto) => {
       message: "El cliente que intenta modificar no se encuentra registrado",
     };
   }
-  // Si se cambia el nombre, verificar que no lo tenga otro cliente
-  if (fullname !== undefined && fullname !== updateClient.fullname) {
-    const nameTaken = await repo.findOne({
-      where: { fullname, id: Not(id) },
-    });
-    if (nameTaken) {
-      return {
-        status: "failed",
-        message: `Ya existe otro cliente llamado "${fullname}"`,
-      };
-    }
-    updateClient.fullname = fullname;
+  // Sólo se comprueba lo que efectivamente cambia: contra el propio cliente no
+  // hay conflicto. El teléfono no se miraba, y también es `unique`: cambiarlo
+  // por uno tomado reventaba con el error de SQLite.
+  const conflicto = await findClientConflict(
+    AppDataSource.manager,
+    {
+      fullname: fullname !== updateClient.fullname ? fullname : undefined,
+      phone: phone !== updateClient.phone ? phone : undefined,
+    },
+    id
+  );
+  if (conflicto) {
+    return { status: "failed", message: conflicto };
   }
+  if (fullname !== undefined) updateClient.fullname = fullname;
   if (address !== undefined) updateClient.address = address;
   if (city !== undefined) updateClient.city = city;
   if (email !== undefined) updateClient.email = email;
