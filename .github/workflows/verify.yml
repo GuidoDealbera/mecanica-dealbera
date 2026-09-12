@@ -54,11 +54,21 @@ jobs:
           node-version-file: ".nvmrc"
           cache: "npm"
 
-      # `sqlite3` trae binarios precompilados, pero si tuviera que compilarlos
-      # el paso tardaría varios minutos: `--ignore-scripts` no sirve porque
-      # entonces no se instalan. Se deja la instalación normal.
+      # `better-sqlite3` trae binarios precompilados, pero si tuviera que
+      # compilarlos el paso tardaría varios minutos: `--ignore-scripts` no sirve
+      # porque entonces no se instalan. Se deja la instalación normal.
+      #
+      # El binario de Electron sí se saltea: son ~100 MB que esta verificación
+      # **no necesita** —tipos, lint, formato, tests y build del renderer pasan
+      # sin él, comprobado escondiéndolo en local— y bajarlo era una fuente de
+      # fallos intermitentes. Cuando la descarga no llegaba, `electron-log`
+      # —que hace su propio `require("electron")`— tiraba abajo trece tests con
+      # "Electron failed to install correctly". El instalador lo arma
+      # `release.yml`, que sí lo baja.
       - name: Install dependencies
         run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: 1
 
       - name: Verificar
         run: npm run verify

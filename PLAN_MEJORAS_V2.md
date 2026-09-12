@@ -377,6 +377,20 @@ Eran dos causas distintas:
 Y para que no vuelvan: `npm run lint` pasó a correr con `--max-warnings 0`. Sin
 eso, llegar a cero es cuestión de tiempo hasta que deje de estarlo.
 
+**Apareció además un fallo intermitente del CI**, que se destapó al mirar por qué
+una corrida fallaba y la anterior no con el mismo código. Los tests de los
+endpoints importan `electron/logger.ts`, que usa `electron-log`, que hace **su
+propio `require("electron")`** —y eso no lo intercepta el `vi.mock("electron")`
+de cada test: el mock vale para el módulo bajo prueba, no para lo que pida una
+dependencia por su cuenta—. Cuando la descarga del binario de Electron no
+llegaba en el runner, trece tests se caían con "Electron failed to install
+correctly". En local nunca, porque el binario está.
+
+Dos arreglos, uno por cada mitad del problema: un alias en `vitest.config.ts` que
+sustituye `electron-log/main` por un doble, y `ELECTRON_SKIP_BINARY_DOWNLOAD` en
+el flujo de verificación, que no necesita el binario para nada. Se comprobó
+escondiendo `path.txt` en local: `npm run verify` pasa entero sin él.
+
 ---
 
 ## Sprint B — Validación: la que existe y no se ejecuta
