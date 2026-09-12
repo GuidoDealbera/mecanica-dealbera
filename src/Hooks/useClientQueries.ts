@@ -18,7 +18,7 @@ export const useClientQueries = () => {
     error,
     loadingStates,
     fetchList,
-    fetchByName,
+    fetchById,
     update,
     clearOwners,
     clearClient,
@@ -49,18 +49,18 @@ export const useClientQueries = () => {
     [fetchList]
   );
 
-  const getClientByName = useCallback(
-    async (fullname: string) => {
+  const getClientById = useCallback(
+    async (id: string) => {
       setLoading(true);
       try {
-        await fetchByName(fullname);
+        await fetchById(id);
       } catch (error) {
         return error;
       } finally {
         setLoading(false);
       }
     },
-    [fetchByName]
+    [fetchById]
   );
 
   const refresh = useCallback(
@@ -121,7 +121,7 @@ export const useClientQueries = () => {
     error,
     loadingStates,
     getClients,
-    getClientByName,
+    getClientById,
     updateOwner,
     clearOwners,
     clearClient,

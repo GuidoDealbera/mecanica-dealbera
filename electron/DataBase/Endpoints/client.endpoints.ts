@@ -116,35 +116,35 @@ handleIpc("client:cities", async (): Promise<string[]> => {
   return rows.map((r) => r.city);
 });
 
-handleIpc(
-  "client:find-by-name",
-  async (_, fullname: CreateClientDto["fullname"]) => {
-    if (!esIdentificador(fullname)) {
-      return { status: "failed", message: "Cliente no registrado" };
-    }
-
-    const repo = getRepositories().clientRepository;
-    // Se cargan también los trabajos de cada auto (`cars.jobs`) porque la ficha
-    // del cliente muestra el conteo de trabajos por vehículo.
-    const owner = await repo.findOne({
-      where: {
-        fullname,
-      },
-      relations: { cars: { jobs: true } },
-    });
-    if (!owner) {
-      return {
-        status: "failed",
-        message: "Cliente no registrado",
-      };
-    }
-    return {
-      status: "success",
-      message: "Cliente encontrado",
-      result: owner,
-    };
+/**
+ * La ficha del cliente, buscada por `id`.
+ *
+ * Era `client:find-by-name`, y la dirección de la pantalla era el nombre
+ * (`/clients/Juan%20Pérez`). Eso ataba dos cosas que no tienen por qué estar
+ * atadas: renombrar a un cliente invalidaba el enlace a su ficha, y dos
+ * homónimos no podían distinguirse ni siquiera en la URL.
+ */
+handleIpc("client:find-by-id", async (_, id: string) => {
+  if (!esIdentificador(id)) {
+    return { status: "failed", message: "Cliente no registrado" };
   }
-);
+
+  const repo = getRepositories().clientRepository;
+  // Se cargan también los trabajos de cada auto (`cars.jobs`) porque la ficha
+  // del cliente muestra el conteo de trabajos por vehículo.
+  const owner = await repo.findOne({
+    where: { id },
+    relations: { cars: { jobs: true } },
+  });
+  if (!owner) {
+    return { status: "failed", message: "Cliente no registrado" };
+  }
+  return {
+    status: "success",
+    message: "Cliente encontrado",
+    result: owner,
+  };
+});
 
 handleIpc("client:search", async (_, query: string) => {
   if (typeof query !== "string") {

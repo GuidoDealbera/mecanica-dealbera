@@ -508,6 +508,7 @@ const CarDetailPage: React.FC = () => {
         onClose={() => setReassignOpen(false)}
         licensePlate={licence}
         currentOwnerName={car.owner?.fullname ?? ""}
+        currentOwnerId={car.owner?.id ?? ""}
         onSuccess={() => getCarDetail(licence)}
       />
     </div>

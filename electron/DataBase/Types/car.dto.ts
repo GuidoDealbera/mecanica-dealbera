@@ -51,6 +51,23 @@ export class CreateCarDto {
   @Type(() => CreateClientDto)
   owner!: CreateClientDto;
 
+  /**
+   * Cliente ya registrado que el usuario eligió en el autocompletar.
+   *
+   * Antes no existía: el backend buscaba al titular **por nombre**, así que la
+   * identidad del cliente era su nombre. Con eso, dos personas que se llaman
+   * igual son la misma para el sistema, y renombrar a alguien cambia la clave
+   * con la que lo referencian las pantallas.
+   *
+   * Ahora quien decide es el formulario, que es el único que sabe si el usuario
+   * eligió a alguien de la lista o escribió un nombre nuevo. Si viene el `id`,
+   * el vehículo se asocia a **ese** cliente; si no viene, se crea uno.
+   */
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty({ message: "El titular seleccionado es inválido" })
+  ownerId?: string;
+
   @IsNotEmpty({ message: "El kilometraje es requerido" })
   @IsInt()
   @Min(0, { message: "Los kilómetros no pueden ser negativos" })

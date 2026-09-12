@@ -31,6 +31,7 @@ interface ReassignOwnerModalProps {
   onClose: () => void;
   licensePlate: string;
   currentOwnerName: string;
+  currentOwnerId: string;
   /** Llamado cuando la reasignación fue exitosa — para que el padre recargue el auto */
   onSuccess: () => void;
 }
@@ -46,12 +47,13 @@ const ReassignOwnerModal: React.FC<ReassignOwnerModalProps> = ({
   onClose,
   licensePlate,
   currentOwnerName,
+  currentOwnerId,
   onSuccess,
 }) => {
   const { showToast } = useToasts();
 
   const [mode, setMode] = React.useState<"existing" | "new">("existing");
-  const [selectedFullname, setSelectedFullname] = React.useState<string>("");
+  const [selectedClientId, setSelectedClientId] = React.useState<string>("");
   const [loading, setLoading] = React.useState(false);
 
   // Búsqueda de clientes existentes (server-side, as-you-type).
@@ -86,7 +88,7 @@ const ReassignOwnerModal: React.FC<ReassignOwnerModalProps> = ({
     if (!isOpen) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- también resetea react-hook-form, que no puede correr durante el render
       setMode("existing");
-      setSelectedFullname("");
+      setSelectedClientId("");
       setQuery("");
       setResults([]);
       setSelectedClient(undefined);
@@ -121,24 +123,26 @@ const ReassignOwnerModal: React.FC<ReassignOwnerModalProps> = ({
   const clientOptions = React.useMemo(
     () =>
       results
-        // Excluir al titular actual para evitar confusión
-        .filter((c) => c.fullname !== currentOwnerName)
+        // Excluir al titular actual para evitar confusión. Por `id` y no por
+        // nombre: si hay dos clientes homónimos, filtrar por nombre escondía
+        // también al otro, que es justamente al que se querría reasignar.
+        .filter((c) => c.id !== currentOwnerId)
         .map((c) => ({
-          key: c.fullname,
+          key: c.id,
           label: c.fullname,
           phone: c.phone,
           city: c.city,
         })),
-    [results, currentOwnerName]
+    [results, currentOwnerId]
   );
 
   const handleExistingSubmit = async () => {
-    if (!selectedFullname) return;
+    if (!selectedClientId) return;
     setLoading(true);
     try {
       const res = await window.api.cars.reassignOwner(licensePlate, {
         mode: "existing",
-        existingOwnerFullname: selectedFullname,
+        existingOwnerId: selectedClientId,
       });
       if (res.status === "success") {
         showToast(res.message, "success", "Cambio de titular");
@@ -189,7 +193,7 @@ const ReassignOwnerModal: React.FC<ReassignOwnerModalProps> = ({
     }
   };
 
-  const canConfirmExisting = !!selectedFullname && !loading;
+  const canConfirmExisting = !!selectedClientId && !loading;
   const formId = "reassign-new-owner-form";
 
   return (
@@ -259,8 +263,8 @@ const ReassignOwnerModal: React.FC<ReassignOwnerModalProps> = ({
                 onInputChange={setQuery}
                 onSelectionChange={(key) => {
                   const k = (key as string) ?? "";
-                  setSelectedFullname(k);
-                  setSelectedClient(results.find((c) => c.fullname === k));
+                  setSelectedClientId(k);
+                  setSelectedClient(results.find((c) => c.id === k));
                 }}
                 isDisabled={loading}
               >

@@ -1,7 +1,7 @@
 import { createSlice } from "@reduxjs/toolkit";
 import { ClientState } from "../Types/types";
 import {
-  fetchClientByName,
+  fetchClientById,
   fetchClients,
   updateClient,
 } from "./clientAsync.methods";
@@ -62,16 +62,16 @@ const clientSlice = createSlice({
         state.listLoaded = true;
         state.list = action.payload;
       })
-      .addCase(fetchClientByName.pending, (state) => {
+      .addCase(fetchClientById.pending, (state) => {
         state.loadingStates.fetching = true;
         state.error = null;
       })
-      .addCase(fetchClientByName.rejected, (state, action) => {
+      .addCase(fetchClientById.rejected, (state, action) => {
         state.loadingStates.fetching = false;
         state.clientLoaded = true;
         state.error = action.payload ?? null;
       })
-      .addCase(fetchClientByName.fulfilled, (state, action) => {
+      .addCase(fetchClientById.fulfilled, (state, action) => {
         state.loadingStates.fetching = false;
         state.clientLoaded = true;
         state.client = action.payload?.result;

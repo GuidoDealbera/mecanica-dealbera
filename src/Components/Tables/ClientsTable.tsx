@@ -214,11 +214,7 @@ const ClientTable: React.FC<ClientTableProps> = ({
                         isIconOnly
                         size="sm"
                         className="bg-transparent"
-                        onPress={() =>
-                          navigate(
-                            `/clients/${encodeURIComponent(client.fullname)}`
-                          )
-                        }
+                        onPress={() => navigate(`/clients/${client.id}`)}
                       >
                         <IoMdEye size={22} className="text-primary-600" />
                       </Button>

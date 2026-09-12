@@ -45,28 +45,37 @@ handleIpc("car:create", async (_event, payload: CreateCarDto) => {
       return { status: "failed", message: "Patente ya registrada" };
     }
 
-    let owner = await qr.manager.findOne(Client, {
-      where: { fullname: createCarDto.owner.fullname },
-    });
+    // Quién es el titular lo decide el `id` que mandó el formulario, no el
+    // nombre. Buscarlo por nombre hacía que el nombre fuera la identidad del
+    // cliente: dos personas que se llaman igual eran la misma, y bastaba con
+    // escribir el nombre de alguien que ya existía para que el auto le quedara
+    // asociado sin haberlo elegido.
+    let owner = createCarDto.ownerId
+      ? await qr.manager.findOne(Client, {
+          where: { id: createCarDto.ownerId },
+        })
+      : null;
+
+    if (createCarDto.ownerId && !owner) {
+      await qr.rollbackTransaction();
+      return { status: "failed", message: "El cliente seleccionado no existe" };
+    }
 
     if (owner) {
-      // El titular ya existe con ese nombre, así que el vehículo se le asocia.
-      // Pero si los datos cargados **no son los suyos**, antes se descartaban
-      // en silencio y el mensaje decía "Vehículo registrado correctamente":
-      // el auto quedaba a nombre de otra persona, con el teléfono de otra
-      // persona, y a quien se llamaba por el recordatorio de service era a la
-      // equivocada. Ahora se frena y se explica.
+      // Se eligió un cliente de la lista. Si además se editaron sus datos,
+      // antes se descartaban en silencio y el mensaje decía "Vehículo
+      // registrado correctamente": el auto quedaba con el teléfono viejo, y a
+      // quien se llamaba por el recordatorio de service era a la persona
+      // equivocada. Se frena y se explica.
       const difieren = describeOwnerMismatch(owner, createCarDto.owner);
       if (difieren.length > 0) {
         await qr.rollbackTransaction();
         return {
           status: "failed",
           message:
-            `Ya hay un cliente llamado "${owner.fullname}" y ${difieren.join(
-              ", "
-            )} no coincide con lo cargado. ` +
-            "Si es la misma persona, actualizá sus datos desde Clientes; si es " +
-            "otra, usá un nombre que las distinga.",
+            `Elegiste a "${owner.fullname}" y ${difieren.join(", ")} no ` +
+            "coincide con lo cargado. Si es la misma persona, actualizá sus " +
+            "datos desde Clientes; si es otra, cargala como titular nuevo.",
         };
       }
     } else {
@@ -326,7 +335,7 @@ handleIpc(
     _,
     licensePlate: string,
     payload:
-      | { mode: "existing"; existingOwnerFullname: string }
+      | { mode: "existing"; existingOwnerId: string }
       | { mode: "new"; newOwner: CreateClientDto }
   ) => {
     // El modo se comprueba y no se da por sentado: un canal IPC recibe lo que le
@@ -366,8 +375,15 @@ handleIpc(
       let newOwner;
 
       if (payload.mode === "existing") {
+        if (!esIdentificador(payload.existingOwnerId)) {
+          await qr.rollbackTransaction();
+          return {
+            status: "failed",
+            message: "El cliente seleccionado no existe",
+          };
+        }
         newOwner = await qr.manager.findOne(Client, {
-          where: { fullname: payload.existingOwnerFullname },
+          where: { id: payload.existingOwnerId },
         });
         if (!newOwner) {
           await qr.rollbackTransaction();

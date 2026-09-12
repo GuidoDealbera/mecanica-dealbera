@@ -29,13 +29,13 @@ export const fetchClients = createAsyncThunk<
   }
 });
 
-export const fetchClientByName = createAsyncThunk<
+export const fetchClientById = createAsyncThunk<
   APIResponse<Clients>,
   string,
   { rejectValue: AppError }
->("clients/fetchClientByName", async (fullname, { rejectWithValue }) => {
+>("clients/fetchClientById", async (id, { rejectWithValue }) => {
   try {
-    return await clientService.getOne(fullname);
+    return await clientService.getOne(id);
   } catch (error) {
     return rejectWithValue(toAppError(error));
   }

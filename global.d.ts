@@ -95,14 +95,14 @@ declare global {
         reassignOwner: (
           licensePlate: string,
           payload:
-            | { mode: "existing"; existingOwnerFullname: string }
+            | { mode: "existing"; existingOwnerId: string }
             | { mode: "new"; newOwner: CreateClientDto }
         ) => Promise<APIResponse>;
       };
       clients: {
         create: (dto: CreateClientDto) => Promise<APIResponse>;
         getAll: (params: ClientQueryParams) => Promise<Paginated<Client>>;
-        getByName: (fullname: string) => Promise<APIResponse<Client>>;
+        getById: (id: string) => Promise<APIResponse<Client>>;
         getCities: () => Promise<string[]>;
         search: (query: string) => Promise<APIResponse<Client[]>>;
         update: (dto: UpdateClientBody) => Promise<APIResponse<Client>>;
