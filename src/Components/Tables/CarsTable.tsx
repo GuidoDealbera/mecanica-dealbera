@@ -179,7 +179,7 @@ const CarsTable: React.FC<CarsTableProps> = ({
                   i !== cars.length - 1 && "border-b-2"
                 } border-r-2 border-divider`}
               >
-                {car.owner.fullname}
+                {car.owner?.fullname ?? "Sin titular"}
               </TableCell>
               <TableCell
                 className={`${

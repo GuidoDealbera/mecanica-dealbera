@@ -62,8 +62,12 @@ export class Car {
   @Column("integer", { nullable: false })
   kilometers!: number;
 
+  // `| null` porque la columna lo es: un vehículo cargado antes de que existiera
+  // el historial no tiene ninguno. El tipo lo decía al revés, así que el
+  // compilador no obligaba a contemplarlo y cada lugar se defendía —o no— por su
+  // cuenta.
   @Column("simple-json", { nullable: true })
-  kmHistory!: { km: number; date: string }[];
+  kmHistory!: { km: number; date: string }[] | null;
 
   // Intervalos de service propios del vehículo. `null` = usar los generales
   // (configuración global). Permite distinguir, por ejemplo, un auto de uso
@@ -83,9 +87,14 @@ export class Car {
   // La FK ManyToOne no se indexa automáticamente; el índice se crea en la
   // migración AddOwnerIndex1700000003000. Se declara aquí para mantener la
   // entidad y el esquema en sincronía (nombre alineado con la migración).
+  // `| null` porque la FK lo permite: la declara `ON DELETE SET NULL`, así que
+  // un vehículo puede quedarse sin titular. El tipo decía que siempre había uno
+  // y el código convivía con las dos ideas —hay lugares que hacen
+  // `car.owner?.fullname ?? "Sin titular"` y otros que no—; los que no se
+  // defendían funcionaban por suerte, no por garantía.
   @Index("IDX_car_owner")
   @ManyToOne(() => Client, (client) => client.cars, { nullable: true })
-  owner!: Client;
+  owner!: Client | null;
 
   constructor(partial: Partial<Car>) {
     Object.assign(this, partial);

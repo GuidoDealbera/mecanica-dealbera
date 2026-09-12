@@ -157,9 +157,11 @@ const AddCarForm: React.FC<AddCarFormProps> = ({
   }, [selectedOwner, setValue]);
 
   React.useEffect(() => {
-    if (initialValues) {
-      reset(initialValues);
-    }
+    if (!initialValues) return;
+    // El formulario siempre tiene campos de titular, aunque el vehículo no
+    // tenga uno: `null` se traduce a campos vacíos en vez de romper el `reset`.
+    const { owner, ...resto } = initialValues;
+    reset({ ...resto, owner: owner ?? undefined });
   }, [initialValues, reset]);
   return (
     <FormWrapper form={form}>

@@ -922,7 +922,7 @@ corregirlos.
 
 ### D2 · 🔴 Los tipos de las entidades mienten sobre lo que puede ser nulo
 
-**[pendiente]** · `electron/DataBase/Entities/*.entity.ts`
+**[a testear]** · `electron/DataBase/Entities/*.entity.ts`
 
 Tres columnas están declaradas `nullable: true` en la base y **no nulas** en
 TypeScript:
@@ -942,6 +942,30 @@ lado porque le mintieron.
 
 Cambiar los tipos a `Client | null` y compañía va a hacer aparecer los sitios sin
 proteger. Ese es el punto.
+
+**Resuelto, y el resultado fue al revés de lo esperado.** Corregir las tres
+columnas en las entidades del backend dio **cero errores**: ahí ya se usaba
+encadenamiento opcional en todos lados.
+
+Donde estaba la mentira que importaba era en los tipos del **renderer**, que son
+otros (`src/Types/types.ts`). Ahí `owner` decía ser siempre un `Client`, y
+corregirlo destapó tres accesos sin proteger:
+
+- **`CarsTable`** pintaba `car.owner.fullname` directo. Un vehículo sin titular
+  no rompía esa celda: **volteaba el listado entero de vehículos**.
+- **`CarDetailPage`** hacía `car!.owner.id` al guardar. Ahora, si no hay titular,
+  no intenta actualizarlo —asignarle uno es otra operación—.
+- **`AddCarForm`** pasaba el vehículo entero al `reset` del formulario.
+
+Con `parts` pasó algo revelador: el tipo decía "siempre un arreglo" y **todos los
+usos ya escribían `?? []`**. Esa repetición era la señal de que el tipo no
+describía la realidad. Corregirlo dejó un solo punto por arreglar, el envío del
+formulario, que ahora manda lista vacía en vez de ausencia: al backend le llega
+una sola forma.
+
+Queda anotado como deuda aparte que "sin repuestos" tenga **dos
+representaciones** —`null` y `[]`—: es lo que obliga al `?? []` en cada uso, y se
+arregla con un `NOT NULL DEFAULT '[]'` y su migración.
 
 ### D3 · 🟠 `countDueReminders` usa `COUNT(columna)`, contra la regla del propio proyecto
 
