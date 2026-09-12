@@ -300,6 +300,26 @@ handleIpc(
       | { mode: "existing"; existingOwnerFullname: string }
       | { mode: "new"; newOwner: CreateClientDto }
   ) => {
+    // El modo se comprueba y no se da por sentado: un canal IPC recibe lo que le
+    // manden, y con un `mode` cualquiera el `else` de más abajo tomaba la rama
+    // de "cliente nuevo" con un `newOwner` que podía no existir.
+    if (payload?.mode !== "existing" && payload?.mode !== "new") {
+      return { status: "failed", message: "Datos de reasignación inválidos" };
+    }
+
+    // El titular nuevo se valida con el mismo DTO que usa el alta. Sin esto,
+    // por acá se podía crear un cliente con teléfono en formato inválido,
+    // dirección vacía o correo mal formado —cosas que `car:create` rechaza—, y
+    // quedaban dos calidades de dato según por dónde se hubiera entrado.
+    let ownerValidado: CreateClientDto | null = null;
+    if (payload.mode === "new") {
+      const validation = await validateDto(CreateClientDto, payload.newOwner);
+      if (!validation.ok) {
+        return { status: "failed", message: validation.message };
+      }
+      ownerValidado = validation.dto;
+    }
+
     const qr = AppDataSource.createQueryRunner();
     await qr.connect();
     await qr.startTransaction();
@@ -335,16 +355,14 @@ handleIpc(
           };
         }
       } else {
-        const conflicto = await findClientConflict(
-          qr.manager,
-          payload.newOwner
-        );
+        const datosNuevos = ownerValidado as CreateClientDto;
+        const conflicto = await findClientConflict(qr.manager, datosNuevos);
         if (conflicto) {
           await qr.rollbackTransaction();
           return { status: "failed", message: conflicto };
         }
         newOwner = qr.manager.create(Client, {
-          ...payload.newOwner,
+          ...datosNuevos,
           isActive: true,
         });
         await qr.manager.save(Client, newOwner);

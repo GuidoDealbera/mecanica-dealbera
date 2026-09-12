@@ -30,6 +30,15 @@ export default defineConfig({
     },
   },
   test: {
+    // Los 5 segundos por defecto no alcanzan para los tests de base de datos:
+    // cada archivo levanta un `DataSource` y corre las once migraciones, y en
+    // frío —como corre siempre en CI— la primera pasada se lleva más de diez.
+    //
+    // `hookTimeout` va aparte y es el que faltaba: el plazo del `beforeEach`
+    // **no** es el del test, así que ponerlo por caso no servía de nada. Se
+    // cayó un test por esto justo después de escribirlo.
+    testTimeout: 60_000,
+    hookTimeout: 60_000,
     environment: "node",
     include: ["src/**/*.{test,spec}.{ts,tsx}", "electron/**/*.{test,spec}.ts"],
     setupFiles: ["./src/test/setup.ts"],

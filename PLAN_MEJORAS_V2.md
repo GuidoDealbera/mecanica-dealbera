@@ -480,7 +480,7 @@ remandar el resto; eso también quedó fijado con un caso.
 
 ### B3 · 🔴 `car:reassign-owner` crea clientes sin validar
 
-**[pendiente]** · `electron/DataBase/Endpoints/car.crud.endpoints.ts`
+**[a testear]** · `electron/DataBase/Endpoints/car.crud.endpoints.ts`
 
 En el modo `new`, el endpoint hace `qr.manager.create(Client, payload.newOwner)`
 directamente. `car:create` sí valida el titular anidado (`CreateCarDto` lo declara
@@ -489,6 +489,18 @@ con `@ValidateNested()`); este camino no.
 Escenario: reasignar el titular a uno nuevo permite crear un cliente con teléfono
 en formato inválido, dirección vacía o correo mal formado —cosas que el alta
 normal rechaza—. Quedan dos calidades de dato según por dónde se entró.
+
+**Resuelto** validando con el mismo `CreateClientDto` que usa el alta, antes de
+abrir la transacción. Apareció además que **el `mode` tampoco se comprobaba**:
+con uno cualquiera se caía en el `else`, o sea la rama de "cliente nuevo", con un
+`newOwner` que podía no existir.
+
+De paso se arregló algo del andamiaje de los tests que se destapó acá: el plazo de
+un `beforeEach` **no es el del test**, va aparte. Los tests de base de datos
+levantan un `DataSource` y corren once migraciones en el hook, así que en frío se
+pasaban de los 5 segundos por defecto y el archivo fallaba entero por un timeout
+que no tenía nada que ver con lo que se estaba probando. Ahora los dos plazos
+están en `vitest.config.ts` y la constante que cada archivo repetía se fue.
 
 ### B4 · 🟠 El vehículo no se puede editar: sólo el kilometraje
 

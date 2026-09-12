@@ -36,9 +36,6 @@ vi.mock("electron", () => ({
 let dir: string;
 let ds: DataSource;
 
-/** Ver el comentario de `PLAZO` en `applyPendingMigrations.test.ts`. */
-const PLAZO = 60_000;
-
 const invocar = async <T>(canal: string, ...args: unknown[]): Promise<T> => {
   const handler = stub.handlers.get(canal);
   if (!handler) throw new Error(`No se registró el canal ${canal}`);
@@ -93,86 +90,64 @@ afterEach(async () => {
 });
 
 describe("global:search", () => {
-  it(
-    "el guión bajo es texto, no un comodín",
-    async () => {
-      // `_` en SQL significa "un carácter cualquiera", así que sin escapar esto
-      // devolvía todos los vehículos y todos los clientes.
-      const res = await invocar<Global>("global:search", "__");
+  it("el guión bajo es texto, no un comodín", async () => {
+    // `_` en SQL significa "un carácter cualquiera", así que sin escapar esto
+    // devolvía todos los vehículos y todos los clientes.
+    const res = await invocar<Global>("global:search", "__");
 
-      expect(res.cars).toHaveLength(0);
-      expect(res.clients).toHaveLength(0);
-    },
-    PLAZO
-  );
+    expect(res.cars).toHaveLength(0);
+    expect(res.clients).toHaveLength(0);
+  });
 
-  it(
-    "el porcentaje es texto, no un comodín",
-    async () => {
-      const res = await invocar<Global>("global:search", "%%");
-      expect(res.cars).toHaveLength(0);
-      expect(res.clients).toHaveLength(0);
+  it("el porcentaje es texto, no un comodín", async () => {
+    const res = await invocar<Global>("global:search", "%%");
+    expect(res.cars).toHaveLength(0);
+    expect(res.clients).toHaveLength(0);
 
-      // Y un porcentaje que sí está en el dato se encuentra.
-      const literal = await invocar<Global>("global:search", "100%");
-      expect(literal.clients.map((c) => c.fullname)).toEqual([
-        "Carlos 100% Bravo",
-      ]);
-    },
-    PLAZO
-  );
+    // Y un porcentaje que sí está en el dato se encuentra.
+    const literal = await invocar<Global>("global:search", "100%");
+    expect(literal.clients.map((c) => c.fullname)).toEqual([
+      "Carlos 100% Bravo",
+    ]);
+  });
 
-  it(
-    "sigue encontrando lo que tiene que encontrar",
-    async () => {
-      const porPatente = await invocar<Global>("global:search", "AB123");
-      expect(porPatente.cars.map((c) => c.licensePlate)).toEqual(["AB123CD"]);
+  it("sigue encontrando lo que tiene que encontrar", async () => {
+    const porPatente = await invocar<Global>("global:search", "AB123");
+    expect(porPatente.cars.map((c) => c.licensePlate)).toEqual(["AB123CD"]);
 
-      const porModelo = await invocar<Global>("global:search", "GOL");
-      expect(porModelo.cars.map((c) => c.model)).toEqual(["GOL"]);
+    const porModelo = await invocar<Global>("global:search", "GOL");
+    expect(porModelo.cars.map((c) => c.model)).toEqual(["GOL"]);
 
-      const porNombre = await invocar<Global>("global:search", "Ana");
-      expect(porNombre.clients.map((c) => c.fullname)).toEqual(["Ana Gómez"]);
+    const porNombre = await invocar<Global>("global:search", "Ana");
+    expect(porNombre.clients.map((c) => c.fullname)).toEqual(["Ana Gómez"]);
 
-      const porTelefono = await invocar<Global>("global:search", "3515123456");
-      expect(porTelefono.clients).toHaveLength(1);
-    },
-    PLAZO
-  );
+    const porTelefono = await invocar<Global>("global:search", "3515123456");
+    expect(porTelefono.clients).toHaveLength(1);
+  });
 
-  it(
-    "un término de menos de dos caracteres o que no es texto no consulta nada",
-    async () => {
-      expect((await invocar<Global>("global:search", "a")).cars).toHaveLength(
-        0
-      );
-      // El renderer no debería mandar esto, pero un canal IPC recibe lo que le
-      // manden y antes esto reventaba con "cannot read properties of undefined".
-      expect(
-        (await invocar<Global>("global:search", undefined)).cars
-      ).toHaveLength(0);
-    },
-    PLAZO
-  );
+  it("un término de menos de dos caracteres o que no es texto no consulta nada", async () => {
+    expect((await invocar<Global>("global:search", "a")).cars).toHaveLength(0);
+    // El renderer no debería mandar esto, pero un canal IPC recibe lo que le
+    // manden y antes esto reventaba con "cannot read properties of undefined".
+    expect(
+      (await invocar<Global>("global:search", undefined)).cars
+    ).toHaveLength(0);
+  });
 });
 
 describe("client:search", () => {
-  it(
-    "escapa los comodines igual que el resto",
-    async () => {
-      type Res = { result: { fullname: string }[] };
+  it("escapa los comodines igual que el resto", async () => {
+    type Res = { result: { fullname: string }[] };
 
-      const comodin = await invocar<Res>("client:search", "__");
-      expect(comodin.result).toHaveLength(0);
+    const comodin = await invocar<Res>("client:search", "__");
+    expect(comodin.result).toHaveLength(0);
 
-      const literal = await invocar<Res>("client:search", "100%");
-      expect(literal.result.map((c) => c.fullname)).toEqual([
-        "Carlos 100% Bravo",
-      ]);
+    const literal = await invocar<Res>("client:search", "100%");
+    expect(literal.result.map((c) => c.fullname)).toEqual([
+      "Carlos 100% Bravo",
+    ]);
 
-      const normal = await invocar<Res>("client:search", "Ana");
-      expect(normal.result.map((c) => c.fullname)).toEqual(["Ana Gómez"]);
-    },
-    PLAZO
-  );
+    const normal = await invocar<Res>("client:search", "Ana");
+    expect(normal.result.map((c) => c.fullname)).toEqual(["Ana Gómez"]);
+  });
 });

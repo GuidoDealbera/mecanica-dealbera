@@ -43,9 +43,6 @@ vi.mock("electron", () => ({
 
 let dir: string;
 
-/** Ver el comentario de `PLAZO` en `applyPendingMigrations.test.ts`. */
-const PLAZO = 60_000;
-
 /** Base tal como la escribía la 1.0.3: sin `job`, `document` ni recordatorios. */
 const crearBaseVieja = (dbPath: string) => {
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });
@@ -124,91 +121,79 @@ afterEach(() => {
 });
 
 describe("backup:restore", () => {
-  it(
-    "pone al día un respaldo de una versión anterior",
-    async () => {
-      // La base en uso arranca vacía y al día; el respaldo es del esquema viejo.
-      crearBaseVieja(path.join(dir, "backups", "taller_2026-01-05.db"));
+  it("pone al día un respaldo de una versión anterior", async () => {
+    // La base en uso arranca vacía y al día; el respaldo es del esquema viejo.
+    crearBaseVieja(path.join(dir, "backups", "taller_2026-01-05.db"));
 
-      const { AppDataSource, applyPendingMigrations } = await cargarEndpoints();
-      await AppDataSource.initialize();
-      await applyPendingMigrations();
+    const { AppDataSource, applyPendingMigrations } = await cargarEndpoints();
+    await AppDataSource.initialize();
+    await applyPendingMigrations();
 
-      const res = await invocar("backup:restore", "taller_2026-01-05.db");
+    const res = await invocar("backup:restore", "taller_2026-01-05.db");
 
-      expect(res.status).toBe("success");
+    expect(res.status).toBe("success");
 
-      // Esto primero, porque es el síntoma: sin migrar, la base en uso queda
-      // sin las tablas que la aplicación da por sentadas y revienta la primera
-      // pantalla que las toque.
-      const dbPath = path.join(dir, "taller.db");
-      expect(tablas(dbPath)).toEqual(
-        expect.arrayContaining(["job", "document", "service_reminder"])
-      );
+    // Esto primero, porque es el síntoma: sin migrar, la base en uso queda
+    // sin las tablas que la aplicación da por sentadas y revienta la primera
+    // pantalla que las toque.
+    const dbPath = path.join(dir, "taller.db");
+    expect(tablas(dbPath)).toEqual(
+      expect.arrayContaining(["job", "document", "service_reminder"])
+    );
 
-      // Y el mensaje avisa que además se actualizó: el usuario tiene que saber
-      // que su respaldo ya no es idéntico a lo que quedó restaurado.
-      expect(res.message).toMatch(/actualizada/i);
+    // Y el mensaje avisa que además se actualizó: el usuario tiene que saber
+    // que su respaldo ya no es idéntico a lo que quedó restaurado.
+    expect(res.message).toMatch(/actualizada/i);
 
-      const db = new Database(dbPath, { readonly: true });
-      const patente = (
-        db.prepare("SELECT licensePlate FROM car").get() as {
-          licensePlate: string;
-        }
-      ).licensePlate;
-      db.close();
-      expect(patente).toBe("ZZ999ZZ");
+    const db = new Database(dbPath, { readonly: true });
+    const patente = (
+      db.prepare("SELECT licensePlate FROM car").get() as {
+        licensePlate: string;
+      }
+    ).licensePlate;
+    db.close();
+    expect(patente).toBe("ZZ999ZZ");
 
-      await AppDataSource.destroy();
-    },
-    PLAZO
-  );
+    await AppDataSource.destroy();
+  });
 
-  it(
-    "un archivo que no es una base deja todo como estaba",
-    async () => {
-      const { AppDataSource, applyPendingMigrations } = await cargarEndpoints();
-      await AppDataSource.initialize();
-      await applyPendingMigrations();
+  it("un archivo que no es una base deja todo como estaba", async () => {
+    const { AppDataSource, applyPendingMigrations } = await cargarEndpoints();
+    await AppDataSource.initialize();
+    await applyPendingMigrations();
 
-      // Se marca la base en uso para reconocerla después de la vuelta atrás.
-      await AppDataSource.query(
-        "INSERT INTO app_setting (key, value) VALUES ('marca', 'la-de-antes')"
-      );
+    // Se marca la base en uso para reconocerla después de la vuelta atrás.
+    await AppDataSource.query(
+      "INSERT INTO app_setting (key, value) VALUES ('marca', 'la-de-antes')"
+    );
 
-      const basura = path.join(dir, "backups", "taller_2026-01-06.db");
-      fs.mkdirSync(path.dirname(basura), { recursive: true });
-      fs.writeFileSync(basura, "esto no es una base de datos");
+    const basura = path.join(dir, "backups", "taller_2026-01-06.db");
+    fs.mkdirSync(path.dirname(basura), { recursive: true });
+    fs.writeFileSync(basura, "esto no es una base de datos");
 
-      const res = await invocar("backup:restore", "taller_2026-01-06.db");
-      expect(res.status).toBe("failed");
+    const res = await invocar("backup:restore", "taller_2026-01-06.db");
+    expect(res.status).toBe("failed");
 
-      // Y la base de antes volvió, con su marca: la vuelta atrás sirve de algo.
-      const marca = (
-        (await AppDataSource.query(
-          "SELECT value FROM app_setting WHERE key = 'marca'"
-        )) as { value: string }[]
-      )[0];
-      expect(marca?.value).toBe("la-de-antes");
+    // Y la base de antes volvió, con su marca: la vuelta atrás sirve de algo.
+    const marca = (
+      (await AppDataSource.query(
+        "SELECT value FROM app_setting WHERE key = 'marca'"
+      )) as { value: string }[]
+    )[0];
+    expect(marca?.value).toBe("la-de-antes");
 
-      await AppDataSource.destroy();
-    },
-    PLAZO
-  );
+    await AppDataSource.destroy();
+  });
 
-  it(
-    "no se encuentra el respaldo pedido",
-    async () => {
-      const { AppDataSource, applyPendingMigrations } = await cargarEndpoints();
-      await AppDataSource.initialize();
-      await applyPendingMigrations();
+  it("no se encuentra el respaldo pedido", async () => {
+    const { AppDataSource, applyPendingMigrations } = await cargarEndpoints();
+    await AppDataSource.initialize();
+    await applyPendingMigrations();
 
-      const res = await invocar("backup:restore", "no-existe.db");
-      expect(res.status).toBe("failed");
-      expect(res.message).toMatch(/no se encontró/i);
+    const res = await invocar("backup:restore", "no-existe.db");
+    expect(res.status).toBe("failed");
+    expect(res.message).toMatch(/no se encontró/i);
 
-      await AppDataSource.destroy();
-    },
-    PLAZO
-  );
+    await AppDataSource.destroy();
+  });
 });
