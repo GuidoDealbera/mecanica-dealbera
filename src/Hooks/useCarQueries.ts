@@ -1,10 +1,9 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCarStore } from "./useCarStore";
 import { useToasts } from "./useToasts";
 import { CarActions } from "../Constants/car.constants";
-import { ensureSuccess } from "../Utils/apiResponse";
+import { ensureSuccess, errorMessage, failureFrom } from "../Utils/apiResponse";
 import {
   CarQueryParams,
   CreateCarBody,
@@ -72,9 +71,9 @@ export const useCarQueries = () => {
           navigate("/cars", { state: { bypassGuard: true } });
         }
         return response;
-      } catch (error: any) {
-        showToast(error.message, "danger", CarActions.CREATE);
-        return error;
+      } catch (error) {
+        showToast(errorMessage(error), "danger", CarActions.CREATE);
+        return failureFrom(error);
       } finally {
         setLoading(false);
       }
@@ -87,8 +86,6 @@ export const useCarQueries = () => {
       setLoading(true);
       try {
         await fetchList(params);
-      } catch (error) {
-        return error;
       } finally {
         setLoading(false);
       }
@@ -106,13 +103,12 @@ export const useCarQueries = () => {
           "success",
           CarActions.REFRESH
         );
-      } catch (error) {
+      } catch {
         showToast(
           "Error al actualizar los datos",
           "danger",
           CarActions.REFRESH
         );
-        return error;
       } finally {
         setRefreshing(false);
       }
@@ -130,13 +126,12 @@ export const useCarQueries = () => {
           "success",
           CarActions.REFRESH
         );
-      } catch (error) {
+      } catch {
         showToast(
           "Error al actualizar los datos",
           "danger",
           CarActions.REFRESH
         );
-        return error;
       } finally {
         setRefreshing(false);
       }
@@ -149,9 +144,8 @@ export const useCarQueries = () => {
       setLoading(true);
       try {
         await fetchByLicence(licence);
-      } catch (error: any) {
-        showToast(error.message, "danger", CarActions.FETCH);
-        return error;
+      } catch (error) {
+        showToast(errorMessage(error), "danger", CarActions.FETCH);
       } finally {
         setLoading(false);
       }
@@ -165,9 +159,9 @@ export const useCarQueries = () => {
       try {
         const response = await removeInStore(licence);
         showToast(response.message, "success", CarActions.DELETE);
-      } catch (error: any) {
-        showToast(error.message, "danger", CarActions.DELETE);
-        return error;
+      } catch (error) {
+        showToast(errorMessage(error), "danger", CarActions.DELETE);
+        return failureFrom(error);
       } finally {
         setLoading(false);
       }
@@ -188,8 +182,8 @@ export const useCarQueries = () => {
         if (isOnly) {
           showToast(response.message, "success", CarActions.UPDATE);
         }
-      } catch (error: any) {
-        if (isOnly) showToast(error.message, "danger", CarActions.UPDATE);
+      } catch (error) {
+        if (isOnly) showToast(errorMessage(error), "danger", CarActions.UPDATE);
         throw error;
       } finally {
         setLoading(false);
@@ -212,9 +206,9 @@ export const useCarQueries = () => {
           navigate(`/cars/${licence}`, { state: { bypassGuard: true } });
         }
         return response;
-      } catch (error: any) {
-        showToast(error.message, "danger", CarActions.JOB_CREATE);
-        return error;
+      } catch (error) {
+        showToast(errorMessage(error), "danger", CarActions.JOB_CREATE);
+        return failureFrom(error);
       } finally {
         setLoading(false);
       }
@@ -232,14 +226,14 @@ export const useCarQueries = () => {
         // mensaje de error. Se devuelve la respuesta (en vez de lanzar) porque
         // los consumidores deciden según `status` si cierran el formulario.
         showToast(
-          response.message as string,
+          response.message,
           response.status === "success" ? "success" : "danger",
           CarActions.JOB_UPDATE
         );
         return response;
-      } catch (error: any) {
-        showToast(error.message, "danger", CarActions.JOB_UPDATE);
-        return { status: "failed" as const, message: error.message as string };
+      } catch (error) {
+        showToast(errorMessage(error), "danger", CarActions.JOB_UPDATE);
+        return failureFrom(error);
       } finally {
         setLoading(false);
       }

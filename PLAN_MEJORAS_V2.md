@@ -288,7 +288,7 @@ Detalles que aparecieron probándolo contra la aplicación real:
 
 ### A10 · 🟠 Los hooks devuelven el `Error` donde el llamador espera la respuesta del backend
 
-**[pendiente]** · `src/Hooks/useCarQueries.ts`
+**[a testear]** · `src/Hooks/useCarQueries.ts`
 
 Varios `catch` hacen `return error`, y los llamadores hacen
 `if (response.status === "success")`. Un `Error` no tiene `status`, así que da
@@ -298,6 +298,15 @@ interpreta como fallo.
 El archivo además arranca con un `eslint-disable` de `no-explicit-any` y tiene
 seis `catch (error: any)`: si lo que se lanza no es un `Error`, `error.message` es
 `undefined` y el toast sale vacío.
+
+**Resuelto.** Dos helpers nuevos en `src/Utils/apiResponse.ts`, que es donde ya
+vive `ensureSuccess`: `errorMessage` saca un texto legible de lo que sea que se
+haya lanzado, y `failureFrom` arma una respuesta con la forma del backend. Los
+seis `catch` pasaron a `unknown` y el `eslint-disable` del archivo se fue.
+
+Los tres que no devolvían nada útil —`getCars`, `refresh` y `refreshCar`, cuyos
+llamadores ignoran el retorno— dejaron de devolver el error: devolverlo sólo
+servía para confundir sobre el contrato.
 
 ### A11 · 🟠 Las notificaciones de Windows no declaran la identidad de la aplicación
 
