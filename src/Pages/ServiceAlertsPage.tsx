@@ -195,7 +195,7 @@ const ServiceAlertsPage: React.FC = () => {
     [fetchReminders, showToast]
   );
 
-  const handleWhatsapp = (reminder: ServiceReminderView) => {
+  const handleWhatsapp = async (reminder: ServiceReminderView) => {
     const message =
       `Hola ${reminder.owner.fullname}, te escribimos de Mecánica Dealbera. ` +
       `Según nuestros registros, tu ${reminder.car.brand} ${reminder.car.model} ` +
@@ -210,8 +210,15 @@ const ServiceAlertsPage: React.FC = () => {
       );
       return;
     }
-    window.api.global.openExternal(url);
-    // Se registra el contacto para saber a quién ya se avisó.
+    // El contacto se registra **sólo si el enlace abrió de verdad**. Antes se
+    // marcaba igual: si WhatsApp no llegaba a abrirse, el recordatorio quedaba
+    // como "ya avisado" sin que nadie hubiera avisado nada, y desaparecía del
+    // filtro de pendientes.
+    const abierto = await window.api.global.openExternal(url);
+    if (abierto.status !== "success") {
+      showToast(abierto.message, "danger", "Recordatorios");
+      return;
+    }
     runAction(reminder.id, () => window.api.service.markContacted(reminder.id));
   };
 

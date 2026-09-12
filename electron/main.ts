@@ -31,6 +31,7 @@ import {
 import { createDailyBackup } from "./DataBase/backups";
 import { onDashboardStatsInvalidated } from "./DataBase/dashboardCache";
 import { countDueReminders } from "./DataBase/serviceReminders.service";
+import type { APIResponse } from "../src/Types/apiTypes";
 
 log.initialize();
 log.transports.file.level = "info";
@@ -606,15 +607,45 @@ handleIpc("app:open-logs-folder", () => {
   shell.showItemInFolder(logPath);
 });
 
-// Abre una URL en el navegador/app externa por defecto (ej. el link wa.me de
-// WhatsApp). Se restringe a https para no abrir esquemas arbitrarios.
-handleIpc("app:open-external", async (_event, url: string) => {
-  if (typeof url !== "string" || !url.startsWith("https://")) {
-    logError("app:open-external", new Error(`URL no permitida: ${url}`));
-    return;
+/**
+ * Abre una URL en la aplicación externa que corresponda —hoy el enlace `wa.me`
+ * de WhatsApp—. Se restringe a `https` para no abrir esquemas arbitrarios.
+ *
+ * Devuelve el envelope como el resto de los canales. Antes registraba el error y
+ * hacía `return`: el renderer recibía `undefined`, que es indistinguible del
+ * éxito. El caso concreto es un titular sin teléfono válido —`buildWhatsappUrl`
+ * devuelve cadena vacía—: se apretaba el botón, no pasaba nada, y nadie decía
+ * por qué.
+ */
+handleIpc(
+  "app:open-external",
+  async (_event, url: unknown): Promise<APIResponse> => {
+    if (typeof url !== "string" || !url.startsWith("https://")) {
+      logWarn("app:open-external", "URL no permitida", { url: String(url) });
+      return {
+        status: "failed",
+        message: "No hay un enlace válido para abrir",
+        result: undefined,
+      };
+    }
+
+    try {
+      await shell.openExternal(url);
+      return {
+        status: "success",
+        message: "Enlace abierto",
+        result: undefined,
+      };
+    } catch (error) {
+      logError("app:open-external", error, { url });
+      return {
+        status: "failed",
+        message: "No se pudo abrir el enlace",
+        result: undefined,
+      };
+    }
   }
-  await shell.openExternal(url);
-});
+);
 
 ipcMain.on("start-update-download", () => {
   // `downloadUpdate()` también emite `error` y rechaza: el rechazo se atiende

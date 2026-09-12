@@ -156,7 +156,7 @@ declare global {
       global: {
         search: (query: string) => Promise<{ status: string } & SearchResult>;
         openLogsFolder: () => Promise<void>;
-        openExternal: (url: string) => Promise<void>;
+        openExternal: (url: string) => Promise<APIResponse>;
         setUnsavedChanges: (dirty: boolean) => void;
       };
     };

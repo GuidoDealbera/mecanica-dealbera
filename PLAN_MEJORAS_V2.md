@@ -816,7 +816,7 @@ versión sin empaquetar habría dejado la rama que importa sin probar.
 
 ### C6 · 🟡 `app:open-external` falla en silencio hacia el renderer
 
-**[pendiente]** · `electron/main.ts`
+**[a testear]** · `electron/main.ts`
 
 Si la URL no empieza con `https://`, se registra el error y se hace `return`. El
 renderer recibe `undefined`, que es indistinguible del éxito: el usuario aprieta
@@ -824,6 +824,26 @@ renderer recibe `undefined`, que es indistinguible del éxito: el usuario apriet
 
 Corresponde devolver el envelope `{ status: "failed", message }` como el resto de
 los canales.
+
+**Resuelto**, y conectarlo a las pantallas destapó algo peor. La bandeja de
+recordatorios hacía:
+
+```ts
+window.api.global.openExternal(url);
+runAction(reminder.id, () => window.api.service.markContacted(reminder.id));
+```
+
+O sea que **marcaba el recordatorio como "ya avisado" sin esperar a que el
+enlace abriera**. Si WhatsApp no llegaba a abrirse, el vehículo quedaba
+registrado como contactado sin que nadie hubiera contactado a nadie, y
+desaparecía del filtro de pendientes: el titular no se entera nunca de que le
+toca el service. Ahora el contacto se registra sólo si el enlace abrió.
+
+Las dos pantallas ya cubrían el caso de la URL vacía —el botón se deshabilita,
+o sale un aviso—, así que lo que quedaba mudo era que fallara la apertura en sí.
+
+Comprobado en la aplicación real con cadena vacía, `http://`, `javascript:` y un
+valor que no es texto: los cuatro devuelven el envelope con su motivo.
 
 ### C7 · ⚪ La firma del instalador no está configurada en ningún lado
 
