@@ -154,15 +154,63 @@ export function formatDate(date: Date | string | null | undefined): string {
   return `${day}/${month}/${year}`;
 }
 
+/**
+ * El dinero de esta aplicación son **pesos enteros**, sin centavos.
+ *
+ * No es una decisión que se tome acá: `job.price`, `document.total` y el número
+ * de documento son columnas `integer`, y `formatARS` imprime con
+ * `maximumFractionDigits: 0`. Lo único que se había escapado es el precio de
+ * los repuestos, que vive en un JSON libre —eso lo arregla `JobPartDto`— y este
+ * par de funciones, que son la entrada y la salida de los tres campos de dinero
+ * del programa: el precio del trabajo, el de cada repuesto y la edición del
+ * precio en la lista de trabajos.
+ */
+
+/** Muestra un importe con los puntos de miles: `1234567` → `1.234.567`. */
 export const formatThousands = (value?: number | null) => {
   if (value === null || value === undefined) return "";
-  return value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  // Se redondea antes de agrupar. Sin esto, un valor con decimales —que puede
+  // haber quedado guardado en los repuestos de un trabajo viejo— se agrupaba
+  // como si el punto decimal fuera un separador de miles: `1234.56` salía
+  // `"1.234.56"`, y al volver a guardar se leía como 123456.
+  return Math.round(value)
+    .toString()
+    .replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 };
 
+/**
+ * Lee lo que el usuario escribió en un campo de dinero.
+ *
+ * Antes borraba **todos** los puntos y llamaba a `Number`, que con la coma
+ * decimal argentina da `NaN`. Las dos formas de escribir un decimal terminaban
+ * mal, y ninguna avisaba:
+ *
+ * - `"1234,56"` → `0`: el importe se ponía en cero.
+ * - `"1234.56"` → `123456`: el punto se tomaba por separador de miles y el
+ *   precio quedaba **cien veces más caro**.
+ *
+ * Ahora se distingue cuál es cuál. La coma es siempre el separador decimal. Un
+ * punto es separador de miles sólo si agrupa de a tres dígitos hasta el final;
+ * si no —`1234.56`—, es un punto decimal escrito a la inglesa. Y el resultado
+ * se redondea, porque el importe se guarda en pesos enteros: es preferible
+ * cobrar un peso de más o de menos que cien veces de más.
+ */
 export const parseNumber = (value: string) => {
-  const clean = value.replace(/\./g, "");
-  const numeric = Number(clean);
-  return isNaN(numeric) ? 0 : numeric;
+  const texto = value.trim();
+  if (texto === "") return 0;
+
+  const conComa = texto.includes(",");
+  // Con coma presente, los puntos son separadores de miles sin ambigüedad.
+  // Sin coma, un punto sólo lo es si lo que sigue son grupos de tres.
+  const esSeparadorDeMiles =
+    conComa || /^-?\d{1,3}(\.\d{3})+$/.test(texto) || !texto.includes(".");
+
+  const normalizado = esSeparadorDeMiles
+    ? texto.replace(/\./g, "").replace(",", ".")
+    : texto;
+
+  const numero = Number(normalizado);
+  return isNaN(numero) ? 0 : Math.round(numero);
 };
 
 export const formatARS = (n: number): string =>

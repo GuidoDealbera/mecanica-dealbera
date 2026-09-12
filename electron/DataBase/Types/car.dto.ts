@@ -4,7 +4,6 @@ import {
   IsEnum,
   IsInt,
   IsNotEmpty,
-  IsNumber,
   IsOptional,
   IsString,
   Length,
@@ -92,7 +91,13 @@ export class JobPartDto {
   @IsNotEmpty({ message: "El repuesto necesita un nombre" })
   name!: string;
 
-  @IsNumber({}, { message: "El precio del repuesto no es un número" })
+  // Entero, igual que `price` del trabajo. Era `@IsNumber`, y esa diferencia no
+  // era una decisión: el dinero de esta aplicación son pesos enteros —las
+  // columnas `job.price` y `document.total` son `integer` y `formatARS` imprime
+  // sin decimales—, pero los repuestos viven en un JSON libre y ahí no había
+  // nada que lo impidiera. Quedaba medio y medio, con los centavos del repuesto
+  // sumando al total y desapareciendo al imprimirlo.
+  @IsInt({ message: "El precio del repuesto tiene que ser un número entero" })
   @Min(0, { message: "El precio del repuesto no puede ser negativo" })
   price!: number;
 }

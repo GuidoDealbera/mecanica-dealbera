@@ -77,6 +77,14 @@ describe("formatThousands", () => {
     expect(formatThousands(null)).toBe("");
     expect(formatThousands(undefined)).toBe("");
   });
+
+  it("redondea antes de agrupar", () => {
+    // Un decimal guardado en un repuesto viejo se agrupaba como si el punto
+    // fuera separador de miles —`1234.56` salía `"1.234.56"`—, y al volver a
+    // guardar el campo eso se leía como 123456.
+    expect(formatThousands(1234.56)).toBe("1.235");
+    expect(formatThousands(1234567.5)).toBe("1.234.568");
+  });
 });
 
 describe("parseNumber", () => {
@@ -90,6 +98,34 @@ describe("parseNumber", () => {
 
   it("es la operación inversa de formatThousands", () => {
     expect(parseNumber(formatThousands(45000))).toBe(45000);
+  });
+
+  it("entiende la coma decimal en vez de poner el importe en cero", () => {
+    // Escribir "1234,56" dejaba el precio en 0, sin avisar: `Number` con coma
+    // devuelve NaN y la función lo cambiaba por cero.
+    expect(parseNumber("1234,56")).toBe(1235);
+    expect(parseNumber("1.234,56")).toBe(1235);
+    expect(parseNumber("1.234,49")).toBe(1234);
+  });
+
+  it("no toma el punto decimal por separador de miles", () => {
+    // Este era el peor: "1234.56" se leía 123456, o sea **cien veces** el
+    // precio. Un repuesto de mil doscientos pesos salía a ciento veintitrés mil.
+    expect(parseNumber("1234.56")).toBe(1235);
+    expect(parseNumber("0.5")).toBe(1);
+    expect(parseNumber("12.5")).toBe(13);
+  });
+
+  it("sigue tratando el punto como miles cuando agrupa de a tres", () => {
+    // Que es como lo escribe `formatThousands` y como lo escribe la gente.
+    expect(parseNumber("1.234")).toBe(1234);
+    expect(parseNumber("12.345")).toBe(12345);
+    expect(parseNumber("1.234.567")).toBe(1234567);
+  });
+
+  it("devuelve 0 ante un campo vacío", () => {
+    expect(parseNumber("")).toBe(0);
+    expect(parseNumber("   ")).toBe(0);
   });
 });
 

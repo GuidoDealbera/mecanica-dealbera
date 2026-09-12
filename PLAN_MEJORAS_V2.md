@@ -1122,9 +1122,9 @@ persona—. Si coinciden el nombre **y** el teléfono, el aviso lo dice de una v
 es la señal más fuerte de que es un duplicado de verdad, y avisar de uno solo la
 escondería a medias.
 
-### D6 · 🟡 El dinero se guarda en `integer` para el trabajo y en JSON libre para los repuestos
+### D6 · 🔴 El dinero se guarda en `integer` para el trabajo y en JSON libre para los repuestos
 
-**[pendiente]** · `electron/DataBase/Entities/job.entity.ts`
+**[a testear]** · `electron/DataBase/Entities/job.entity.ts`
 
 `Job.price` es `integer`, así que la mano de obra no admite centavos. Los
 repuestos viven en `Job.parts` como `simple-json`, donde `price` es un número de
@@ -1137,6 +1137,44 @@ tenerlos. El documento impreso mezcla las dos cosas.
 Hay que decidir una representación y aplicarla a las dos: o todo en centavos
 (`integer`, que es lo más sano para dinero), o todo con decimales explícitos. Hoy
 es medio y medio por accidente.
+
+**Resuelto**, y buscando el escenario descrito apareció otro bastante peor. Sube
+de 🟡 a 🔴: se cobra mal.
+
+La representación no había que elegirla, ya estaba elegida. `job.price`,
+`document.total` y el número de documento son columnas `integer`, y `formatARS`
+imprime con `maximumFractionDigits: 0`. Son **pesos enteros**. El precio del
+repuesto es el único que se escapó, y no por decisión: vive dentro de un
+`simple-json`, donde no hay tipo que lo impida. Así que ahora `JobPartDto` lo
+valida con `@IsInt`, igual que el precio del trabajo, y una migración redondea
+lo que hubiera quedado guardado con centavos —sin eso, editar un trabajo viejo
+fallaría con un error sobre un dato que el usuario nunca escribió—.
+
+Lo que **no** pasa es lo que decía el escenario: el documento impreso no mezcla
+las dos cosas, porque todo se imprime con `formatARS` y los centavos
+desaparecen. El daño era invisible, que es distinto de inexistente.
+
+Lo grave está antes, en `parseNumber`, que es por donde entran los **tres**
+campos de dinero del programa: el precio del trabajo, el de cada repuesto y la
+edición del precio en la lista. Borraba todos los puntos y llamaba a `Number`,
+así que las dos maneras de escribir un decimal terminaban mal y ninguna avisaba:
+
+| lo que se escribe | lo que se guardaba |
+| ----------------- | ------------------ |
+| `1234,56`         | `0`                |
+| `1234.56`         | `123456`           |
+
+El segundo es el que importa: el precio queda **cien veces más caro** y el
+usuario no tiene forma de notarlo salvo mirando el total. Y se realimentaba
+solo, porque `formatThousands(1234.56)` devolvía `"1.234.56"`: abrir para editar
+un importe con decimales y volver a guardarlo lo multiplicaba por cien sin
+tocarlo.
+
+Ahora la coma es siempre el separador decimal, y un punto sólo es separador de
+miles si agrupa de a tres hasta el final; si no, es un punto decimal escrito a
+la inglesa. El resultado se redondea, que es lo que corresponde si el importe se
+guarda en pesos enteros: preferible un peso de más o de menos que cien veces de
+más.
 
 ---
 
