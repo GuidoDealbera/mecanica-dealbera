@@ -420,7 +420,7 @@ fondo —"todo endpoint que reciba un objeto valida su DTO"— y no una por una.
 
 ### B1 · 🔴 `car:add-job` guarda lo que le manden, sin validar nada
 
-**[pendiente]** · `electron/DataBase/Endpoints/car.jobs.endpoints.ts`
+**[a testear]** · `electron/DataBase/Endpoints/car.jobs.endpoints.ts`
 
 El endpoint no valida ningún DTO y hace `price: jobDto.price as number` —un
 **cast**, que en TypeScript no comprueba nada en tiempo de ejecución—.
@@ -439,9 +439,27 @@ Qué entra sin control:
 `UpdateJobDto` ya declara `@IsEnum(JobStatus)` y `@IsInt()` para esto. Sólo hay
 que aplicarlo, y crear el DTO equivalente para el alta.
 
+**Resuelto.** El DTO del alta **ya existía**: era `JobsDto`, escrito completo y
+sin usar. Se renombró a `CreateJobDto` —para que se lea como sus hermanos
+`CreateCarDto` y `CreateClientDto`— y se conectó al endpoint.
+
+Los repuestos necesitaron una clase propia (`JobPartDto`): `@IsArray()` sólo
+comprueba que sea un arreglo, y lo de adentro seguía pasando sin mirar.
+
+Dos cosas que aparecieron escribiendo los tests:
+
+- **`@IsNotEmpty` no rechaza `"   "`.** Un repuesto llamado con puros espacios
+  pasaba la validación y salía en blanco en la factura. Se recorta antes de
+  validar, con el mismo `@Transform` que ya usaba la patente; vale también para
+  la descripción del trabajo, que se imprime en el presupuesto.
+- **`whitelist: true` bloquea de yapa un camino que nadie había mirado**: el
+  cliente podía mandar `id` o `carId` en el cuerpo. Quedó un test que lo fija.
+
+Comprobado sacando la validación: 5 de los 8 casos fallan.
+
 ### B2 · 🔴 `car:update-job` tampoco valida
 
-**[pendiente]** · `electron/DataBase/Endpoints/car.jobs.endpoints.ts`
+**[a testear]** · `electron/DataBase/Endpoints/car.jobs.endpoints.ts`
 
 Mismo problema que B1, con el agravante de que **el DTO correcto existe y está
 importado**: `UpdateJobDto` se usa sólo como tipo de TypeScript. Los decoradores
@@ -451,9 +469,18 @@ Además, aunque se validara, `parts` está declarado como `@IsOptional()` **sin*
 `@ValidateNested()` ni `@Type()`, así que los ítems de adentro seguirían sin
 comprobarse.
 
+**Resuelto.** Editar era la puerta de atrás: todo lo que el alta rechaza —estado
+inventado, precio negativo o decimal, repuesto con precio de texto o nombre en
+blanco— entraba por acá. Ahora los dos endpoints comparten las mismas reglas, y
+hay un test que recorre esa lista sobre `car:update-job` y comprueba además que
+el trabajo **queda como estaba** cuando se rechaza.
+
+Los campos siguen siendo opcionales, que es lo que permite cambiar el estado sin
+remandar el resto; eso también quedó fijado con un caso.
+
 ### B3 · 🔴 `car:reassign-owner` crea clientes sin validar
 
-**[pendiente]** · `electron/DataBase/Endpoints/car.crud.endpoints.ts`
+**[a testear]** · `electron/DataBase/Endpoints/car.crud.endpoints.ts`
 
 En el modo `new`, el endpoint hace `qr.manager.create(Client, payload.newOwner)`
 directamente. `car:create` sí valida el titular anidado (`CreateCarDto` lo declara
@@ -463,9 +490,21 @@ Escenario: reasignar el titular a uno nuevo permite crear un cliente con teléfo
 en formato inválido, dirección vacía o correo mal formado —cosas que el alta
 normal rechaza—. Quedan dos calidades de dato según por dónde se entró.
 
+**Resuelto** validando con el mismo `CreateClientDto` que usa el alta, antes de
+abrir la transacción. Apareció además que **el `mode` tampoco se comprobaba**:
+con uno cualquiera se caía en el `else`, o sea la rama de "cliente nuevo", con un
+`newOwner` que podía no existir.
+
+De paso se arregló algo del andamiaje de los tests que se destapó acá: el plazo de
+un `beforeEach` **no es el del test**, va aparte. Los tests de base de datos
+levantan un `DataSource` y corren once migraciones en el hook, así que en frío se
+pasaban de los 5 segundos por defecto y el archivo fallaba entero por un timeout
+que no tenía nada que ver con lo que se estaba probando. Ahora los dos plazos
+están en `vitest.config.ts` y la constante que cada archivo repetía se fue.
+
 ### B4 · 🟠 El vehículo no se puede editar: sólo el kilometraje
 
-**[pendiente]** · `electron/DataBase/Endpoints/car.crud.endpoints.ts`
+**[a testear]** · `electron/DataBase/Endpoints/car.crud.endpoints.ts`
 
 `car:update` recibe `(id, kilometers)` y **nada más**. Marca, modelo, año e
 intervalos propios de service no se pueden corregir desde ningún lado.
@@ -477,9 +516,31 @@ kilometraje y su recordatorio— y volver a cargarlo.
 `UpdateCarDto` ya está definido con `owner` y `kilometers`, sin usarse. Ni siquiera
 cubre marca/modelo/año.
 
+**Resuelto de punta a punta.** `UpdateCarDto` se reescribió con marca, modelo,
+año y kilometraje —todos opcionales, se aplica sólo lo que viene— y el endpoint
+pasó de recibir `(id, kilometers)` a recibir el objeto. Eso cambió la cadena
+entera: preload, tipos, servicio, thunk, hooks y la pantalla. En el formulario,
+marca, modelo y año dejaron de estar deshabilitados al editar.
+
+**La patente sigue sin poder editarse, y es a propósito**: es la identidad del
+vehículo —la usan las rutas de la aplicación, los recordatorios y el registro de
+documentos ya emitidos—. Cambiarla es otra operación, no una corrección de tipeo.
+`whitelist` la descarta si igual la mandan, y hay un test que lo fija.
+
+Las reglas del kilometraje que ya existían se conservaron, que era el riesgo del
+cambio: no baja, y **sólo deja un punto en el historial cuando cambia de verdad**
+—el formulario lo manda siempre, aunque se haya editado otra cosa—. Las dos
+tienen su caso.
+
+El techo del año lo pone el endpoint y no un decorador, porque depende de cuándo
+se ejecute y un decorador se evalúa una sola vez al cargar el módulo.
+
+Verificado además contra la aplicación real: se carga un vehículo con el modelo
+mal escrito, se corrige por el camino de verdad y queda `GOL / Fiat / 2015`.
+
 ### B5 · 🟠 Guardar una configuración inválida dice que salió bien
 
-**[pendiente]** · `electron/DataBase/serviceReminders.service.ts` →
+**[a testear]** · `electron/DataBase/serviceReminders.service.ts` →
 `saveServiceSettings`
 
 La función filtra los valores que no sean números positivos y **guarda sólo el
@@ -493,17 +554,42 @@ explicación.
 Tampoco hay techo: `intervalKm = 999999999` se acepta y deja el recordatorio
 programado para el año 3000.
 
+**Resuelto, y ahora es todo o nada.** Si algo de lo que vino está fuera de rango
+no se guarda nada, y el mensaje dice **qué campo** y **entre qué valores** tiene
+que estar. Guardar la mitad de un formulario es peor que no guardarlo: el usuario
+no tiene forma de saber qué quedó aplicado.
+
+Cada campo tiene piso y techo con un motivo, no un número redondo: diez años de
+intervalo ya es "no hacerle service", y avisar con más de un año de anticipación
+es tener todo siempre en la lista. El techo importa tanto como el piso —sin él,
+un intervalo enorme deja al vehículo fuera del circuito sin que nadie lo note—.
+
+Lo que **no** vino se sigue sin tocar, que es lo que permite mandar sólo lo que
+cambió; hay un caso que lo fija.
+
 ### B6 · 🟠 `document:issue` acepta totales negativos
 
-**[pendiente]** · `electron/DataBase/Endpoints/document.endpoints.ts`
+**[a testear]** · `electron/DataBase/Endpoints/document.endpoints.ts`
 
 `total: Math.round(Number(body.total) || 0)` no rechaza negativos. El total del
 documento es el **snapshot** que queda en el historial: un negativo ahí es un dato
 contable falso que no se puede corregir después (el registro es de sólo lectura).
 
+**Resuelto**, y escribiendo el test apareció que el negativo era el caso menos
+grave: **`Number(null)` es `0`**, así que un total ausente emitía un documento en
+cero sin decir nada. Ahora se exige que sea un número y no se convierte nada; el
+renderer manda el resultado de `computeTotals`, que siempre lo es, así que
+cualquier otra cosa significa que algo se rompió antes y conviene enterarse.
+
+El cero **sí** se acepta: un trabajo de garantía o de cortesía se factura en cero,
+y hay un caso que lo fija para que nadie lo endurezca de más.
+
+De paso quedó cubierto el correlativo, que es la razón de existir de la tabla:
+series separadas por tipo, y un rechazo no quema un número.
+
 ### B7 · 🟡 La validación de negocio está repartida entre DTOs y comprobaciones a mano
 
-**[pendiente]** · varios
+**[a testear]** · varios
 
 Además de los DTOs, hay reglas escritas a mano en los endpoints: el kilometraje en
 `car:update`, la fecha y el km en `service:save`, el tipo en `document:issue`, el
@@ -513,6 +599,34 @@ mensaje.
 No es un bug, pero es la razón por la que las de B1–B3 se pudieron olvidar: no hay
 un lugar donde se vea "todo lo que entra por IPC se valida así". Conviene un
 criterio único y una prueba que lo verifique para todos los canales.
+
+**Resuelto, y no era sólo documentación: encontró 19 canales rotos.**
+
+La prueba (`contratoDeEntrada.test.ts`) **no enumera los canales a mano**: los
+toma de los que quedan registrados al importar los módulos, así que un endpoint
+nuevo entra solo. Eso es lo único que evita que la lista se desactualice como se
+desactualizó la anterior. Lo que fija es una sola cosa: **un cuerpo inválido se
+contesta, no se revienta** —si el handler lanza, `handleIpc` relanza y al
+renderer le llega el mensaje técnico crudo—.
+
+La primera corrida marcó 19 canales, con tres causas distintas:
+
+- **`validateDto` reventaba antes de validar.** Con un cuerpo que no fuera un
+  objeto, `plainToInstance` tira "Cannot read properties of undefined (reading
+  'constructor')" antes de que ningún decorador pueda decir qué falta. Un solo
+  arreglo cubrió los siete endpoints que validan DTO.
+- **Los identificadores iban derecho al `where`.** Diez canales: `undefined`,
+  `null` o un objeto producían "Undefined value encountered in property … of a
+  where condition" o "Too few parameter values were provided". Ahora pasan por
+  `esIdentificador`.
+- **Los listados suponían un objeto.** `params.search.trim()` con una cadena
+  falla. Ahora pasan por `comoParametros`.
+
+Y una del `@Transform` de la patente, que corre **antes** de las validaciones:
+asumía que el valor era texto, así que reventaba antes de que
+`@IsNotEmpty({ message: "La patente es requerida" })` pudiera hablar.
+
+El criterio quedó escrito en `CLAUDE.md`, que es donde se busca.
 
 ---
 

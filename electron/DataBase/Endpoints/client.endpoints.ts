@@ -1,6 +1,6 @@
 import { handleIpc } from "../../ipc";
 import { logError } from "../../logger";
-import { validateDto } from "../../validation";
+import { comoParametros, esIdentificador, validateDto } from "../../validation";
 import { escapeLike, resolvePage } from "../../pagination";
 import { CreateClientDto, UpdateClientDto } from "../Types/client.dto";
 import { AppDataSource, getRepositories } from "../dataSource";
@@ -48,7 +48,8 @@ handleIpc("client:create", async (_, payload: CreateClientDto) => {
 // `total` cuenta clientes distintos (no filas del join).
 handleIpc(
   "client:get-all",
-  async (_event, params: ClientQueryParams): Promise<Paginated<Client>> => {
+  async (_event, entrada: ClientQueryParams): Promise<Paginated<Client>> => {
+    const params = comoParametros<ClientQueryParams>(entrada);
     const { page, pageSize, skip, take } = resolvePage(params);
     const repo = getRepositories().clientRepository;
 
@@ -118,6 +119,10 @@ handleIpc("client:cities", async (): Promise<string[]> => {
 handleIpc(
   "client:find-by-name",
   async (_, fullname: CreateClientDto["fullname"]) => {
+    if (!esIdentificador(fullname)) {
+      return { status: "failed", message: "Cliente no registrado" };
+    }
+
     const repo = getRepositories().clientRepository;
     // Se cargan también los trabajos de cada auto (`cars.jobs`) porque la ficha
     // del cliente muestra el conteo de trabajos por vehículo.
@@ -166,6 +171,10 @@ handleIpc("client:search", async (_, query: string) => {
 });
 
 handleIpc("client:toggle-active", async (_, id: string) => {
+  if (!esIdentificador(id)) {
+    return { status: "failed", message: "Cliente no encontrado" };
+  }
+
   const repo = getRepositories().clientRepository;
   const client = await repo.findOne({
     where: { id },

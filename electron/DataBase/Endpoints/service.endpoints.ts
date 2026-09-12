@@ -1,6 +1,7 @@
 import { In } from "typeorm";
 import { handleIpc } from "../../ipc";
 import { escapeLike, resolvePage } from "../../pagination";
+import { comoParametros, esIdentificador } from "../../validation";
 import { AppDataSource, getRepositories } from "../dataSource";
 import { invalidateDashboardStatsCache } from "../dashboardCache";
 import { ServiceReminder } from "../Entities/serviceReminder.entity";
@@ -82,17 +83,20 @@ handleIpc(
     _event,
     settings: Partial<ServiceSettings>
   ): Promise<APIResponse<ServiceSettings>> => {
-    const saved = await saveServiceSettings(
+    const guardado = await saveServiceSettings(
       settings ?? {},
       AppDataSource.manager
     );
+    if (!guardado.ok) {
+      return { status: "failed", message: guardado.message };
+    }
     // Cambiar los umbrales cambia cuántos recordatorios "vencen", así que el
     // conteo del dashboard queda viejo.
     invalidateDashboardStatsCache();
     return {
       status: "success",
       message: "Configuración de service actualizada",
-      result: saved,
+      result: guardado.settings,
     };
   }
 );
@@ -113,8 +117,9 @@ handleIpc(
   "service:list",
   async (
     _event,
-    params: ReminderQueryParams
+    entrada: ReminderQueryParams
   ): Promise<Paginated<ServiceReminderView>> => {
+    const params = comoParametros<ReminderQueryParams>(entrada);
     await reactivateExpiredSnoozes(AppDataSource.manager);
 
     const { page, pageSize, skip, take } = resolvePage(params);
@@ -191,6 +196,8 @@ handleIpc("service:count-due", async (): Promise<number> => {
 handleIpc(
   "service:by-car",
   async (_event, licensePlate: string): Promise<ServiceReminderView[]> => {
+    if (!esIdentificador(licensePlate)) return [];
+
     await reactivateExpiredSnoozes(AppDataSource.manager);
     const reminders = await getRepositories().serviceReminderRepository.find({
       where: {
@@ -235,6 +242,10 @@ handleIpc(
     id: string,
     days: number
   ): Promise<APIResponse<ServiceReminderView>> => {
+    if (!esIdentificador(id)) {
+      return { status: "failed", message: "Recordatorio no encontrado" };
+    }
+
     const reminder = await findReminder(id);
     if (!reminder) {
       return { status: "failed", message: "Recordatorio no encontrado" };
@@ -275,6 +286,10 @@ handleIpc(
 handleIpc(
   "service:mark-contacted",
   async (_event, id: string): Promise<APIResponse<ServiceReminderView>> => {
+    if (!esIdentificador(id)) {
+      return { status: "failed", message: "Recordatorio no encontrado" };
+    }
+
     const reminder = await findReminder(id);
     if (!reminder) {
       return { status: "failed", message: "Recordatorio no encontrado" };
@@ -298,6 +313,10 @@ handleIpc(
 handleIpc(
   "service:complete",
   async (_event, id: string): Promise<APIResponse<ServiceReminderView>> => {
+    if (!esIdentificador(id)) {
+      return { status: "failed", message: "Recordatorio no encontrado" };
+    }
+
     const qr = AppDataSource.createQueryRunner();
     await qr.connect();
     await qr.startTransaction();
@@ -347,6 +366,10 @@ handleIpc(
 handleIpc(
   "service:dismiss",
   async (_event, id: string): Promise<APIResponse> => {
+    if (!esIdentificador(id)) {
+      return { status: "failed", message: "Recordatorio no encontrado" };
+    }
+
     const repo = getRepositories().serviceReminderRepository;
     const reminder = await findReminder(id);
     if (!reminder) {
@@ -377,6 +400,10 @@ handleIpc(
 handleIpc(
   "service:reactivate",
   async (_event, id: string): Promise<APIResponse<ServiceReminderView>> => {
+    if (!esIdentificador(id)) {
+      return { status: "failed", message: "Recordatorio no encontrado" };
+    }
+
     const repo = getRepositories().serviceReminderRepository;
     const reminder = await findReminder(id);
     if (!reminder) {

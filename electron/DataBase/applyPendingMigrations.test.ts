@@ -38,14 +38,6 @@ vi.mock("electron", () => ({
 let dir: string;
 
 /**
- * Los 5 segundos por defecto no alcanzan. Cada caso reimporta `dataSource` —que
- * arrastra las entidades y las once migraciones— y la primera vez hay que
- * transformar todo ese árbol. En caliente el archivo entero corre en ~1 s; en
- * frío, que es como corre siempre en CI, la primera pasada se lleva más de 10.
- */
-const PLAZO = 60_000;
-
-/**
  * Base tal como la escribía la 1.0.3: sólo `client` y `car`, los trabajos como
  * JSON dentro del vehículo, y **sin tabla `migrations`**.
  */
@@ -141,127 +133,110 @@ afterEach(() => {
 });
 
 describe("registro de migraciones", () => {
-  it(
-    "todas declaran su nombre, que es lo único que sobrevive a la minificación",
-    async () => {
-      crearBaseVieja(path.join(dir, "taller.db"));
-      const { AppDataSource } = await cargarDataSource();
-      // `migrations` se puebla al inicializar, no al construir el DataSource.
-      await AppDataSource.initialize();
+  it("todas declaran su nombre, que es lo único que sobrevive a la minificación", async () => {
+    crearBaseVieja(path.join(dir, "taller.db"));
+    const { AppDataSource } = await cargarDataSource();
+    // `migrations` se puebla al inicializar, no al construir el DataSource.
+    await AppDataSource.initialize();
 
-      // El bundle del proceso principal va minificado: ahí `constructor.name`
-      // es una letra. Identificar una migración por el nombre de su clase daba
-      // por desconocidas a las once propias y no dejaba arrancar la aplicación.
-      // Se comprobó corriendo el paquete, no en este test: acá las clases
-      // conservan su nombre. Por eso lo que se fija es la causa —que cada
-      // migración declare `name`— y no el síntoma.
-      const sinNombre = AppDataSource.migrations
-        .filter((migration) => !migration.name)
-        .map((migration) => migration.constructor.name);
-      const total = AppDataSource.migrations.length;
-      await AppDataSource.destroy();
+    // El bundle del proceso principal va minificado: ahí `constructor.name`
+    // es una letra. Identificar una migración por el nombre de su clase daba
+    // por desconocidas a las once propias y no dejaba arrancar la aplicación.
+    // Se comprobó corriendo el paquete, no en este test: acá las clases
+    // conservan su nombre. Por eso lo que se fija es la causa —que cada
+    // migración declare `name`— y no el síntoma.
+    const sinNombre = AppDataSource.migrations
+      .filter((migration) => !migration.name)
+      .map((migration) => migration.constructor.name);
+    const total = AppDataSource.migrations.length;
+    await AppDataSource.destroy();
 
-      expect(sinNombre).toEqual([]);
-      expect(total).toBe(11);
-    },
-    PLAZO
-  );
+    expect(sinNombre).toEqual([]);
+    expect(total).toBe(11);
+  });
 });
 
 describe("applyPendingMigrations", () => {
-  it(
-    "pone al día una base del esquema anterior, con sus datos",
-    async () => {
-      const dbPath = path.join(dir, "taller.db");
-      crearBaseVieja(dbPath);
+  it("pone al día una base del esquema anterior, con sus datos", async () => {
+    const dbPath = path.join(dir, "taller.db");
+    crearBaseVieja(dbPath);
 
-      const { AppDataSource, applyPendingMigrations } =
-        await cargarDataSource();
-      await AppDataSource.initialize();
-      const migradas = await applyPendingMigrations();
-      await AppDataSource.destroy();
+    const { AppDataSource, applyPendingMigrations } = await cargarDataSource();
+    await AppDataSource.initialize();
+    const migradas = await applyPendingMigrations();
+    await AppDataSource.destroy();
 
-      expect(migradas).toBe(11);
+    expect(migradas).toBe(11);
 
-      // Lo que la aplicación necesita y la base vieja no tenía. Sin esto, cada
-      // pantalla que las toque revienta.
-      expect(tablas(dbPath)).toEqual(
-        expect.arrayContaining(["job", "document", "service_reminder"])
-      );
-      // El tipo de service pasó a ser un booleano (SimplifyServiceType).
-      expect(columnas(dbPath, "job")).toEqual(
-        expect.arrayContaining(["isService", "clientNote"])
-      );
-      expect(columnas(dbPath, "job")).not.toContain("serviceType");
+    // Lo que la aplicación necesita y la base vieja no tenía. Sin esto, cada
+    // pantalla que las toque revienta.
+    expect(tablas(dbPath)).toEqual(
+      expect.arrayContaining(["job", "document", "service_reminder"])
+    );
+    // El tipo de service pasó a ser un booleano (SimplifyServiceType).
+    expect(columnas(dbPath, "job")).toEqual(
+      expect.arrayContaining(["isService", "clientNote"])
+    );
+    expect(columnas(dbPath, "job")).not.toContain("serviceType");
 
-      // Y los datos siguen ahí: el trabajo que era JSON dentro del auto ahora es
-      // una fila propia.
-      const db = new Database(dbPath, { readonly: true });
-      const trabajo = db
-        .prepare("SELECT description, price, carId FROM job")
-        .get() as { description: string; price: number; carId: string };
-      const autos = (
-        db.prepare("SELECT COUNT(*) c FROM car").get() as { c: number }
-      ).c;
-      db.close();
+    // Y los datos siguen ahí: el trabajo que era JSON dentro del auto ahora es
+    // una fila propia.
+    const db = new Database(dbPath, { readonly: true });
+    const trabajo = db
+      .prepare("SELECT description, price, carId FROM job")
+      .get() as { description: string; price: number; carId: string };
+    const autos = (
+      db.prepare("SELECT COUNT(*) c FROM car").get() as { c: number }
+    ).c;
+    db.close();
 
-      expect(autos).toBe(1);
-      expect(trabajo.description).toBe("Cambio de aceite");
-      expect(trabajo.price).toBe(50000);
-      expect(trabajo.carId).toBe("a1");
-    },
-    PLAZO
-  );
+    expect(autos).toBe(1);
+    expect(trabajo.description).toBe("Cambio de aceite");
+    expect(trabajo.price).toBe(50000);
+    expect(trabajo.carId).toBe("a1");
+  });
 
-  it(
-    "no hace nada sobre una base que ya está al día",
-    async () => {
-      const dbPath = path.join(dir, "taller.db");
-      crearBaseVieja(dbPath);
+  it("no hace nada sobre una base que ya está al día", async () => {
+    const dbPath = path.join(dir, "taller.db");
+    crearBaseVieja(dbPath);
 
-      const primera = await cargarDataSource();
-      await primera.AppDataSource.initialize();
-      await primera.applyPendingMigrations();
-      await primera.AppDataSource.destroy();
+    const primera = await cargarDataSource();
+    await primera.AppDataSource.initialize();
+    await primera.applyPendingMigrations();
+    await primera.AppDataSource.destroy();
 
-      const segunda = await cargarDataSource();
-      await segunda.AppDataSource.initialize();
-      const migradas = await segunda.applyPendingMigrations();
-      await segunda.AppDataSource.destroy();
+    const segunda = await cargarDataSource();
+    await segunda.AppDataSource.initialize();
+    const migradas = await segunda.applyPendingMigrations();
+    await segunda.AppDataSource.destroy();
 
-      expect(migradas).toBe(0);
-    },
-    PLAZO
-  );
+    expect(migradas).toBe(0);
+  });
 
-  it(
-    "se planta ante una base escrita por una versión posterior",
-    async () => {
-      const dbPath = path.join(dir, "taller.db");
-      crearBaseVieja(dbPath);
+  it("se planta ante una base escrita por una versión posterior", async () => {
+    const dbPath = path.join(dir, "taller.db");
+    crearBaseVieja(dbPath);
 
-      // Se pone al día y después se le anota una migración del futuro, que es
-      // exactamente lo que tendría un respaldo hecho por una versión más nueva.
-      const primera = await cargarDataSource();
-      await primera.AppDataSource.initialize();
-      await primera.applyPendingMigrations();
-      await primera.AppDataSource.destroy();
+    // Se pone al día y después se le anota una migración del futuro, que es
+    // exactamente lo que tendría un respaldo hecho por una versión más nueva.
+    const primera = await cargarDataSource();
+    await primera.AppDataSource.initialize();
+    await primera.applyPendingMigrations();
+    await primera.AppDataSource.destroy();
 
-      const db = new Database(dbPath);
-      db.prepare(
-        "INSERT INTO migrations (timestamp, name) VALUES (1800000000000, 'AlgoDelFuturo1800000000000')"
-      ).run();
-      db.close();
+    const db = new Database(dbPath);
+    db.prepare(
+      "INSERT INTO migrations (timestamp, name) VALUES (1800000000000, 'AlgoDelFuturo1800000000000')"
+    ).run();
+    db.close();
 
-      const segunda = await cargarDataSource();
-      await segunda.AppDataSource.initialize();
-      // Para esta versión no hay nada pendiente, así que el corte por
-      // "¿faltan migraciones?" la dejaría pasar. Tiene que frenarla el otro.
-      await expect(segunda.applyPendingMigrations()).rejects.toBeInstanceOf(
-        segunda.DatabaseFromNewerVersionError
-      );
-      await segunda.AppDataSource.destroy();
-    },
-    PLAZO
-  );
+    const segunda = await cargarDataSource();
+    await segunda.AppDataSource.initialize();
+    // Para esta versión no hay nada pendiente, así que el corte por
+    // "¿faltan migraciones?" la dejaría pasar. Tiene que frenarla el otro.
+    await expect(segunda.applyPendingMigrations()).rejects.toBeInstanceOf(
+      segunda.DatabaseFromNewerVersionError
+    );
+    await segunda.AppDataSource.destroy();
+  });
 });

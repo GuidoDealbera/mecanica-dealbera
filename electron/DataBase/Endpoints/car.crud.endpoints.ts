@@ -1,8 +1,8 @@
 import { handleIpc } from "../../ipc";
 import { logError } from "../../logger";
-import { validateDto } from "../../validation";
+import { comoParametros, esIdentificador, validateDto } from "../../validation";
 import { escapeLike, resolvePage } from "../../pagination";
-import { CreateCarDto } from "../Types/car.dto";
+import { CreateCarDto, UpdateCarDto } from "../Types/car.dto";
 import { AppDataSource, getRepositories } from "../dataSource";
 import { CreateClientDto } from "../Types/client.dto";
 import type { CarQueryParams, Paginated } from "../Types/types";
@@ -112,7 +112,10 @@ handleIpc("car:create", async (_event, payload: CreateCarDto) => {
 // todos los autos). Búsqueda por patente (LIKE) y orden opcional en la DB.
 handleIpc(
   "car:get-all",
-  async (_event, params: CarQueryParams): Promise<Paginated<Car>> => {
+  async (_event, entrada: CarQueryParams): Promise<Paginated<Car>> => {
+    // Un canal IPC recibe lo que le manden, y más abajo se hace
+    // `params.search.trim()`: con una cadena en vez de un objeto eso revienta.
+    const params = comoParametros<CarQueryParams>(entrada);
     const { page, pageSize, skip, take } = resolvePage(params);
     const repo = getRepositories().carRepository;
 
@@ -166,6 +169,10 @@ handleIpc(
 handleIpc(
   "car:get-by-license",
   async (_, licence: CreateCarDto["licensePlate"]) => {
+    if (!esIdentificador(licence)) {
+      return { status: "failed", message: "Vehículo no registrado" };
+    }
+
     const repo = getRepositories().carRepository;
     const car = await repo.findOne({
       where: {
@@ -194,55 +201,77 @@ handleIpc(
   }
 );
 
-handleIpc("car:update", async (_, id: string, kilometers: number) => {
-  const carRepo = getRepositories().carRepository;
-  const car = await carRepo.findOne({
-    where: {
-      id: id,
-    },
-    relations: { owner: true },
-  });
-  if (!car) {
-    return {
-      status: "failed",
-      message: "Vehículo no registrado",
-    };
+handleIpc("car:update", async (_, id: string, cambios: UpdateCarDto) => {
+  // Antes este endpoint recibía `(id, kilometers)` y nada más: marca, modelo y
+  // año no se podían corregir desde ningún lado, así que un error de tipeo
+  // obligaba a borrar el vehículo —con sus trabajos, su historial de
+  // kilometraje y su recordatorio— y volver a cargarlo.
+  //
+  // La patente sigue afuera a propósito: es la identidad del vehículo. Ver
+  // `UpdateCarDto`.
+  const validation = await validateDto(UpdateCarDto, cambios);
+  if (!validation.ok) {
+    return { status: "failed", message: validation.message };
   }
-  // El kilometraje se valida acá porque la validación con class-validator sólo
-  // cubre el alta. Sin esto un valor no numérico pasaba de largo: `NaN` no es
-  // menor que nada, así que el control de abajo lo dejaba entrar y se guardaba.
-  const km = Math.round(Number(kilometers));
-  if (!Number.isFinite(km) || km < 0) {
+  const datos = validation.dto;
+
+  // El techo del año lo pone el endpoint y no el DTO porque depende de cuándo
+  // se ejecute, y un decorador se evalúa una sola vez al cargar el módulo.
+  const anioActual = new Date().getFullYear();
+  if (datos.year !== undefined && datos.year > anioActual) {
     return {
       status: "failed",
-      message: "El kilometraje no es válido",
-    };
-  }
-  if (km < car.kilometers) {
-    return {
-      status: "failed",
-      message: "No se pueden bajar los kilómetros de un vehículo",
+      message: "El año no puede ser posterior al año en curso",
     };
   }
 
-  // Sin cambio de kilometraje no hay nada que registrar. Antes se agregaba un
-  // punto igual al anterior en cada guardado, y el formulario de edición manda
-  // el kilometraje siempre —incluso cuando sólo se editó el titular—, así que
-  // el historial se llenaba de repetidos: tramos planos en el gráfico de KM y
-  // eventos duplicados en el historial del vehículo y del cliente.
-  if (km === car.kilometers) {
+  const carRepo = getRepositories().carRepository;
+  const car = await carRepo.findOne({
+    where: { id },
+    relations: { owner: true },
+  });
+  if (!car) {
+    return { status: "failed", message: "Vehículo no registrado" };
+  }
+
+  if (datos.brand !== undefined) car.brand = datos.brand;
+  if (datos.model !== undefined) car.model = datos.model;
+  if (datos.year !== undefined) car.year = datos.year;
+
+  // El kilometraje tiene reglas propias: no puede bajar, y sólo deja un punto
+  // en el historial cuando efectivamente cambia. Antes se agregaba un punto
+  // igual al anterior en cada guardado —el formulario manda el kilometraje
+  // siempre, incluso cuando se editó otra cosa— y el historial se llenaba de
+  // repetidos: tramos planos en el gráfico y eventos duplicados en la ficha.
+  let huboCambioDeKm = false;
+  if (datos.kilometers !== undefined) {
+    if (datos.kilometers < car.kilometers) {
+      return {
+        status: "failed",
+        message: "No se pueden bajar los kilómetros de un vehículo",
+      };
+    }
+    if (datos.kilometers > car.kilometers) {
+      car.kmHistory = [
+        ...(Array.isArray(car.kmHistory) ? car.kmHistory : []),
+        { km: datos.kilometers, date: new Date().toISOString() },
+      ];
+      car.kilometers = datos.kilometers;
+      huboCambioDeKm = true;
+    }
+  }
+
+  const otroCambio =
+    datos.brand !== undefined ||
+    datos.model !== undefined ||
+    datos.year !== undefined;
+  if (!huboCambioDeKm && !otroCambio) {
     return {
       status: "success",
       message: "Vehículo actualizado correctamente",
       result: car,
     };
   }
-
-  car.kmHistory = [
-    ...(Array.isArray(car.kmHistory) ? car.kmHistory : []),
-    { km, date: new Date().toISOString() },
-  ];
-  car.kilometers = km;
 
   const savedCar = await carRepo.save(car);
   invalidateDashboardStatsCache();
@@ -300,6 +329,26 @@ handleIpc(
       | { mode: "existing"; existingOwnerFullname: string }
       | { mode: "new"; newOwner: CreateClientDto }
   ) => {
+    // El modo se comprueba y no se da por sentado: un canal IPC recibe lo que le
+    // manden, y con un `mode` cualquiera el `else` de más abajo tomaba la rama
+    // de "cliente nuevo" con un `newOwner` que podía no existir.
+    if (payload?.mode !== "existing" && payload?.mode !== "new") {
+      return { status: "failed", message: "Datos de reasignación inválidos" };
+    }
+
+    // El titular nuevo se valida con el mismo DTO que usa el alta. Sin esto,
+    // por acá se podía crear un cliente con teléfono en formato inválido,
+    // dirección vacía o correo mal formado —cosas que `car:create` rechaza—, y
+    // quedaban dos calidades de dato según por dónde se hubiera entrado.
+    let ownerValidado: CreateClientDto | null = null;
+    if (payload.mode === "new") {
+      const validation = await validateDto(CreateClientDto, payload.newOwner);
+      if (!validation.ok) {
+        return { status: "failed", message: validation.message };
+      }
+      ownerValidado = validation.dto;
+    }
+
     const qr = AppDataSource.createQueryRunner();
     await qr.connect();
     await qr.startTransaction();
@@ -335,16 +384,14 @@ handleIpc(
           };
         }
       } else {
-        const conflicto = await findClientConflict(
-          qr.manager,
-          payload.newOwner
-        );
+        const datosNuevos = ownerValidado as CreateClientDto;
+        const conflicto = await findClientConflict(qr.manager, datosNuevos);
         if (conflicto) {
           await qr.rollbackTransaction();
           return { status: "failed", message: conflicto };
         }
         newOwner = qr.manager.create(Client, {
-          ...payload.newOwner,
+          ...datosNuevos,
           isActive: true,
         });
         await qr.manager.save(Client, newOwner);

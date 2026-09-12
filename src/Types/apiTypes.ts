@@ -264,6 +264,18 @@ export interface IssuedDocument {
   createdAt: string;
 }
 
+/**
+ * Campos editables de un vehículo. La patente no está: es la identidad del
+ * vehículo —la usan las rutas, los recordatorios y los documentos ya emitidos—
+ * así que cambiarla es otra operación, no una corrección de tipeo.
+ */
+export interface UpdateCarBody {
+  brand?: string;
+  model?: string;
+  year?: number;
+  kilometers?: number;
+}
+
 export interface CreateCarJob {
   price: number | "";
   description: string;

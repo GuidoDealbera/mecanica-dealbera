@@ -1,4 +1,5 @@
 import { handleIpc } from "../../ipc";
+import { esIdentificador } from "../../validation";
 import { logError } from "../../logger";
 import { AppDataSource, getRepositories } from "../dataSource";
 import { Document } from "../Entities/document.entity";
@@ -44,6 +45,27 @@ handleIpc(
       return { status: "failed", message: "Tipo de documento inválido" };
     }
 
+    // El total es el **snapshot** que queda en el historial, y el registro es de
+    // sólo lectura: lo que entre mal acá no se corrige después.
+    //
+    // Se exige que sea un número y no se convierte: `Number(null)` es `0`, así
+    // que con `Number(...) || 0` un total ausente emitía un documento en cero
+    // sin decir nada. El renderer manda el resultado de `computeTotals`, que
+    // siempre es un número; si llega otra cosa es que algo se rompió antes.
+    if (typeof body.total !== "number" || !Number.isFinite(body.total)) {
+      return {
+        status: "failed",
+        message: "El total del documento no es válido",
+      };
+    }
+    const total = Math.round(body.total);
+    if (total < 0) {
+      return {
+        status: "failed",
+        message: "El total del documento no es válido",
+      };
+    }
+
     const qr = AppDataSource.createQueryRunner();
     await qr.connect();
     await qr.startTransaction();
@@ -61,7 +83,7 @@ handleIpc(
         number: nextNumber,
         licensePlate: body.licensePlate ?? "",
         clientName: body.clientName ?? "",
-        total: Math.round(Number(body.total) || 0),
+        total,
       });
       const saved = await qr.manager.save(doc);
       await qr.commitTransaction();
@@ -89,6 +111,10 @@ handleIpc(
 handleIpc(
   "document:discard",
   async (_event, id: string): Promise<APIResponse> => {
+    if (!esIdentificador(id)) {
+      return { status: "failed", message: "Documento no encontrado" };
+    }
+
     const repo = getRepositories().documentRepository;
     const doc = await repo.findOne({ where: { id } });
     if (!doc) {

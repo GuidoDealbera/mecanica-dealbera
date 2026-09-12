@@ -5,6 +5,7 @@ import {
   CreateCarJob,
   Paginated,
   UpdateJobBody,
+  UpdateCarBody,
 } from "../Types/apiTypes";
 import { Car, Jobs } from "../Types/types";
 
@@ -20,9 +21,9 @@ export const carService = {
   },
   updateCar: async (
     carId: string,
-    kilometers: number
+    cambios: UpdateCarBody
   ): Promise<APIResponse<Car>> => {
-    return await window.api.cars.update(carId, kilometers);
+    return await window.api.cars.update(carId, cambios);
   },
   delete: async (licence: string): Promise<APIResponse> => {
     return await window.api.cars.delete(licence);
