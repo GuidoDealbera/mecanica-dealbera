@@ -569,11 +569,23 @@ cambió; hay un caso que lo fija.
 
 ### B6 · 🟠 `document:issue` acepta totales negativos
 
-**[pendiente]** · `electron/DataBase/Endpoints/document.endpoints.ts`
+**[a testear]** · `electron/DataBase/Endpoints/document.endpoints.ts`
 
 `total: Math.round(Number(body.total) || 0)` no rechaza negativos. El total del
 documento es el **snapshot** que queda en el historial: un negativo ahí es un dato
 contable falso que no se puede corregir después (el registro es de sólo lectura).
+
+**Resuelto**, y escribiendo el test apareció que el negativo era el caso menos
+grave: **`Number(null)` es `0`**, así que un total ausente emitía un documento en
+cero sin decir nada. Ahora se exige que sea un número y no se convierte nada; el
+renderer manda el resultado de `computeTotals`, que siempre lo es, así que
+cualquier otra cosa significa que algo se rompió antes y conviene enterarse.
+
+El cero **sí** se acepta: un trabajo de garantía o de cortesía se factura en cero,
+y hay un caso que lo fija para que nadie lo endurezca de más.
+
+De paso quedó cubierto el correlativo, que es la razón de existir de la tabla:
+series separadas por tipo, y un rechazo no quema un número.
 
 ### B7 · 🟡 La validación de negocio está repartida entre DTOs y comprobaciones a mano
 
