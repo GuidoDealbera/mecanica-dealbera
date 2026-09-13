@@ -189,25 +189,31 @@ export const formatThousands = (value?: number | null) => {
  * - `"1234.56"` → `123456`: el punto se tomaba por separador de miles y el
  *   precio quedaba **cien veces más caro**.
  *
- * Ahora se distingue cuál es cuál. La coma es siempre el separador decimal. Un
- * punto es separador de miles sólo si agrupa de a tres dígitos hasta el final;
- * si no —`1234.56`—, es un punto decimal escrito a la inglesa. Y el resultado
- * se redondea, porque el importe se guarda en pesos enteros: es preferible
- * cobrar un peso de más o de menos que cien veces de más.
+ * Ahora se distingue cuál es cuál. La coma es siempre el separador decimal, y un
+ * punto lo es sólo si es **el único** y lo siguen **una o dos cifras al final**,
+ * que es como se escriben los centavos. En cualquier otro caso los puntos son
+ * separadores de miles. El resultado se redondea, porque el importe se guarda en
+ * pesos enteros: es preferible cobrar un peso de más o de menos que cien veces
+ * de más.
+ *
+ * Lo de "una o dos cifras" no es un detalle de gusto, y costó una regresión.
+ * Estos campos se muestran formateados con `formatThousands`, así que tipear
+ * `15000` pasa por `"1.500"` y la tecla siguiente deja `"1.5000"` en el input.
+ * Con la regla anterior —"punto decimal salvo que agrupe de a tres"— eso se leía
+ * `1,5` y se guardaba **2 pesos**. Un precio de miles no tiene cuatro decimales;
+ * uno de centavos no tiene más de dos.
  */
 export const parseNumber = (value: string) => {
   const texto = value.trim();
   if (texto === "") return 0;
 
-  const conComa = texto.includes(",");
   // Con coma presente, los puntos son separadores de miles sin ambigüedad.
-  // Sin coma, un punto sólo lo es si lo que sigue son grupos de tres.
-  const esSeparadorDeMiles =
-    conComa || /^-?\d{1,3}(\.\d{3})+$/.test(texto) || !texto.includes(".");
+  const conComa = texto.includes(",");
+  const esPuntoDecimal = !conComa && /^-?\d*\.\d{1,2}$/.test(texto);
 
-  const normalizado = esSeparadorDeMiles
-    ? texto.replace(/\./g, "").replace(",", ".")
-    : texto;
+  const normalizado = esPuntoDecimal
+    ? texto
+    : texto.replace(/\./g, "").replace(",", ".");
 
   const numero = Number(normalizado);
   return isNaN(numero) ? 0 : Math.round(numero);

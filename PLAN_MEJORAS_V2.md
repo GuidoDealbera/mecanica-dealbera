@@ -2092,7 +2092,7 @@ los manuales sigan ahí.
 
 ### I1 · 🟠 Ninguno de los 24 botones de sólo ícono tiene nombre accesible
 
-**[pendiente]** · varios componentes
+**[a testear]** · varios componentes
 
 Hay **24 usos de `isIconOnly`** en la interfaz y **ninguno** declara `aria-label`
 en el mismo elemento. Un botón cuyo único contenido es un `<svg>` no tiene texto:
@@ -2105,17 +2105,33 @@ la forma correcta de testear.
 
 Muchos tienen `Tooltip`, que ayuda con el mouse y no con el teclado.
 
+**Resuelto**, los 25. Los de fila llevan el dato adentro —"Eliminar AB123CD",
+"Corregir Filtro de aceite"—: en una tabla de diez, "botón eliminar" diez veces
+no le sirve a nadie, ni a un lector de pantalla ni a un test.
+
+Lo fija un test que **lee los archivos** en vez de montar la aplicación: la regla
+vale para todos los botones, incluidos los de pantallas que ningún test monta, y
+es justo ahí donde se cuela el que falta.
+
+Comprobado en la aplicación real: de 20 botones de sólo ícono en la pantalla de
+autos, el único sin nombre es un botón interno de HeroUI que está oculto y no es
+enfocable. Queda pendiente que ese widget rotula su propio botón en inglés
+("Show suggestions"), que es de la librería y no de este código.
+
 ### I2 · 🟠 El documento se declara en inglés
 
-**[pendiente]** · `index.html`
+**[a testear]** · `index.html`
 
 `<html lang="en">` en una aplicación íntegramente en castellano. Los lectores de
 pantalla la van a leer con pronunciación inglesa, y los correctores del navegador
 usan el diccionario equivocado. Es un atributo.
 
+**Resuelto**: `es-AR`. Con la región y no sólo `es`, porque el formato de fechas
+y números que usa toda la aplicación es el argentino.
+
 ### I3 · 🟡 El `ErrorBoundary` esconde el motivo justo cuando hace falta
 
-**[pendiente]** · `src/Pages/Components/ErrorBoundary.tsx`
+**[a testear]** · `src/Pages/Components/ErrorBoundary.tsx`
 
 El detalle técnico se muestra sólo con `import.meta.env.DEV`. En producción el
 usuario ve "Ocurrió un error inesperado" y nada más, y como tampoco queda en los
@@ -2124,9 +2140,14 @@ logs (**E1**), la información se pierde del todo.
 No hace falta mostrarle un stack trace: alcanza con un identificador de error que
 pueda dictar por teléfono y que esté en el log.
 
+**Resuelto así**: la pantalla muestra un código corto y ese mismo código viaja al
+archivo de log junto con la traza. Es lo que convierte "se rompió" en algo que se
+puede buscar: sin él, con el log delante no hay forma de saber cuál de todos los
+errores es el que el usuario está contando.
+
 ### I4 · 🟡 `removeAllListeners` del updater es un martillo
 
-**[pendiente]** · `electron/preload.ts`
+**[a testear]** · `electron/preload.ts`
 
 Los `onUpdate*` no devuelven función de baja; la limpieza es
 `removeAllListeners()`, que borra **todos** los listeners de esos canales, sean de
@@ -2137,22 +2158,49 @@ ningún error.
 El patrón correcto ya está en el mismo archivo: `onDataChanged` devuelve su propia
 función de baja.
 
+**Resuelto**: cada `on*` devuelve su baja y el martillo se fue. La lista de
+canales pasó de arreglo a tipo, porque lo que hacía falta era acotar qué se puede
+escuchar, no enumerarlos en tiempo de ejecución.
+
 ### I5 · ⚪ `onUpdateNotAvailable` y `onDownloaded` le pasan el evento IPC al callback
 
-**[pendiente]** · `electron/preload.ts`
+**[a testear]** · `electron/preload.ts`
 
 Mientras `onUpdateAvailable`, `onProgress` y `onError` envuelven el callback para
 pasar sólo los datos, estos dos registran el callback directo, así que reciben
 `(event, ...args)`. Hoy no molesta porque no usan argumentos, pero es una
 inconsistencia que filtra el objeto del evento al renderer.
 
+**Resuelto junto con I4**: ahora hay un solo `suscribir` y los cinco pasan por
+él, así que no hay dos formas de registrar un listener y el evento IPC no sale
+del preload.
+
 ### I6 · ⚪ Los repuestos no se pueden editar ni se detectan repetidos
 
-**[pendiente]** · `src/Components/Parts/PartsEditor.tsx`
+**[a testear]** · `src/Components/Parts/PartsEditor.tsx`
 
 Sólo agregar y borrar: corregir el precio de un repuesto obliga a borrarlo y
 volver a cargarlo. Tampoco avisa si se agrega dos veces el mismo nombre, ni hay
 tope de precio.
+
+**Resuelto los tres.** Se puede corregir en el lugar, el repetido se avisa
+—comparando sin acentos ni mayúsculas, que es como lo lee quien lo mira— y hay
+techo de precio, porque sin él un cero de más va derecho al total del
+presupuesto.
+
+**Y acá apareció una regresión mía del Sprint D**, que es lo mejor que dio este
+sprint. Al escribir el primer test del editor, cargar 15.000 guardaba **2**.
+
+El campo se muestra formateado, así que tipear pasa por `"1.500"` y la tecla
+siguiente deja `"1.5000"` en el input. La regla que había puesto en D6 —"punto
+decimal salvo que agrupe de a tres"— leía eso como `1,5`. Los tests de D6 no lo
+vieron porque probaban la función con textos bien formados, no con la secuencia
+de tipeo que produce la pantalla.
+
+La regla ahora es: un punto es decimal sólo si es **el único** y lo siguen **una
+o dos cifras al final**. Un precio de miles no tiene cuatro decimales; uno de
+centavos no tiene más de dos. Hay un caso que tipea dígito por dígito, que es lo
+que faltaba.
 
 ---
 

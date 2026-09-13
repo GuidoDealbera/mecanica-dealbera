@@ -25,6 +25,7 @@ describe("el error de la interfaz que va al archivo de log", () => {
       stack: "TypeError: ...\n    at CarsTable (CarsTable.tsx:182:20)",
       componentStack: "\n    at CarsTable\n    at Layout",
       route: "#/cars",
+      errorId: "A1B2C3D4",
     });
 
     expect(scope).toBe("renderer:boundary");
@@ -35,6 +36,9 @@ describe("el error de la interfaz que va al archivo de log", () => {
     expect(error.stack).toContain("CarsTable.tsx:182");
     expect(context.ruta).toBe("#/cars");
     expect(context.componentes).toContain("CarsTable");
+    // El código que la pantalla le mostró al usuario: sin esto, con el log
+    // delante no hay forma de saber cuál de todos los errores es el suyo.
+    expect(context.codigo).toBe("A1B2C3D4");
   });
 
   it("es un Error de verdad, no un objeto plano", () => {

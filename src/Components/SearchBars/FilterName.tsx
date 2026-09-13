@@ -55,6 +55,7 @@ const FilterName: React.FC<FilterNameProps> = ({
             className="absolute top-8 -right-10"
             color="primary"
             isIconOnly
+            aria-label="Limpiar el filtro de nombre"
             type="button"
             onPress={handleClear}
           >

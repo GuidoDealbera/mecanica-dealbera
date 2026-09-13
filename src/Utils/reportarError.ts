@@ -13,7 +13,7 @@
 export const reportarError = (
   scope: string,
   error: unknown,
-  extra: { componentStack?: string } = {}
+  extra: { componentStack?: string; errorId?: string } = {}
 ): void => {
   try {
     const esError = error instanceof Error;
@@ -23,6 +23,9 @@ export const reportarError = (
       message: esError ? error.message : String(error),
       stack: esError ? error.stack : undefined,
       componentStack: extra.componentStack,
+      // El mismo código que la pantalla le muestra al usuario: es lo que
+      // permite encontrar **este** error entre todos los del archivo.
+      errorId: extra.errorId,
       // La ruta es lo primero que se pregunta al leer el log: sin esto hay que
       // deducir la pantalla desde la traza de componentes.
       route: window.location.hash,

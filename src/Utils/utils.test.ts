@@ -123,6 +123,26 @@ describe("parseNumber", () => {
     expect(parseNumber("1.234.567")).toBe(1234567);
   });
 
+  it("sobrevive a que se lo tipee dígito por dígito", () => {
+    // El caso que faltaba, y que costó una regresión: estos campos se muestran
+    // formateados, así que escribir 150000 pasa por "1.500" y la tecla
+    // siguiente deja "1.5000" en el input. Con la regla anterior eso se leía
+    // 1,5 y se guardaban **2 pesos**.
+    let valor = 0;
+    for (const tecla of "150000") {
+      valor = parseNumber(formatThousands(valor) + tecla);
+    }
+
+    expect(valor).toBe(150000);
+  });
+
+  it("un punto con más de dos cifras detrás es separador de miles", () => {
+    // Un precio de miles no tiene cuatro decimales; uno de centavos no tiene
+    // más de dos. Esa es la línea.
+    expect(parseNumber("1.5000")).toBe(15000);
+    expect(parseNumber("12.3456")).toBe(123456);
+  });
+
   it("devuelve 0 ante un campo vacío", () => {
     expect(parseNumber("")).toBe(0);
     expect(parseNumber("   ")).toBe(0);

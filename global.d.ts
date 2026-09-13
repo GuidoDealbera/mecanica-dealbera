@@ -59,18 +59,22 @@ export interface UpdateError {
   message: string;
 }
 
+/**
+ * Cada `on*` devuelve **su propia** baja, como `onDataChanged`.
+ *
+ * Antes no devolvían nada y la limpieza era un `removeAllListeners()` que
+ * borraba todos los listeners de esos canales, fueran de quien fueran.
+ */
 export interface UpdaterAPI {
-  onUpdateAvailable: (callback: (data: UpdateInfo) => void) => void;
-  onUpdateNotAvailable: (callback: () => void) => void;
-  onProgress: (callback: (data: UpdateProgress) => void) => void;
-  onDownloaded: (callback: () => void) => void;
-  onError: (callback: (data: UpdateError) => void) => void;
+  onUpdateAvailable: (callback: (data: UpdateInfo) => void) => () => void;
+  onUpdateNotAvailable: (callback: () => void) => () => void;
+  onProgress: (callback: (data: UpdateProgress) => void) => () => void;
+  onDownloaded: (callback: () => void) => () => void;
+  onError: (callback: (data: UpdateError) => void) => () => void;
 
   startDownload: () => void;
   installUpdate: () => void;
   checkForUpdates: () => Promise<void>;
-  /** Da de baja los listeners registrados con los `on*` (limpieza del efecto). */
-  removeAllListeners: () => void;
 }
 
 declare global {
@@ -193,6 +197,7 @@ declare global {
           stack?: string;
           componentStack?: string;
           route?: string;
+          errorId?: string;
         }) => void;
       };
     };

@@ -235,6 +235,7 @@ const JobsTable: React.FC<JobsProps> = ({
                     <Button
                       onPress={() => handleSort(col.key)}
                       isIconOnly
+                      aria-label={`Ordenar por ${col.label}`}
                       size="sm"
                       className="bg-transparent"
                     >
@@ -390,6 +391,7 @@ const JobsTable: React.FC<JobsProps> = ({
                     <Tooltip content="Editar trabajo" color="primary" showArrow>
                       <Button
                         isIconOnly
+                        aria-label={`Editar ${job.description}`}
                         size="sm"
                         className="bg-transparent"
                         onPress={() => onEditJob(job)}
