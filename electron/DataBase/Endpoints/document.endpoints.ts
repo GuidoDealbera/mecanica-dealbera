@@ -2,6 +2,7 @@ import { dialog, shell } from "electron";
 import fs from "node:fs";
 import path from "node:path";
 import { handleIpc, handleIpcQuery } from "../../ipc";
+import { escapeLike } from "../../pagination";
 import { esIdentificador } from "../../validation";
 import { logError } from "../../logger";
 import { AppDataSource, getRepositories } from "../dataSource";
@@ -288,25 +289,43 @@ handleIpcQuery(
   async (_event, filters?: DocumentQueryParams): Promise<IssuedDocument[]> => {
     const repo = getRepositories().documentRepository;
 
-    const where: { type?: DocumentType; licensePlate?: string } = {};
     // Un tipo inválido no se ignora: filtrar por "algo que no existe" tiene que
     // devolver vacío, no el historial completo.
-    if (filters?.type !== undefined) {
-      if (!VALID_TYPES.includes(filters.type)) return [];
-      where.type = filters.type;
+    if (filters?.type !== undefined && !VALID_TYPES.includes(filters.type)) {
+      return [];
     }
+
+    const qb = repo.createQueryBuilder("document");
+
+    if (filters?.type !== undefined) {
+      qb.andWhere("document.type = :type", { type: filters.type });
+    }
+
     if (filters?.licensePlate) {
-      where.licensePlate = filters.licensePlate;
+      // Pertenencia a la lista, no igualdad.
+      //
+      // El documento **consolidado** de un cliente guarda todas las patentes en
+      // esta columna: `"AB123CD, XY456ZW"`. Con igualdad exacta no salía en el
+      // historial de ninguno de los dos autos —sólo en el listado general—, que
+      // es justo donde el usuario lo va a buscar.
+      //
+      // Se rodea la columna y el término con el separador y se compara: así
+      // `AB123CD` encuentra la lista que lo contiene y **no** una patente que lo
+      // tenga como fragmento. Un `LIKE '%...%'` a secas haría lo segundo.
+      qb.andWhere(
+        "(', ' || document.licensePlate || ', ') LIKE ('%, ' || :plate || ', %') ESCAPE :esc",
+        { plate: escapeLike(filters.licensePlate), esc: "\\" }
+      );
     }
 
     // Orden por fecha y no por número: el correlativo es por tipo, así que al
     // mezclar presupuestos y facturas ordenar por número intercalaría series.
     // Se desempata por número, que dentro de un tipo es único.
-    const docs = await repo.find({
-      where,
-      order: { createdAt: "DESC", number: "DESC" },
-      take: Math.min(Math.max(Number(filters?.limit) || 20, 1), 100),
-    });
+    const docs = await qb
+      .orderBy("document.createdAt", "DESC")
+      .addOrderBy("document.number", "DESC")
+      .take(Math.min(Math.max(Number(filters?.limit) || 20, 1), 100))
+      .getMany();
     return docs.map(toPlainDocument);
   }
 );

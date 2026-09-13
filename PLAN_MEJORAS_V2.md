@@ -1886,12 +1886,20 @@ devuelve el renglón, el total y el titular, y emitir sin copia se rechaza.
 
 ### H2 · 🟠 Un documento consolidado no aparece en el historial de ningún vehículo
 
-**[pendiente]** · `src/Hooks/useBudgetPdf.ts`,
+**[a testear]** · `src/Hooks/useBudgetPdf.ts`,
 `electron/DataBase/Endpoints/document.endpoints.ts`
 
 En el consolidado de un cliente, `licensePlate` se guarda como `"AB123CD, XY456ZW"`.
 `document:list` filtra por patente con **igualdad exacta**, así que ese documento
 no sale en el historial de ninguno de los dos autos: sólo en el listado general.
+
+**Resuelto** sin cambiar el esquema: el filtro pasó de igualdad a **pertenencia a
+la lista**. Se rodean la columna y el término con el separador y se comparan, así
+que `AB123CD` encuentra la lista que lo contiene.
+
+La forma fácil de arreglarlo —un `LIKE '%patente%'`— trae el problema de al lado:
+haría que buscar `AB123` devolviera los documentos de `AB123CD`. Hay un caso que
+lo fija.
 
 ### H3 · 🟠 El correlativo se puede saltear sin que nadie se entere
 

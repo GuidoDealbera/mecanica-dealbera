@@ -45,11 +45,17 @@ const listar = async (filtros?: unknown) => {
   return res.result;
 };
 
-const emitir = (id: string, tipo: string, numero: number, fecha: string) =>
+const emitir = (
+  id: string,
+  tipo: string,
+  numero: number,
+  fecha: string,
+  patente = "AB123CD"
+) =>
   ds.query(
     `INSERT INTO document (id, type, number, licensePlate, clientName, total, createdAt)
-     VALUES (?, ?, ?, 'AB123CD', 'Ana Gómez', 50000, ?)`,
-    [id, tipo, numero, fecha]
+     VALUES (?, ?, ?, ?, 'Ana Gómez', 50000, ?)`,
+    [id, tipo, numero, patente, fecha]
   );
 
 beforeEach(async () => {
@@ -166,5 +172,40 @@ describe("el historial de documentos", () => {
     expect(detalle).toContain("IDX_document_created");
     // Y sin ordenado en memoria, que es lo que se estaba pagando.
     expect(detalle).not.toContain("USE TEMP B-TREE");
+  });
+});
+
+describe("el historial de un vehículo", () => {
+  it("incluye el documento consolidado del cliente", async () => {
+    // El consolidado guarda todas las patentes en la misma columna. Con
+    // igualdad exacta no salía en el historial de ninguno de los dos autos,
+    // sólo en el listado general, que es donde el usuario **no** lo busca.
+    await emitir("d1", "budget", 1, "2026-01-01 09:00:00", "AB123CD");
+    await emitir("d2", "budget", 2, "2026-02-01 09:00:00", "AB123CD, XY456ZW");
+
+    const delPrimero = await listar({ licensePlate: "AB123CD" });
+    const delSegundo = await listar({ licensePlate: "XY456ZW" });
+
+    expect(delPrimero.map((d) => d.formatted)).toEqual([
+      "PRE-000002",
+      "PRE-000001",
+    ]);
+    // Y también en el del otro auto, que sólo aparece en el consolidado.
+    expect(delSegundo.map((d) => d.formatted)).toEqual(["PRE-000002"]);
+  });
+
+  it("no confunde una patente con el fragmento de otra", async () => {
+    // Lo que haría un `LIKE '%...%'` a secas, que es la forma fácil de
+    // arreglar lo de arriba y la que rompe esto.
+    await emitir("d1", "budget", 1, "2026-01-01 09:00:00", "AB123CD");
+
+    expect(await listar({ licensePlate: "B123C" })).toEqual([]);
+    expect(await listar({ licensePlate: "AB123" })).toEqual([]);
+  });
+
+  it("no trae el historial completo cuando no encuentra nada", async () => {
+    await emitir("d1", "budget", 1, "2026-01-01 09:00:00", "AB123CD");
+
+    expect(await listar({ licensePlate: "ZZ999ZZ" })).toEqual([]);
   });
 });
