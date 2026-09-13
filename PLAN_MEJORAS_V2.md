@@ -1640,9 +1640,9 @@ sin que nadie lo note.
 Con la base de hoy (3 vehículos) nada de esto se nota. Todos son casos que
 aparecen al crecer, y algunos crecen rápido.
 
-### G1 · 🟠 La ficha de un vehículo trae **todos** sus trabajos, siempre
+### G1 · ⚪ La ficha de un vehículo trae **todos** sus trabajos, siempre
 
-**[pendiente]** · `electron/DataBase/Endpoints/car.crud.endpoints.ts` →
+**[medido, no se cambia]** · `electron/DataBase/Endpoints/car.crud.endpoints.ts` →
 `car:get-by-license`
 
 `relations: { owner: true, jobs: true }` sin límite. Cada trabajo viaja completo
@@ -1654,6 +1654,41 @@ historia hace que abrir su ficha sea la operación más pesada de la aplicación
 
 Corresponde paginar del lado del servidor, como ya se hace en los otros tres
 listados.
+
+**Medido, y no se cambia.** Baja de 🟠 a ⚪.
+
+Un vehículo con historia inventada, con notas y repuestos realistas en cada
+trabajo:
+
+| trabajos | consulta | ficha completa | sólo el auto | sin notas | sin notas ni repuestos |
+| -------- | -------- | -------------- | ------------ | --------- | ---------------------- |
+| 200      | 7 ms     | 124 kB         | 10 kB        | 72 kB     | 46 kB                  |
+| 1000     | —        | 583 kB         | 10 kB        | 362 kB    | 234 kB                 |
+
+Siete milisegundos y 124 kB no son "la operación más pesada de la aplicación".
+Y la consulta ya está indexada: `IDX_job_car` sobre `job(carId)` existe desde
+`NormalizeJobs`, así que lo que se mide es hidratar y serializar, no recorrer.
+
+Para que la ficha de **un** vehículo llegue a 200 trabajos hacen falta décadas
+de un auto que vuelve todos los meses. Mil es directamente irreal.
+
+Contra eso, lo que cuesta el arreglo: los trabajos de la ficha no alimentan sólo
+la tabla de 5 filas. Alimentan también los tres contadores, la línea de tiempo
+—que hoy muestra **todo** el historial— y el modal de emisión, que necesita los
+trabajos elegibles para armar el documento. Paginar del lado del servidor
+obliga a partir eso en tres consultas más y a tocar seis archivos de la pantalla
+más compleja de la aplicación, incluida la emisión de facturas.
+
+Queda anotado cómo se haría el día que haga falta: `car:get-by-license` sin
+`jobs` y con los tres contadores resueltos en SQL; un `car:jobs` paginado con
+filtro y orden para la tabla; una consulta liviana para la línea de tiempo
+—`id`, descripción, estado y fecha, que es lo único que pinta— y otra de
+trabajos elegibles para el documento, que en la práctica son unos pocos.
+
+Y si algo va a doler antes que el IPC en esa pantalla, es la línea de tiempo:
+pinta un nodo por trabajo **y** uno por actualización de kilometraje, sin tope.
+Con 200 trabajos son 400 nodos en el DOM. Acotarla es un cambio de producto, no
+de rendimiento, así que no se hace por cuenta propia.
 
 ### G2 · 🟡 Listar recordatorios escribe en la base
 
