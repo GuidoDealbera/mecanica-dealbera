@@ -62,7 +62,16 @@ export interface BackupFile {
   date: Date;
 }
 
-/** Respaldos del directorio, del más nuevo al más viejo. */
+/**
+ * Respaldos **automáticos** del directorio, del más nuevo al más viejo.
+ *
+ * Sólo los que sigue el patrón `taller_<AAAA-MM-DD>.db`, y a propósito: de esta
+ * lista sale lo que `applyRetention` **borra**. Meter acá los respaldos que el
+ * usuario exportó a mano haría que la poda diaria se los llevara puestos, que es
+ * exactamente lo contrario de lo que espera quien guarda una copia.
+ *
+ * Para lo que se le ofrece restaurar está `listRestorable`.
+ */
 export const listBackups = (dir: string): BackupFile[] => {
   if (!fs.existsSync(dir)) return [];
   return fs
@@ -74,6 +83,50 @@ export const listBackups = (dir: string): BackupFile[] => {
       return { name, path: path.join(dir, name), date: new Date(y, m - 1, d) };
     })
     .filter((f) => !Number.isNaN(f.date.getTime()))
+    .sort((a, b) => b.date.getTime() - a.date.getTime());
+};
+
+/** De dónde salió el archivo, que es lo que la pantalla necesita distinguir. */
+export type BackupOrigin = "automatico" | "manual" | "previo";
+
+export interface RestorableBackup extends BackupFile {
+  origin: BackupOrigin;
+}
+
+const PREFIJO_PREVIO = "pre-migration_";
+
+/**
+ * Todo lo que se puede restaurar, del más nuevo al más viejo.
+ *
+ * Es distinta de `listBackups` y no es un capricho: de aquella sale lo que la
+ * retención borra, y de ésta lo que se le ofrece al usuario. Mezclarlas hacía
+ * que la poda diaria se llevara los respaldos exportados a mano.
+ *
+ * Antes la pantalla usaba `listBackups`, que sólo reconoce
+ * `taller_<AAAA-MM-DD>.db`. El nombre que propone la exportación manual es
+ * `taller_backup_<fecha>.db`, así que si el usuario lo guardaba en la carpeta
+ * de respaldos esperando verlo ahí, **no aparecía**.
+ *
+ * La fecha sale de la del archivo y no del nombre: es la real, existe para
+ * todos y se puede comparar entre orígenes distintos.
+ */
+export const listRestorable = (dir: string): RestorableBackup[] => {
+  if (!fs.existsSync(dir)) return [];
+
+  const automaticos = new Set(listBackups(dir).map((b) => b.name));
+
+  return fs
+    .readdirSync(dir)
+    .filter((name) => name.endsWith(SUFFIX))
+    .map((name) => {
+      const ruta = path.join(dir, name);
+      const origin: BackupOrigin = automaticos.has(name)
+        ? "automatico"
+        : name.startsWith(PREFIJO_PREVIO)
+          ? "previo"
+          : "manual";
+      return { name, path: ruta, date: fs.statSync(ruta).mtime, origin };
+    })
     .sort((a, b) => b.date.getTime() - a.date.getTime());
 };
 

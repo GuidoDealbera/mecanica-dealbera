@@ -8,6 +8,7 @@ import {
   IsString,
   Length,
   Matches,
+  Max,
   Min,
   ValidateNested,
 } from "class-validator";
@@ -194,6 +195,36 @@ export class UpdateCarDto {
   @IsInt({ message: "El kilometraje tiene que ser un número entero" })
   @Min(0, { message: "Los kilómetros no pueden ser negativos" })
   kilometers?: number;
+
+  /**
+   * Intervalos de service **propios de este vehículo**.
+   *
+   * Las columnas existían y `computeNextService` ya las usaba, pero ninguna
+   * pantalla las editaba: la funcionalidad estaba escrita y era inalcanzable,
+   * así que todos los vehículos usaban los intervalos generales.
+   *
+   * `null` significa "usar los generales", y por eso se distingue de ausente:
+   * ausente es "no lo toques". `@IsOptional` de class-validator saltea la
+   * validación tanto con `undefined` como con `null`, que es justo lo que hace
+   * falta —el `null` pasa y el endpoint lo aplica—.
+   *
+   * Los topes son los mismos que los de la configuración general: diez años de
+   * intervalo ya es "no hacerle service", y menos de un mes es un error de
+   * tipeo.
+   */
+  @IsOptional()
+  @IsInt({ message: "El intervalo en meses tiene que ser un número entero" })
+  @Min(1, { message: "El intervalo en meses no puede ser menor a 1" })
+  @Max(120, { message: "El intervalo en meses no puede superar los 120" })
+  serviceIntervalMonths?: number | null;
+
+  @IsOptional()
+  @IsInt({ message: "El intervalo en kilómetros tiene que ser un entero" })
+  @Min(100, { message: "El intervalo en kilómetros no puede ser menor a 100" })
+  @Max(200_000, {
+    message: "El intervalo en kilómetros no puede superar los 200.000",
+  })
+  serviceIntervalKm?: number | null;
 }
 
 /**
@@ -208,6 +239,33 @@ export class UpdateJobDto {
   @IsOptional()
   @IsEnum(JobStatus, { message: "El estado del trabajo no es válido" })
   status?: JobStatus;
+
+  /**
+   * La descripción, que **no se podía corregir**.
+   *
+   * Es la que sale impresa en el presupuesto del cliente: un error de tipeo
+   * obligaba a borrar el trabajo y cargarlo de nuevo, con lo que eso arrastra
+   * —el trabajo cambia de id y de fecha, y si ya se emitió un documento, deja
+   * de existir el que lo respaldaba—.
+   *
+   * Mismas reglas que en el alta, incluido el recorte: `@IsNotEmpty` rechaza
+   * `""` pero no `"   "`, y una descripción de puros espacios sale como un
+   * renglón en blanco en el documento.
+   */
+  @IsOptional()
+  @IsString()
+  @Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
+  @IsNotEmpty({ message: "La descripción del trabajo no puede estar vacía" })
+  description?: string;
+
+  /**
+   * Si el trabajo lo hizo un tercero. Tampoco se podía corregir, y no es un
+   * detalle: el documento separa el total propio del de terceros, así que
+   * marcarlo mal cambia lo que dice el papel.
+   */
+  @IsOptional()
+  @IsBoolean()
+  isThirdParty?: boolean;
 
   @IsOptional()
   @IsInt({ message: "El precio del trabajo tiene que ser un número entero" })

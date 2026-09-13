@@ -39,6 +39,14 @@ export interface Car {
    * contemplarlo y cada pantalla se defendía —o no— por su cuenta.
    */
   owner: Client | null;
+  /**
+   * Intervalos de service propios del vehículo. `null` es "usar los generales".
+   *
+   * Estaban en la entidad y los usaba `computeNextService`, pero faltaban acá,
+   * así que ninguna pantalla podía leerlos ni mostrarlos.
+   */
+  serviceIntervalMonths?: number | null;
+  serviceIntervalKm?: number | null;
   createdAt: Date;
   updatedAt: Date;
 }

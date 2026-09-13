@@ -31,11 +31,16 @@ const doc = (overrides: Partial<IssuedDocument> = {}): IssuedDocument => ({
   clientName: "Ana Gómez",
   total: 125000,
   createdAt: new Date(2026, 8, 6, 10, 30).toISOString(),
+  hasSnapshot: true,
   ...overrides,
 });
 
-/** El envelope de una lectura exitosa, que es lo que devuelve el canal. */
-const ok = <T,>(result: T) => ({ status: "success", message: "", result });
+/** El envelope con la página, que es lo que devuelve el canal. */
+const ok = <T,>(items: T[]) => ({
+  status: "success",
+  message: "",
+  result: { items, total: items.length, page: 1, pageSize: 15 },
+});
 
 beforeEach(() => {
   list.mockReset();
@@ -45,7 +50,10 @@ beforeEach(() => {
   Object.defineProperty(window, "api", {
     configurable: true,
     writable: true,
-    value: { documents: { list }, onDataChanged },
+    value: {
+      documents: { list, get: vi.fn(), savePdf: vi.fn() },
+      onDataChanged,
+    },
   });
 });
 
@@ -60,14 +68,18 @@ describe("DocumentHistory", () => {
 
   it("pasa los filtros tal cual al proceso principal", async () => {
     render(
-      <DocumentHistory filters={{ licensePlate: "AB123CD", limit: 10 }} />
+      <DocumentHistory filters={{ licensePlate: "AB123CD", pageSize: 10 }} />
     );
 
     await waitFor(() => expect(list).toHaveBeenCalled());
     expect(list).toHaveBeenCalledWith({
       type: undefined,
       licensePlate: "AB123CD",
-      limit: 10,
+      page: 1,
+      pageSize: 10,
+      search: undefined,
+      from: undefined,
+      to: undefined,
     });
   });
 

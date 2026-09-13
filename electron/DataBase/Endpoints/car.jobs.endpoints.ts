@@ -165,6 +165,10 @@ handleIpc(
       const wasClosed = isClosed(job.status);
 
       if (cambios.status !== undefined) job.status = cambios.status;
+      if (cambios.description !== undefined)
+        job.description = cambios.description;
+      if (cambios.isThirdParty !== undefined)
+        job.isThirdParty = cambios.isThirdParty;
       if (cambios.price !== undefined) job.price = cambios.price;
       if (cambios.parts !== undefined) job.parts = cambios.parts;
       if (cambios.notes !== undefined) job.notes = cambios.notes;

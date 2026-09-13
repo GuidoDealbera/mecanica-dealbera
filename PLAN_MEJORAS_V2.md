@@ -1840,7 +1840,7 @@ decisiones que todavía no se tomaron.
 
 ### H1 · 🟠 Una factura emitida no se puede volver a imprimir
 
-**[pendiente]** · `electron/DataBase/Entities/document.entity.ts`
+**[a testear]** · `electron/DataBase/Entities/document.entity.ts`
 
 `Document` guarda tipo, número, patente, nombre del titular y total. **No guarda
 los renglones**: ni los trabajos, ni los repuestos, ni las observaciones.
@@ -1854,27 +1854,80 @@ lado.
 Para un documento que es un comprobante, guardar el snapshot completo de lo que se
 imprimió no es una mejora: es la razón de existir de la tabla.
 
+**Resuelto.** El documento guarda la copia de lo que se imprimió y el historial
+tiene un botón para volver a generarlo. Reimprimir **no emite nada**: no toma un
+número nuevo ni toca la base, sólo vuelve a dibujar lo guardado y pregunta dónde
+ponerlo.
+
+Se guarda **sólo lo que sale en el papel**: los renglones con sus repuestos, los
+totales, el vehículo y el titular. Nada de `kmHistory`, ni las notas internas del
+taller, ni los trabajos que no entraron. Guardar de más ensucia para siempre una
+tabla que no se borra nunca, y guardar cosas que el documento no muestra invita a
+que alguien las lea creyendo que son parte del comprobante.
+
+Dos decisiones que conviene dejar escritas:
+
+- **Emitir sin la copia se rechaza.** Un documento sin ella es un número en el
+  historial que no se puede reimprimir, o sea el agujero que esto vino a tapar.
+- **Los documentos viejos no se reconstruyen.** La columna es `nullable` y se
+  queda así: armarles una copia desde los trabajos de hoy daría un papel distinto
+  del que firmó el cliente, que es peor que no tener ninguno. El historial los
+  distingue y el botón explica por qué está deshabilitado.
+
+La copia tiene tope de tamaño, por la misma razón: la tabla no se borra nunca y
+una copia por documento se acumula para siempre.
+
+El listado no arrastra las copias —veinte documentos serían veinte copias
+completas para decidir si mostrar un botón—: trae un `hasSnapshot` y la copia se
+pide sólo al reimprimir.
+
+Verificado contra la aplicación real: emitir guarda la copia entera, releerla
+devuelve el renglón, el total y el titular, y emitir sin copia se rechaza.
+
 ### H2 · 🟠 Un documento consolidado no aparece en el historial de ningún vehículo
 
-**[pendiente]** · `src/Hooks/useBudgetPdf.ts`,
+**[a testear]** · `src/Hooks/useBudgetPdf.ts`,
 `electron/DataBase/Endpoints/document.endpoints.ts`
 
 En el consolidado de un cliente, `licensePlate` se guarda como `"AB123CD, XY456ZW"`.
 `document:list` filtra por patente con **igualdad exacta**, así que ese documento
 no sale en el historial de ninguno de los dos autos: sólo en el listado general.
 
+**Resuelto** sin cambiar el esquema: el filtro pasó de igualdad a **pertenencia a
+la lista**. Se rodean la columna y el término con el separador y se comparan, así
+que `AB123CD` encuentra la lista que lo contiene.
+
+La forma fácil de arreglarlo —un `LIKE '%patente%'`— trae el problema de al lado:
+haría que buscar `AB123` devolviera los documentos de `AB123CD`. Hay un caso que
+lo fija.
+
 ### H3 · 🟠 El correlativo se puede saltear sin que nadie se entere
 
-**[pendiente]** · varios
+**[a testear]** · varios
 
 Ver **E4**. Además del bug, falta lo de producto: **no hay forma de detectar un
 hueco**. Ni una pantalla que lo muestre, ni un aviso. Para una numeración
 correlativa que existe justamente para no tener huecos, corresponde al menos
 poder verificarla.
 
+**Resuelto**: hay un botón "Revisar numeración" en Gestión de datos que recorre
+cada serie y dice si falta alguno, con cuáles.
+
+Tres decisiones:
+
+- **Por tipo y no en conjunto.** El correlativo es por tipo: un hueco en
+  presupuestos no es un hueco en facturas, y mezclarlos daría huecos donde no
+  los hay.
+- **Desde 1 y no desde el primero que existe.** Así también se detecta que la
+  serie no arranque en 1, que es lo que pasa si el hueco quedó al principio.
+- **A pedido, no en cada render.** Es una verificación, no un dato de la
+  pantalla, y recorre la columna entera.
+
+El detalle se acota: con cien huecos, listarlos deja de servir para nada.
+
 ### H4 · 🟠 No se puede corregir un trabajo mal cargado
 
-**[pendiente]** · `electron/DataBase/Types/car.dto.ts` → `UpdateJobDto`
+**[a testear]** · `electron/DataBase/Types/car.dto.ts` → `UpdateJobDto`
 
 `UpdateJobDto` permite cambiar `status`, `price`, `parts`, `notes`, `clientNote` e
 `isService`. **No permite cambiar `description` ni `isThirdParty`.**
@@ -1887,9 +1940,24 @@ Junto con **B4** (no se puede editar marca/modelo/año del vehículo), el patró
 claro: la aplicación sabe crear y sabe borrar, pero **corregir un error de carga
 casi siempre implica borrar y rehacer**.
 
+**Resuelto**: los dos campos se pueden corregir, en el DTO, en el endpoint y en
+el modal de edición.
+
+Lo de `isThirdParty` no es un detalle de completitud: el documento **separa el
+total propio del de terceros**, así que marcarlo mal cambia lo que dice el papel
+y hasta ahora no había forma de arreglarlo.
+
+Y borrar y rehacer no era un rodeo equivalente: el trabajo cambia de id y de
+fecha, y si ya se había emitido un documento, deja de existir el trabajo que lo
+respaldaba.
+
+La descripción se recorta antes de guardarse, como en el alta: `@IsNotEmpty`
+rechaza `""` pero no `"   "`, y una de puros espacios sale como un renglón en
+blanco en el presupuesto.
+
 ### H5 · 🟠 No hay forma de deshacer un borrado
 
-**[pendiente]** · todos los `delete`
+**[a testear]** · todos los `delete`
 
 Borrar un vehículo se lleva sus trabajos, su historial de kilometraje y su
 recordatorio. Borrar un cliente se lleva además **todos sus vehículos**. Es
@@ -1900,17 +1968,70 @@ Los clientes ya tienen `isActive` para la baja lógica; los vehículos no tienen
 equivalente. Un borrado lógico con papelera resolvería el caso real —"me equivoqué
 de auto"— sin obligar a elegir entre perder un dato y perder un día.
 
+**Resuelto con papelera, pero no con borrado lógico**, y el porqué se midió.
+
+El borrado lógico es lo natural: un `deletedAt` y filtrar. Contando qué habría
+que tocar aparecen **seis consultas agregadas sobre `job` que nunca pasan por
+`car`** —el contador de trabajos activos de la barra y cinco del dashboard—. Con
+un `deletedAt`, los trabajos de un vehículo borrado seguirían contando en el
+badge, en la torta de estados y en la facturación del mes. Y lo peor no son esas
+seis: es que la regla "acordate de excluir los borrados" no se ve desde la
+consulta, así que la próxima que alguien escriba va a estar mal y nadie se va a
+enterar.
+
+Así que el vehículo se borra **de verdad**, igual que antes, y lo que queda es
+una copia de sus filas en una tabla aparte. Ninguna consulta existente cambia, no
+hay invariante nueva que recordar, y restaurar es volver a insertar lo que había.
+Es el mismo criterio que el de **H1** con los documentos: guardar la copia de lo
+que hubo, no marcar lo que sigue estando.
+
+Detalles que importan:
+
+- Se guardan las **filas crudas**, no un objeto armado a mano: una columna nueva
+  entra sola en la copia en vez de olvidarse.
+- Restaurar es todo o nada, en una transacción. Media restauración deja un
+  vehículo sin sus trabajos y sin forma de saberlo.
+- Si la patente se volvió a usar, no se restaura y se explica: la patente es la
+  identidad del vehículo, y restaurar crearía dos.
+- El titular se reinserta sólo si no está. Borrar el auto no borra al cliente, y
+  el auto recuperado tiene que volver a ser de quien era.
+- La papelera se poda a los últimos 50: guarda copias enteras de vehículos con
+  sus trabajos, así que sin tope crece como crecía la carpeta de respaldos antes
+  de tener retención.
+- Tirar de la papelera sí es definitivo, y se pregunta.
+
+Verificado contra la aplicación real con una base de verdad: borrar deja el auto
+en la papelera con lo que arrastra, los contadores bajan de inmediato —que es lo
+que el borrado lógico habría roto—, y recuperarlo lo devuelve con su titular.
+
 ### H6 · 🟡 No hay búsqueda ni filtro en el historial de documentos
 
-**[pendiente]** · `src/Components/DocumentHistory.tsx`
+**[a testear]** · `src/Components/DocumentHistory.tsx`
 
 `document:list` acepta `type`, `licensePlate` y `limit` (tope 100). No hay
 búsqueda por nombre de cliente, ni rango de fechas, ni paginado. Con dos años de
 presupuestos, el historial es una lista de 100 y nada más.
 
+**Resuelto**: `document:list` pasó a devolver `Paginated`, como los otros
+listados, y acepta búsqueda y rango de fechas.
+
+La búsqueda mira el titular **y la patente**, que son las dos formas en que el
+usuario tiene el dato: o el cliente lo menciona por teléfono, o trae el papel en
+la mano. El término se escapa, o un `%` devolvería el historial completo.
+
+El rango incluye los dos extremos: quien filtra "del 15 al 20" espera que el 20
+esté, así que el tope va al final de ese día y no a su medianoche.
+
+Los filtros se muestran sólo donde sirven: en Gestión de datos, que es la
+pantalla que se usa para encontrar un documento. Dentro de la ficha de un
+vehículo el listado sigue siendo un bloque compacto.
+
+Detalle de la pantalla vacía: con filtros puestos dice "ningún documento
+coincide" y no "todavía no se emitió ninguno", que sería mentira.
+
 ### H7 · 🟡 Los intervalos de service por vehículo no se pueden configurar
 
-**[pendiente]** · `electron/DataBase/Entities/car.entity.ts`
+**[a testear]** · `electron/DataBase/Entities/car.entity.ts`
 
 `Car.serviceIntervalMonths` y `Car.serviceIntervalKm` existen en la entidad, los
 usa `computeNextService`, y **ninguna pantalla los edita**. La funcionalidad está
@@ -1920,15 +2041,50 @@ generales.
 Es justo el caso que el comentario de la entidad describe —"distinguir un auto de
 uso intensivo de uno de fin de semana"— y no se puede hacer.
 
+**Resuelto.** Los dos campos se editan desde la tarjeta de próximo service de la
+ficha del vehículo, que es donde el usuario está pensando en esto, y no en el
+formulario de alta —el intervalo propio es una excepción, no un dato que se
+cargue con el auto—.
+
+Vacío significa "usar los generales", y el placeholder muestra cuáles son. Por
+eso el campo vacío manda `null` y no se omite: omitir es "no lo toques", que es
+otra cosa. En el listado había además un hueco de tipos —`serviceIntervalMonths`
+y `serviceIntervalKm` no estaban en el `Car` del renderer—, así que ninguna
+pantalla podía siquiera leerlos.
+
+Los topes son los mismos que los de la configuración general, y por el mismo
+motivo: diez años de intervalo ya es "no hacerle service".
+
+Verificado en la aplicación real: guardar 4 meses / 5.000 km queda en el
+vehículo y **no toca los generales**, y vaciar los campos lo devuelve a `null`.
+
 ### H8 · ⚪ Los respaldos exportados a mano no aparecen en la lista de restauración
 
-**[pendiente]** · `electron/DataBase/backups.ts` → `listBackups`
+**[a testear]** · `electron/DataBase/backups.ts` → `listBackups`
 
 `listBackups` reconoce sólo el patrón `taller_<AAAA-MM-DD>.db`. El nombre que
 propone la exportación manual es `taller_backup_<fecha>.db`, que **no matchea**:
 si el usuario lo guarda en la carpeta de respaldos esperando verlo ahí, no
 aparece. Además la fecha que muestra la pantalla sale del **nombre del archivo**,
 no de su fecha real.
+
+**Resuelto, y no como parecía.** La forma fácil —que `listBackups` acepte más
+nombres— tiene una trampa que descubre leer quién más la usa: de esa misma lista
+sale lo que `applyRetention` **borra**. Aceptar ahí los respaldos manuales habría
+hecho que la poda diaria se los llevara, o sea lo contrario exacto de lo que
+espera quien guarda una copia.
+
+Así que son dos listas y cada una dice para qué es. `listBackups` sigue siendo la
+de los automáticos, y es la que poda. `listRestorable` es lo que se le ofrece al
+usuario: cualquier `.db` de la carpeta, etiquetado según de dónde salió
+—automático, manual, o previo a una actualización—, porque los tres no
+significan lo mismo.
+
+La fecha ahora es la del archivo. La del nombre no existe para los manuales y
+para los automáticos puede mentir: alcanza con renombrar uno.
+
+Hay un caso que corre la poda con veinte respaldos automáticos y comprueba que
+los manuales sigan ahí.
 
 ---
 

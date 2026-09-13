@@ -56,6 +56,13 @@ contextBridge.exposeInMainWorld("api", {
           }
     ) => await ipcRenderer.invoke("car:reassign-owner", licensePlate, payload),
   },
+  /** La papelera: lo borrado se puede recuperar. */
+  trash: {
+    list: async () => await ipcRenderer.invoke("trash:list"),
+    restore: async (id: string) =>
+      await ipcRenderer.invoke("trash:restore", id),
+    purge: async (id: string) => await ipcRenderer.invoke("trash:purge", id),
+  },
   clients: {
     create: async (dto: CreateClientDto) =>
       await ipcRenderer.invoke("client:create", dto),
@@ -104,6 +111,11 @@ contextBridge.exposeInMainWorld("api", {
       await ipcRenderer.invoke("document:discard", id),
     list: async (filters?: DocumentQueryParams) =>
       await ipcRenderer.invoke("document:list", filters),
+    /** Un documento con la copia de lo que se imprimió, para reimprimirlo. */
+    get: async (id: string) => await ipcRenderer.invoke("document:get", id),
+    /** Revisa que la numeración no tenga huecos. */
+    checkSequence: async () =>
+      await ipcRenderer.invoke("document:check-sequence"),
     /** Pregunta dónde guardar el PDF ya dibujado y lo escribe. */
     savePdf: async (payload: { defaultName: string; bytes: Uint8Array }) =>
       await ipcRenderer.invoke("document:save-pdf", payload),

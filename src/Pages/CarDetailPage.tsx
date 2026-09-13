@@ -291,6 +291,10 @@ const CarDetailPage: React.FC = () => {
             <NextServiceCard
               licensePlate={licence}
               currentKm={car?.kilometers ?? 0}
+              carId={car.id}
+              intervalMonths={car.serviceIntervalMonths ?? null}
+              intervalKm={car.serviceIntervalKm ?? null}
+              onCarUpdated={() => refreshCar(licence)}
             />
           </CardBody>
         </Card>
@@ -306,7 +310,7 @@ const CarDetailPage: React.FC = () => {
           <Divider className="bg-content3" />
           <CardBody className="pt-3">
             <DocumentHistory
-              filters={{ licensePlate: licence, limit: 10 }}
+              filters={{ licensePlate: licence, pageSize: 10 }}
               emptyText="Todavía no se emitió ningún presupuesto ni factura de este vehículo."
             />
           </CardBody>

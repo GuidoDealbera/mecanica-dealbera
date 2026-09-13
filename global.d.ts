@@ -14,6 +14,8 @@ import {
   DocumentType,
   IssueDocumentBody,
   IssuedDocument,
+  DocumentSnapshot,
+  SequenceCheck,
   Paginated,
   ReminderQueryParams,
   SaveReminderBody,
@@ -22,6 +24,7 @@ import {
   UpdateClientBody,
 } from "./src/Types/apiTypes";
 import { Car, Client, DashboardStats, Jobs } from "./src/Types/types";
+import type { TrashItem } from "./electron/DataBase/trash.service";
 export {};
 
 interface SearchResult {
@@ -101,6 +104,11 @@ declare global {
             | { mode: "new"; newOwner: CreateClientDto }
         ) => Promise<APIResponse>;
       };
+      trash: {
+        list: () => Promise<APIResponse<TrashItem[]>>;
+        restore: (id: string) => Promise<APIResponse>;
+        purge: (id: string) => Promise<APIResponse>;
+      };
       clients: {
         create: (dto: CreateClientDto) => Promise<APIResponse<Client>>;
         getAll: (
@@ -149,11 +157,19 @@ declare global {
         discard: (id: string) => Promise<APIResponse>;
         list: (
           filters?: DocumentQueryParams
-        ) => Promise<APIResponse<IssuedDocument[]>>;
+        ) => Promise<APIResponse<Paginated<IssuedDocument>>>;
+        get: (
+          id: string
+        ) => Promise<
+          APIResponse<
+            (IssuedDocument & { snapshot: DocumentSnapshot | null }) | null
+          >
+        >;
         savePdf: (payload: {
           defaultName: string;
           bytes: Uint8Array;
         }) => Promise<APIResponse<{ filePath: string }>>;
+        checkSequence: () => Promise<APIResponse<SequenceCheck[]>>;
       };
       /** Suscribe al aviso de "los datos cambiaron". Devuelve la baja. */
       onDataChanged: (callback: () => void) => () => void;

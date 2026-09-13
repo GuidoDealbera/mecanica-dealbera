@@ -44,11 +44,46 @@ const invocar = async (canal: string, ...args: unknown[]) => {
   return (await handler({}, ...args)) as Respuesta;
 };
 
+/** La copia de lo impreso, que es obligatoria: sin ella no se puede reimprimir. */
+const copia = () => ({
+  title: "Presupuesto de Trabajo",
+  car: {
+    licensePlate: "AB123CD",
+    brand: "Volkswagen",
+    model: "Gol",
+    year: 2016,
+    kilometers: 90000,
+    owner: {
+      fullname: "Ana Gómez",
+      phone: "3515123456",
+      address: "San Martín 100",
+      city: "Córdoba",
+    },
+  },
+  jobs: [
+    {
+      id: "j1",
+      description: "Cambio de aceite",
+      price: 125000,
+      isThirdParty: false,
+      parts: [],
+    },
+  ],
+  totals: {
+    laborTotal: 125000,
+    partsGrandTotal: 0,
+    thirdPartyTotal: 0,
+    ownTotal: 125000,
+    total: 125000,
+  },
+});
+
 const emitir = (overrides: Record<string, unknown> = {}) => ({
   type: DocumentType.BUDGET,
   licensePlate: "AB123CD",
   clientName: "Ana Gómez",
   total: 125000,
+  snapshot: copia(),
   ...overrides,
 });
 
@@ -105,6 +140,41 @@ describe("document:issue", () => {
     // Un trabajo de garantía o de cortesía se factura en cero.
     const res = await invocar("document:issue", emitir({ total: 0 }));
     expect(res.status).toBe("success");
+  });
+
+  it("guarda la copia de lo que se imprimió", async () => {
+    const res = await invocar("document:issue", emitir());
+    expect(res.status).toBe("success");
+
+    // Es la razón de ser de esta tabla: sin la copia, el historial dice que se
+    // emitió un documento y no hay forma de volver a generarlo.
+    const [fila] = (await ds.query(
+      "SELECT snapshot FROM document WHERE number = 1"
+    )) as { snapshot: string | null }[];
+    expect(fila.snapshot).toBeTruthy();
+    expect(JSON.parse(fila.snapshot!).jobs[0].description).toBe(
+      "Cambio de aceite"
+    );
+  });
+
+  it("no emite sin la copia", async () => {
+    for (const rota of [undefined, null, "una copia", {}, { jobs: [] }]) {
+      const res = await invocar("document:issue", emitir({ snapshot: rota }));
+      expect(res.status, JSON.stringify(rota)).toBe("failed");
+    }
+    // Y no quema ningún número por el camino.
+    expect(await cuantosDocumentos()).toBe(0);
+  });
+
+  it("rechaza una copia descomunal en vez de guardarla para siempre", async () => {
+    // La tabla no se borra nunca, así que una copia por documento se acumula.
+    const enorme = copia();
+    enorme.jobs[0].description = "x".repeat(300_000);
+
+    const res = await invocar("document:issue", emitir({ snapshot: enorme }));
+
+    expect(res.status).toBe("failed");
+    expect(await cuantosDocumentos()).toBe(0);
   });
 
   it("rechaza un tipo que no existe", async () => {
