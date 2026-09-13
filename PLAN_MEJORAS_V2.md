@@ -1082,13 +1082,16 @@ autocompletar llevaban `textValue={client.key}`, y al pasar la clave a ser el
 
 La decisión de qué titular quedó elegido salió del componente a
 `src/Utils/ownerSelection.ts`, que es donde el proyecto pone las reglas
-testeables. Vale aclarar el límite: eso cubre la regla, **no** el widget. Se
-intentó ejercitar el autocompletar contra la aplicación real por CDP y no se
-pudo —el desplegable de HeroUI no responde a eventos sintéticos, y el teclado
-por CDP no llega—; se comprobó que el código anterior se comporta igual bajo el
-mismo arnés, así que es una limitación de la herramienta y no del cambio. Lo que
-sí se ejercitó en la aplicación real es la ficha del cliente por `id`, entrando
-por la dirección y con un clic desde el listado.
+testeables. Lo que sí se ejercitó en la aplicación real es la ficha del cliente
+por `id`, entrando por la dirección y con un clic desde el listado.
+
+**Corrección posterior, hecha en el Sprint E.** Acá decía que el autocompletar
+no era testeable —no se lo pudo manejar por CDP— y que como el código anterior
+se comportaba igual bajo el mismo arnés, era una limitación de la herramienta.
+Las dos cosas estaban mal. `@testing-library/react` ya estaba en el proyecto, y
+al escribir el test que faltaba apareció el motivo real de que el widget no
+respondiera: **el campo no se podía tipear**, ni antes ni después. El código
+anterior se comportaba igual porque tenía el mismo bug. Ver E9.
 
 **Después, quitar la unicidad.** La migración `AllowHomonymClients` reconstruye
 la tabla `client` sin los `UNIQUE` de `fullname` ni de `phone` —el teléfono
@@ -1352,6 +1355,42 @@ Comprobé que hoy el riesgo es bajo: la base corre en `journal_mode = delete`
 una suposición no escrita en ningún lado: alcanza con que alguien active WAL para
 buscar rendimiento y esto pase de improbable a corrupción. Borrar los laterales
 antes de copiar cuesta dos renglones.
+
+### E9 · 🔴 El campo del titular del alta de vehículos no se podía tipear
+
+**[a testear]** · `src/Components/Forms/AddCarForm.tsx`
+
+No estaba en el plan: apareció al escribir el test que en D5 se había dado por
+imposible.
+
+El `Autocomplete` del titular recibía `{...field}` de react-hook-form, que
+incluye `value` y `onChange`. Pero un `Autocomplete` de HeroUI no se controla
+con esos: usa `inputValue` y `onInputChange`. El `onChange` del spread bajaba al
+input de adentro y **reemplazaba al de react-aria**, que es el que abre la lista
+y avisa lo que se escribió. Resultado: react-aria nunca se enteraba del tipeo,
+así que no buscaba ni abría el desplegable, y como el valor visible lo manda
+react-aria, en el siguiente render el campo volvía a quedar vacío.
+
+Está así desde el primer commit, y es la pantalla de dar de alta un vehículo,
+que es el uso diario de la aplicación.
+
+Medido cuatro veces, dos entornos por dos versiones del código:
+
+| entorno         | sin el arreglo       | con el arreglo               |
+| --------------- | -------------------- | ---------------------------- |
+| aplicación real | el campo queda vacío | queda "Ana", con su lista    |
+| jsdom           | vacío, 0 búsquedas   | "Ana", busca y abre la lista |
+
+La salvedad honesta: se lo manejó con `execCommand("insertText")` y con
+`userEvent`, no con una tecla física. No hay mecanismo por el que una tecla real
+tome otro camino —termina en el mismo evento `input` y en el mismo `onChange` de
+React—, pero conviene confirmarlo escribiendo en el campo una vez.
+
+**Resuelto** pasando `inputValue`, `name` y `onBlur` en vez del spread, con
+cuatro casos de componente que fallan sin el arreglo: que elegir de la lista
+rellene los datos, que el campo muestre el nombre y no el uuid, que dos
+homónimos se distingan, y que editar el nombre después de elegir vuelva a dejar
+el titular en blanco.
 
 ---
 
