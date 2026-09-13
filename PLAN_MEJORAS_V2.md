@@ -1459,7 +1459,7 @@ elige mal.
 
 ### F1 · 🟠 Los contadores y el dashboard nunca se enteran de que pasó el tiempo
 
-**[pendiente]** · `electron/DataBase/dashboardCache.ts`, `src/Components/Header.tsx`
+**[a testear]** · `electron/DataBase/dashboardCache.ts`, `src/Components/Header.tsx`
 
 Dos mecanismos que se invalidan **sólo ante escrituras**, calculando cosas que
 dependen de la fecha:
@@ -1477,6 +1477,21 @@ no lo cuenta hasta la próxima escritura.
 
 Se arregla con un vencimiento por tiempo en la caché y un refresco periódico (o al
 volver el foco a la ventana).
+
+**Resuelto**, con las dos mitades, porque una sola no alcanza: si la caché vence
+pero nadie vuelve a preguntar, la pantalla sigue mostrando lo mismo.
+
+En el proceso principal, lo cacheado sólo vale dentro del **mismo día
+calendario**, y no por un plazo en minutos. Lo que invalida el cálculo no es que
+haya pasado tiempo sino que haya cambiado la fecha: un plazo fijo vence de más
+durante el día y puede cruzar la medianoche sin enterarse.
+
+En la interfaz, `useRefrescoPorTiempo` refresca al volver el foco a la ventana
+—que es cuando la persona vuelve a mirar, o sea cuando un número viejo se nota—
+y al cambiar el día. Lo segundo se chequea cada minuto pero **sólo refresca si
+la fecha cambió**: comparar dos textos por minuto no le cuesta nada a nadie, y
+sondear la base cada minuto sí. Lo usan los contadores de la barra y el
+dashboard.
 
 ### F2 · 🟠 Cinco endpoints devuelven algo distinto de lo que devuelven los demás
 

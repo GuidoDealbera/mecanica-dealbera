@@ -10,16 +10,44 @@ import type { DashboardStats } from "../../src/Types/types";
  * dashboard queda siempre fresco sin recalcular en cada visita.
  *
  * Invariante: toda mutación exitosa que pueda afectar las estadísticas llama a
- * `invalidateDashboardStatsCache()`.
+ * `invalidateDashboardStatsCache()`. Y como además dependen de la fecha, lo
+ * cacheado sólo vale dentro del mismo día calendario: ver `getDashboardStatsCache`.
  */
 let cachedStats: DashboardStats | null = null;
+let cachedOn: Date | null = null;
 
-export function getDashboardStatsCache(): DashboardStats | null {
+/** El día calendario de una fecha, como texto comparable. */
+const dia = (fecha: Date): string =>
+  `${fecha.getFullYear()}-${fecha.getMonth()}-${fecha.getDate()}`;
+
+/**
+ * Lo cacheado, si sigue sirviendo.
+ *
+ * La invalidación por escritura no alcanzaba, porque estas estadísticas no
+ * dependen sólo de los datos: `computeDashboardStats` usa `new Date()` para el
+ * mes en curso y para los últimos seis meses. Un taller que deja la aplicación
+ * abierta —lo normal— cruzaba la medianoche del 31 de diciembre y **seguía
+ * viendo diciembre como mes en curso**, con su facturación y su "+3 este mes",
+ * hasta que alguien cargara algo.
+ *
+ * Se compara el día calendario y no un plazo en minutos: lo que invalida el
+ * cálculo no es que haya pasado tiempo sino que haya cambiado la fecha, y un
+ * plazo fijo puede tanto vencer de más como cruzar la medianoche sin enterarse.
+ */
+export function getDashboardStatsCache(
+  now: Date = new Date()
+): DashboardStats | null {
+  if (!cachedStats || !cachedOn) return null;
+  if (dia(cachedOn) !== dia(now)) return null;
   return cachedStats;
 }
 
-export function setDashboardStatsCache(stats: DashboardStats): void {
+export function setDashboardStatsCache(
+  stats: DashboardStats,
+  now: Date = new Date()
+): void {
   cachedStats = stats;
+  cachedOn = now;
 }
 
 /**
@@ -42,6 +70,7 @@ export function onDashboardStatsInvalidated(listener: CacheListener): void {
 
 export function invalidateDashboardStatsCache(): void {
   cachedStats = null;
+  cachedOn = null;
   for (const listener of listeners) {
     try {
       listener();

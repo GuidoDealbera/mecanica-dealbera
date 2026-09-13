@@ -32,6 +32,7 @@ import UpdateModal from "./UpdateModal";
 import { useToasts } from "../Hooks/useToasts";
 import { useGlobalShortcuts } from "../Hooks/useGlobalShortcuts";
 import { useTheme } from "../Theme/themeContext";
+import { useRefrescoPorTiempo } from "../Hooks/useRefrescoPorTiempo";
 
 const BUTTONS = [
   { path: "/", text: "Inicio" },
@@ -103,6 +104,11 @@ const Header = () => {
     refreshCounters();
     return window.api.onDataChanged(refreshCounters);
   }, [refreshCounters]);
+
+  // Y también cuando pasa el tiempo. Los recordatorios vencen a una fecha, no a
+  // una escritura: con la aplicación abierta toda la noche, el badge no contaba
+  // el service que vencía a medianoche hasta que alguien cargara algo.
+  useRefrescoPorTiempo(refreshCounters);
 
   // Atajos de teclado globales (navegación, búsqueda, ayuda, nuevo vehículo).
   useGlobalShortcuts({
