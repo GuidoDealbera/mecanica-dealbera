@@ -20,11 +20,14 @@ import { DEFAULT_SERVICE_SETTINGS } from "../Types/apiTypes";
 
 const setSettings = vi.fn();
 
+/** El envelope de una lectura exitosa, que es lo que devuelven los canales. */
+const ok = <T,>(result: T) => ({ status: "success", message: "", result });
+
 const api = (getSettings: () => Promise<unknown>) => ({
   service: {
     getSettings,
     setSettings,
-    list: vi.fn(async () => ({ items: [], total: 0, page: 1, pageSize: 8 })),
+    list: vi.fn(async () => ok({ items: [], total: 0, page: 1, pageSize: 8 })),
     markContacted: vi.fn(),
   },
   global: { openExternal: vi.fn() },
@@ -55,7 +58,7 @@ afterEach(() => {
 
 describe("el panel de intervalos de service", () => {
   it("deja editar y guardar cuando la configuración se leyó", async () => {
-    montar(async () => ({ ...DEFAULT_SERVICE_SETTINGS, intervalMonths: 9 }));
+    montar(async () => ok({ ...DEFAULT_SERVICE_SETTINGS, intervalMonths: 9 }));
     await abrirElPanel();
 
     // El caso normal, que es el que no puede romperse al arreglar el otro.
@@ -82,7 +85,7 @@ describe("el panel de intervalos de service", () => {
     let falla = true;
     montar(async () => {
       if (falla) throw new Error("la base no responde");
-      return { ...DEFAULT_SERVICE_SETTINGS, intervalMonths: 9 };
+      return ok({ ...DEFAULT_SERVICE_SETTINGS, intervalMonths: 9 });
     });
     await abrirElPanel();
     await screen.findByText(/no se pudieron leer los intervalos guardados/i);

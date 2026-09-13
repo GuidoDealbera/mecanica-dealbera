@@ -78,7 +78,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose }) => {
     try {
       const res = await window.api.global.search(q);
       if (res.status === "success") {
-        setResults({ cars: res.cars, clients: res.clients });
+        setResults(res.result);
       }
     } finally {
       setLoading(false);

@@ -242,13 +242,19 @@ describe("service:save", () => {
 });
 
 describe("service:settings-set", () => {
+  // Las lecturas devuelven el envelope como todo lo demás: se desenvuelve acá
+  // para que los casos sigan leyéndose sobre los valores y no sobre la forma.
   const leer = async () =>
-    (await invocar<{
-      intervalMonths: number;
-      intervalKm: number;
-      soonDays: number;
-      soonKm: number;
-    }>("service:settings-get"))!;
+    (
+      await invocar<{
+        result: {
+          intervalMonths: number;
+          intervalKm: number;
+          soonDays: number;
+          soonKm: number;
+        };
+      }>("service:settings-get")
+    ).result;
 
   it("guarda los valores que están en rango", async () => {
     await preparar();
@@ -355,11 +361,15 @@ describe("service:count-due", () => {
     // Cerrado: no cuenta aunque su fecha haya pasado.
     await insertar(cerrado, "done", "2020-01-01 00:00:00", null);
 
-    expect(await invocar<number>("service:count-due")).toBe(2);
+    expect(
+      (await invocar<{ result: number }>("service:count-due")).result
+    ).toBe(2);
   });
 
   it("sin recordatorios el contador es cero, no falla", async () => {
     await preparar();
-    expect(await invocar<number>("service:count-due")).toBe(0);
+    expect(
+      (await invocar<{ result: number }>("service:count-due")).result
+    ).toBe(0);
   });
 });

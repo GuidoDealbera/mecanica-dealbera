@@ -40,6 +40,7 @@ import ReminderActions from "./Components/ReminderActions";
 import { useToasts } from "../Hooks/useToasts";
 import { reportarError } from "../Utils/reportarError";
 import { useDebounce } from "../Hooks/useDebounce";
+import { ensureSuccess } from "../Utils/apiResponse";
 
 const PAGE_SIZE = 8;
 
@@ -112,7 +113,7 @@ const ServiceAlertsPage: React.FC = () => {
 
   const fetchSettings = React.useCallback(async () => {
     try {
-      const current = await window.api.service.getSettings();
+      const current = ensureSuccess(await window.api.service.getSettings());
       setSettings(current);
       setSettingsDraft(current);
       setSettingsCargados(true);
@@ -137,13 +138,15 @@ const ServiceAlertsPage: React.FC = () => {
   const fetchReminders = React.useCallback(async () => {
     setLoading(true);
     try {
-      const result = await window.api.service.list({
-        page: effectivePage,
-        pageSize: PAGE_SIZE,
-        scope,
-        contacted: CONTACTED_VALUE[contacted],
-        search: debouncedSearch || undefined,
-      });
+      const result = ensureSuccess(
+        await window.api.service.list({
+          page: effectivePage,
+          pageSize: PAGE_SIZE,
+          scope,
+          contacted: CONTACTED_VALUE[contacted],
+          search: debouncedSearch || undefined,
+        })
+      );
       setReminders(result.items);
       setTotal(result.total);
     } catch (error) {

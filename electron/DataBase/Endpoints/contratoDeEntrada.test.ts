@@ -173,4 +173,36 @@ describe("contrato de entrada de los canales IPC", () => {
     // Y nada de todo eso escribió en la base.
     expect(await foto()).toEqual(antes);
   });
+
+  it("todos los canales contestan con el mismo envelope", async () => {
+    // El contrato de **salida**, que es el otro medio del mismo problema.
+    //
+    // Nueve canales devolvían el dato pelado: un `Paginated`, un número, un
+    // arreglo. Con eso `ensureSuccess` no se podía usar en la mitad de las
+    // llamadas, así que cada pantalla se inventaba su manejo de error, y una
+    // lectura que fallaba de verdad llegaba al renderer como una promesa
+    // rechazada con el mensaje de TypeORM.
+    //
+    // Se recorre la lista registrada por el mismo motivo que arriba: un canal
+    // nuevo entra solo, que es lo único que evita que esto se desactualice.
+    const ESTADOS = ["success", "failed", "cancelled"];
+    const fuera: string[] = [];
+
+    for (const [canal, handler] of stub.handlers) {
+      let respuesta: unknown;
+      try {
+        respuesta = await handler({}, "ZZ999ZZ");
+      } catch {
+        // Que no lance ya lo cubre el caso anterior; acá sólo interesa la forma
+        // de lo que devuelve cuando devuelve.
+        continue;
+      }
+      const estado = (respuesta as { status?: unknown } | null)?.status;
+      if (typeof estado !== "string" || !ESTADOS.includes(estado)) {
+        fuera.push(`${canal}: ${JSON.stringify(respuesta)?.slice(0, 80)}`);
+      }
+    }
+
+    expect(fuera).toEqual([]);
+  });
 });

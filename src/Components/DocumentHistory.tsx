@@ -64,7 +64,7 @@ const DocumentHistory: React.FC<DocumentHistoryProps> = ({
     setLoading(true);
     window.api.documents
       .list({ type, licensePlate, limit })
-      .then(setDocuments)
+      .then((res) => setDocuments(res.result ?? []))
       .catch(() => setDocuments([]))
       .finally(() => setLoading(false));
   }, [type, licensePlate, limit]);

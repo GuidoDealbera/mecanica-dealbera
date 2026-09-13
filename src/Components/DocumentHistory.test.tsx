@@ -34,11 +34,14 @@ const doc = (overrides: Partial<IssuedDocument> = {}): IssuedDocument => ({
   ...overrides,
 });
 
+/** El envelope de una lectura exitosa, que es lo que devuelve el canal. */
+const ok = <T,>(result: T) => ({ status: "success", message: "", result });
+
 beforeEach(() => {
   list.mockReset();
   onDataChanged.mockClear();
   unsubscribe.mockClear();
-  list.mockResolvedValue([]);
+  list.mockResolvedValue(ok([]));
   Object.defineProperty(window, "api", {
     configurable: true,
     writable: true,
@@ -69,16 +72,18 @@ describe("DocumentHistory", () => {
   });
 
   it("muestra número, titular y total de cada documento", async () => {
-    list.mockResolvedValue([
-      doc(),
-      doc({
-        id: "d2",
-        type: DocumentType.INVOICE,
-        formatted: "FAC-000007",
-        clientName: "Carlos Bravo",
-        total: 89000,
-      }),
-    ]);
+    list.mockResolvedValue(
+      ok([
+        doc(),
+        doc({
+          id: "d2",
+          type: DocumentType.INVOICE,
+          formatted: "FAC-000007",
+          clientName: "Carlos Bravo",
+          total: 89000,
+        }),
+      ])
+    );
 
     render(<DocumentHistory />);
 
@@ -92,7 +97,7 @@ describe("DocumentHistory", () => {
   });
 
   it("sólo muestra la patente cuando se le pide", async () => {
-    list.mockResolvedValue([doc()]);
+    list.mockResolvedValue(ok([doc()]));
 
     const { unmount } = render(<DocumentHistory />);
     expect(await screen.findByText("PRE-000001")).toBeInTheDocument();
@@ -105,7 +110,7 @@ describe("DocumentHistory", () => {
   });
 
   it("se vuelve a pedir cuando avisan que cambiaron los datos", async () => {
-    list.mockResolvedValue([doc()]);
+    list.mockResolvedValue(ok([doc()]));
     render(<DocumentHistory />);
 
     await waitFor(() => expect(list).toHaveBeenCalledTimes(1));

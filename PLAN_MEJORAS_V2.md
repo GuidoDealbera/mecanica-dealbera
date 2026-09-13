@@ -1495,7 +1495,7 @@ dashboard.
 
 ### F2 · 🟠 Cinco endpoints devuelven algo distinto de lo que devuelven los demás
 
-**[pendiente]** · `electron/DataBase/Endpoints/*`
+**[a testear]** · `electron/DataBase/Endpoints/*`
 
 El contrato dominante es el envelope `APIResponse<T>` con `status`, `message` y
 `result`. Pero:
@@ -1513,13 +1513,38 @@ tragarse un `status: "failed"`— no se puede usar en la mitad de las llamadas, 
 cada pantalla inventa su propio manejo de error. Que es exactamente el problema
 que `ensureSuccess` documenta como ya sufrido.
 
+**Resuelto.** Son diez canales: los nueve de la lista más `global:search`, que
+tenía una tercera forma propia —`{ status, cars, clients }`, con `status` pero
+sin `result`—.
+
+Y había un efecto que no estaba anotado: como esos canales no tenían un `catch`,
+una lectura que fallaba de verdad llegaba al renderer como promesa rechazada con
+el mensaje de TypeORM. O sea que el problema no era sólo de uniformidad.
+
+El envoltorio va en `handleIpcQuery`, al lado de `handleIpc`, y no en cada
+handler. Es la diferencia entre una convención que hay que acordarse de
+respetar y algo estructural: un canal de lectura nuevo cumple el contrato por
+usar esa función. En las lecturas el `message` de éxito va vacío a propósito —no
+hay nada que avisar porque algo se leyó, y un texto ahí sólo invita a mostrarlo—.
+
+`contratoDeEntrada.test.ts` gana el contrato de **salida**, recorriendo la misma
+lista registrada: si un canal contesta algo que no es el envelope, el test lo
+nombra. Comprobado devolviendo un canal a la forma vieja.
+
+Ejercitado además contra la aplicación real con una base de verdad: los diez
+canales contestan el envelope y las cinco pantallas siguen andando.
+
 ### F3 · 🟠 `client:create` no devuelve el cliente creado
 
-**[pendiente]** · `electron/DataBase/Endpoints/client.endpoints.ts`
+**[a testear]** · `electron/DataBase/Endpoints/client.endpoints.ts`
 
 Caso particular de F2, pero con efecto propio: quien crea un cliente no recibe su
 `id`, así que para hacer cualquier cosa a continuación tiene que volver a
 buscarlo **por nombre**, que es la clave frágil de **D5**.
+
+**Resuelto**: `client:create` devuelve el cliente guardado. Con D5 ya hecho,
+buscar por nombre después de crear no sólo es frágil sino directamente
+ambiguo —puede haber dos con el mismo—.
 
 ### F4 · 🟡 La regla "teléfono ya registrado" está escrita dos veces y falta en un tercer lugar
 

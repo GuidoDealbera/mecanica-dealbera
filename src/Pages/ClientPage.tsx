@@ -32,7 +32,7 @@ const ClientPage: React.FC = () => {
   React.useEffect(() => {
     window.api.clients
       .getCities()
-      .then(setCities)
+      .then((res) => setCities(res.result ?? []))
       .catch(() => {});
   }, []);
   const [sort, setSort] = React.useState<{

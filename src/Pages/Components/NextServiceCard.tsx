@@ -16,6 +16,7 @@ import { formatDate } from "../../Utils/utils";
 import { useToasts } from "../../Hooks/useToasts";
 import ReminderActions from "./ReminderActions";
 import EditReminderModal from "../../Components/EditReminderModal";
+import { ensureSuccess } from "../../Utils/apiResponse";
 
 interface NextServiceCardProps {
   licensePlate: string;
@@ -62,8 +63,10 @@ const NextServiceCard: React.FC<NextServiceCardProps> = ({
         window.api.service.byCar(licensePlate),
         window.api.service.getSettings(),
       ]);
-      setReminders(list);
-      setSettings(currentSettings);
+      // `ensureSuccess` lanza con el motivo del backend, que es lo que el
+      // `catch` de abajo ya sabe mostrar.
+      setReminders(ensureSuccess(list));
+      setSettings(ensureSuccess(currentSettings));
     } catch (error) {
       setReminders([]);
       showToast(
