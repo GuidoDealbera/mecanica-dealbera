@@ -19,6 +19,13 @@
   // toolchain.
   npmRebuild: false,
 
+  // De dónde salen las notas que la aplicación muestra en el cartel de
+  // actualización. Las genera `scripts/notas-de-version.mjs` a partir del
+  // CHANGELOG, tomando **sólo** la sección de la versión que se publica.
+  releaseInfo: {
+    releaseNotesFile: "build/release-notes.md",
+  },
+
   publish: {
     provider: "github",
     owner: "GuidoDealbera",
@@ -27,7 +34,16 @@
   },
 
   directories: {
-    output: "C:/Users/ASUS/Downloads/MecanicaDealbera-Release",
+    // Relativa, y en `.gitignore`.
+    //
+    // Era una ruta absoluta con un nombre de usuario adentro, en un archivo
+    // versionado: `npm run build` en cualquier otra maquina escribia en una
+    // carpeta que no existe. El flujo de publicacion andaba solo porque la
+    // pisaba con `--config.directories.output=release`.
+    //
+    // Quien quiera otra carpeta la pasa por parametro, que es para lo que esta
+    // ese flag.
+    output: "release",
   },
 
   files: ["dist", "dist-electron"],
@@ -68,7 +84,15 @@
         arch: ["x64"],
       },
     ],
-    icon: "public/logo-grande.png",
+    // Un `.ico` de verdad, con 16, 32, 48 y 256. Era el PNG de 512, que
+    // electron-builder convierte por su cuenta: el icono que el usuario mira
+    // todos los dias en la barra de tareas y en el explorador merece las
+    // resoluciones que Windows va a pedir, y no una sola reescalada al vuelo.
+    //
+    // Se genero una vez con `png-to-ico` a partir de `public/logo-grande.png` y
+    // quedo versionado. La herramienta no quedo como dependencia: se usa cuando
+    // cambia el logo, no en cada build.
+    icon: "build/icon.ico",
     artifactName: "${productName}-Windows-${version}-Setup.${ext}",
   },
 
@@ -82,17 +106,14 @@
     shortcutName: "Mecánica Dealbera",
   },
 
-  mac: {
-    target: ["dmg"],
-    icon: "public/logo-grande.png",
-    artifactName: "${productName}-Mac-${version}-Installer.${ext}",
-    gatekeeperAssess: false,
-  },
-
-  linux: {
-    target: ["AppImage"],
-    icon: "public/logo-grande.png",
-    artifactName: "${productName}-Linux-${version}.${ext}",
-    category: "Utility",
-  },
+  // **No se empaqueta para macOS ni para Linux.**
+  //
+  // Habia objetivos `dmg` y `AppImage` configurados, y nadie los probo nunca. El
+  // codigo asume Windows en varios lados —los respaldos van a `Documents`, el
+  // traslado desde la base vieja, `signtool`—, asi que lo mas probable es que
+  // esos artefactos no funcionen.
+  //
+  // Un artefacto que se puede construir y nunca se probo es peor que no tenerlo:
+  // da a entender que la plataforma esta soportada. Cuando se decida soportarla,
+  // el trabajo no es agregar estas diez lineas sino revisar esas suposiciones.
 }

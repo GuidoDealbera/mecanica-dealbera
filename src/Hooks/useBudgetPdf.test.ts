@@ -20,10 +20,14 @@ import type { Cars, Jobs } from "../Types/types";
  * un archivo escrito devuelva el número.
  */
 
+// Con el tipo del argumento declarado: sin eso `mock.calls[0]` es una tupla
+// vacía y no se puede mirar con qué se dibujó.
+const dibujado = vi.fn((params: Record<string, unknown>) => ({
+  output: () =>
+    new TextEncoder().encode(`%PDF ${String(params.docNumber)}`).buffer,
+}));
 vi.mock("../Utils/budgetPdf", () => ({
-  renderBudgetDocument: () => ({
-    output: () => new Uint8Array([0x25, 0x50, 0x44, 0x46]).buffer,
-  }),
+  renderBudgetDocument: (params: Record<string, unknown>) => dibujado(params),
 }));
 vi.mock("../Utils/plateFont", () => ({ getPlateFontBase64: () => "" }));
 
@@ -75,6 +79,45 @@ const savePdf = vi.fn(
 );
 const logError = vi.fn();
 
+const copia = {
+  title: "Factura de Trabajos",
+  car: {
+    licensePlate: "AB123CD",
+    brand: "Volkswagen",
+    model: "Gol",
+    year: 2016,
+    kilometers: 90_000,
+    owner: {
+      fullname: "Ana Gómez",
+      phone: "3515123456",
+      address: "San Martín 100",
+      city: "Córdoba",
+    },
+  },
+  jobs: [
+    {
+      id: "j1",
+      description: "Cambio de aceite",
+      price: 50_000,
+      isThirdParty: false,
+      parts: [],
+    },
+  ],
+  totals: {
+    laborTotal: 50_000,
+    partsGrandTotal: 0,
+    thirdPartyTotal: 0,
+    ownTotal: 50_000,
+    total: 50_000,
+  },
+};
+
+const get = vi.fn(async (id: string) => ({
+  status: "success",
+  message: "",
+  result: { ...emitido, id, snapshot: copia },
+}));
+
 beforeEach(() => {
   issue.mockClear();
   discard.mockClear();
@@ -85,15 +128,22 @@ beforeEach(() => {
     message: "Documento guardado",
     result: { filePath: "C:/x/F-0007.pdf" },
   });
+  dibujado.mockClear();
+  get.mockClear();
+  get.mockResolvedValue({
+    status: "success",
+    message: "",
+    result: { ...emitido, snapshot: copia },
+  });
   (window as unknown as { api: unknown }).api = {
-    documents: { issue, discard, savePdf },
+    documents: { issue, discard, savePdf, get },
     global: { logError },
   };
 });
 
 afterEach(() => {
   (window as unknown as { api: unknown }).api = {
-    documents: { issue, discard, savePdf },
+    documents: { issue, discard, savePdf, get },
     global: { logError },
   };
 });
@@ -174,5 +224,55 @@ describe("emitir un documento", () => {
     // No hay nada que descartar: nunca se llegó a tomar un número.
     expect(discard).not.toHaveBeenCalled();
     expect(savePdf).not.toHaveBeenCalled();
+  });
+});
+
+describe("reimprimir un documento ya emitido", () => {
+  const reimprimir = async (id = "doc-1") => {
+    const { result } = renderHook(() => useBudgetPDF());
+    return await result.current.reimprimir(id);
+  };
+
+  it("vuelve a dibujar la copia guardada sin emitir nada", async () => {
+    const hecho = await reimprimir();
+
+    expect(hecho?.formatted).toBe("F-0007");
+    // Lo que no tiene que pasar: tomar un número nuevo. El documento ya existe;
+    // reimprimirlo es sacar otra copia del mismo papel, no emitir otro.
+    expect(issue).not.toHaveBeenCalled();
+    expect(discard).not.toHaveBeenCalled();
+    // Y se dibuja con lo guardado, no con los trabajos de hoy: si el trabajo se
+    // editó o se borró desde entonces, el comprobante tiene que seguir diciendo
+    // lo que decía.
+    expect(dibujado.mock.calls[0][0]).toMatchObject({
+      docNumber: "F-0007",
+      title: "Factura de Trabajos",
+      jobs: [{ description: "Cambio de aceite" }],
+    });
+    expect(savePdf.mock.calls[0][0].defaultName).toMatch(/^F-0007_/);
+  });
+
+  it("un documento viejo sin copia no se reimprime, y lo dice", async () => {
+    // Los emitidos antes de que se guardara la copia. No se reconstruye desde
+    // los trabajos actuales: daría un papel distinto del que firmó el cliente.
+    get.mockResolvedValue({
+      status: "success",
+      message: "",
+      result: { ...emitido, snapshot: null },
+    } as never);
+
+    await expect(reimprimir()).rejects.toThrow(/no se puede reimprimir/i);
+    expect(savePdf).not.toHaveBeenCalled();
+  });
+
+  it("cancelar el guardado no es un error", async () => {
+    savePdf.mockResolvedValue({
+      status: "cancelled",
+      message: "Emisión cancelada",
+    } as never);
+
+    expect(await reimprimir()).toBeNull();
+    // Y sobre todo: no descarta el documento, que sigue existiendo.
+    expect(discard).not.toHaveBeenCalled();
   });
 });

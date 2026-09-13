@@ -15,6 +15,14 @@ data
 dist-electron/
 *.tsbuildinfo
 
+# Salida del empaquetado y de la cobertura. `release/` empieza a hacer falta al
+# arreglar K1: antes el build escribia en una carpeta de fuera del repositorio.
+release/
+coverage/
+
+# Las notas de la versión se generan desde el CHANGELOG al publicar.
+build/release-notes.md
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

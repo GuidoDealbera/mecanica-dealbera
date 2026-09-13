@@ -8,13 +8,16 @@ import {
   UpdateCarBody,
 } from "../Types/apiTypes";
 import { Car, Jobs } from "../Types/types";
+import { ensureSuccess } from "../Utils/apiResponse";
 
 export const carService = {
   create: async (carBody: CreateCarBody): Promise<APIResponse> => {
     return await window.api.cars.create(carBody);
   },
   getAll: async (params: CarQueryParams): Promise<Paginated<Car>> => {
-    return await window.api.cars.getAll(params);
+    // `ensureSuccess` acá y no en cada pantalla: el thunk ya convierte lo que
+    // se lance en un `rejectWithValue` con el motivo del backend.
+    return ensureSuccess(await window.api.cars.getAll(params));
   },
   getByLicence: async (licence: string): Promise<APIResponse<Car>> => {
     return await window.api.cars.getByLicense(licence);

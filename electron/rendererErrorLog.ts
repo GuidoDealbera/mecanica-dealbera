@@ -12,7 +12,7 @@ export const LARGO_MAXIMO_DE_TRAZA = 4000;
 export interface ErrorDeRenderer {
   scope: string;
   error: Error;
-  context: { ruta: string; componentes: string };
+  context: { codigo: string; ruta: string; componentes: string };
 }
 
 const comoTexto = (valor: unknown, tope: number): string =>
@@ -46,6 +46,9 @@ export const normalizarErrorDeRenderer = (
     scope: comoTexto(datos.scope, 60) || "renderer",
     error,
     context: {
+      // El código que la pantalla le mostró al usuario. Es la única forma de
+      // encontrar **este** error en el archivo cuando llama por teléfono.
+      codigo: comoTexto(datos.errorId, 40),
       // La ruta es lo primero que se pregunta al leer el log: sin ella hay que
       // deducir la pantalla desde la traza de componentes.
       ruta: comoTexto(datos.route, 200),

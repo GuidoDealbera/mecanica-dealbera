@@ -219,6 +219,60 @@ describe("car:update-job", () => {
     expect(fila.description).toBe("Cambio de aceite");
   });
 
+  it("corrige la descripción, que es lo que sale impreso", async () => {
+    // No se podía. Un error de tipeo en la descripción salía en el presupuesto
+    // del cliente y la única salida era borrar el trabajo y cargarlo de nuevo:
+    // cambia de id y de fecha, y si ya se emitió un documento, deja de existir
+    // el trabajo que lo respaldaba.
+    const id = await trabajoExistente();
+
+    const res = await invocar("car:update-job", "AB123CD", id, {
+      description: "Cambio de correa de distribución",
+      isThirdParty: true,
+    });
+
+    expect(res.status).toBe("success");
+    const [fila] = (await ds.query(
+      "SELECT description, isThirdParty FROM job WHERE id = ?",
+      [id]
+    )) as { description: string; isThirdParty: number }[];
+    expect(fila.description).toBe("Cambio de correa de distribución");
+    // El documento separa el total propio del de terceros, así que esto también
+    // cambia lo que dice el papel.
+    expect(Number(fila.isThirdParty)).toBe(1);
+  });
+
+  it("no deja dejarla vacía ni de puros espacios", async () => {
+    // `@IsNotEmpty` rechaza "" pero no "   ", y una descripción de espacios
+    // sale como un renglón en blanco en el documento.
+    const id = await trabajoExistente();
+
+    for (const description of ["", "   "]) {
+      const res = await invocar("car:update-job", "AB123CD", id, {
+        description,
+      });
+      expect(res.status, JSON.stringify(description)).toBe("failed");
+    }
+
+    const [fila] = (await ds.query("SELECT description FROM job WHERE id = ?", [
+      id,
+    ])) as { description: string }[];
+    expect(fila.description).toBe("Cambio de aceite");
+  });
+
+  it("recorta la descripción antes de guardarla", async () => {
+    const id = await trabajoExistente();
+
+    await invocar("car:update-job", "AB123CD", id, {
+      description: "  Alineación y balanceo  ",
+    });
+
+    const [fila] = (await ds.query("SELECT description FROM job WHERE id = ?", [
+      id,
+    ])) as { description: string }[];
+    expect(fila.description).toBe("Alineación y balanceo");
+  });
+
   it("no deja entrar por la ventana lo que el alta rechaza", async () => {
     const id = await trabajoExistente();
 

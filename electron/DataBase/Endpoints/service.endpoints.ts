@@ -1,5 +1,5 @@
 import { In } from "typeorm";
-import { handleIpc } from "../../ipc";
+import { handleIpc, handleIpcQuery } from "../../ipc";
 import { escapeLike, resolvePage } from "../../pagination";
 import { comoParametros, esIdentificador } from "../../validation";
 import { AppDataSource, getRepositories } from "../dataSource";
@@ -11,7 +11,6 @@ import {
   countDueReminders,
   findActiveReminder,
   getServiceSettings,
-  reactivateExpiredSnoozes,
   saveServiceSettings,
 } from "../serviceReminders.service";
 import {
@@ -73,9 +72,13 @@ const findReminder = async (id: string) =>
     relations: { car: { owner: true } },
   });
 
-handleIpc("service:settings-get", async (): Promise<ServiceSettings> => {
-  return await getServiceSettings(AppDataSource.manager);
-});
+handleIpcQuery(
+  "service:settings-get",
+  "No se pudieron leer los intervalos de service configurados",
+  async (): Promise<ServiceSettings> => {
+    return await getServiceSettings(AppDataSource.manager);
+  }
+);
 
 handleIpc(
   "service:settings-set",
@@ -113,14 +116,14 @@ handleIpc(
  * Orden: primero lo que vence antes; los que no tienen fecha (sólo por km) van
  * al final.
  */
-handleIpc(
+handleIpcQuery(
   "service:list",
+  "No se pudieron cargar los recordatorios",
   async (
     _event,
     entrada: ReminderQueryParams
   ): Promise<Paginated<ServiceReminderView>> => {
     const params = comoParametros<ReminderQueryParams>(entrada);
-    await reactivateExpiredSnoozes(AppDataSource.manager);
 
     const { page, pageSize, skip, take } = resolvePage(params);
     const settings = await getServiceSettings(AppDataSource.manager);
@@ -188,17 +191,21 @@ handleIpc(
 );
 
 /** Conteo para el badge de la barra de navegación. */
-handleIpc("service:count-due", async (): Promise<number> => {
-  return await countDueReminders(AppDataSource.manager);
-});
+handleIpcQuery(
+  "service:count-due",
+  "No se pudieron contar los recordatorios",
+  async (): Promise<number> => {
+    return await countDueReminders(AppDataSource.manager);
+  }
+);
 
 /** Recordatorios vigentes de un vehículo (bloque "próximo service" de la ficha). */
-handleIpc(
+handleIpcQuery(
   "service:by-car",
+  "No se pudo leer el próximo service del vehículo",
   async (_event, licensePlate: string): Promise<ServiceReminderView[]> => {
     if (!esIdentificador(licensePlate)) return [];
 
-    await reactivateExpiredSnoozes(AppDataSource.manager);
     const reminders = await getRepositories().serviceReminderRepository.find({
       where: {
         car: { licensePlate },

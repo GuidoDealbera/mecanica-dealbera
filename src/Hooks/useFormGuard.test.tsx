@@ -12,13 +12,18 @@ import { useFormGuard } from "./useFormGuard";
 /**
  * El aviso de "tenés cambios sin guardar".
  *
- * Lo que se prueba es el ciclo completo, no una sola salida: `useBlocker` deja
- * el bloqueador en estado `blocked` hasta que se llame a `proceed()` o a
- * `reset()`. Faltaba el `reset` al elegir "quedarme", así que el bloqueador
- * quedaba trabado y **el segundo intento de salir no volvía a preguntar**.
+ * Lo que se prueba es el ciclo completo, no una sola salida.
  *
- * Por eso los casos de acá salen dos veces: una sola salida no distingue el
- * comportamiento correcto del roto.
+ * `useBlocker` deja el bloqueador en estado `blocked` hasta que se llame a
+ * `proceed()` o a `reset()`, y faltaba el `reset` al elegir "quedarme". La
+ * tarea A8 decía que por eso el segundo intento de salir no volvía a preguntar;
+ * **se midió y ese síntoma no existe**: React Router evalúa el bloqueador otra
+ * vez en cada navegación y la vuelve a frenar. El `reset` se agregó igual —es el
+ * uso que documenta la API—, pero no arreglaba nada visible.
+ *
+ * Los casos salen dos veces igual, y ahí está lo que dejaron: el guard no tenía
+ * ninguna cobertura, y este ciclo —preguntar, quedarse, volver a intentar,
+ * confirmar y salir— es el que nadie estaba ejercitando.
  */
 
 /**
@@ -96,8 +101,8 @@ describe("useFormGuard", () => {
     await user.click(screen.getByRole("button", { name: "Quedarme" }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
-    // Acá estaba el bug: sin `reset()` el bloqueador quedaba en `blocked` y
-    // este segundo intento no abría nada, o dejaba salir sin preguntar.
+    // Acá se creía que estaba el bug. No estaba: sin `reset()` el bloqueador
+    // vuelve a frenar igual. Lo que este caso cuida es que siga siendo así.
     await user.click(screen.getByRole("button", { name: "Salir" }));
 
     expect(screen.getByRole("dialog")).toBeInTheDocument();

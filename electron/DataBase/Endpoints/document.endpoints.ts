@@ -1,8 +1,9 @@
 import { dialog, shell } from "electron";
 import fs from "node:fs";
 import path from "node:path";
-import { handleIpc } from "../../ipc";
-import { esIdentificador } from "../../validation";
+import { handleIpc, handleIpcQuery } from "../../ipc";
+import { escapeLike, resolvePage } from "../../pagination";
+import { comoParametros, esIdentificador } from "../../validation";
 import { logError } from "../../logger";
 import { AppDataSource, getRepositories } from "../dataSource";
 import { Document } from "../Entities/document.entity";
@@ -11,11 +12,41 @@ import {
   formatDocumentNumber,
   type APIResponse,
   type DocumentQueryParams,
+  type Paginated,
+  type DocumentSnapshot,
+  type SequenceCheck,
   type IssueDocumentBody,
   type IssuedDocument,
 } from "../../../src/Types/apiTypes";
 
 const VALID_TYPES = Object.values(DocumentType) as string[];
+
+/**
+ * Tope de lo que se acepta como copia impresa, en caracteres del JSON.
+ *
+ * No es desconfianza del renderer: es que esta tabla no se borra nunca y una
+ * copia por documento se acumula para siempre. Doscientos mil caracteres son
+ * holgados —un documento con cincuenta renglones y sus repuestos anda por los
+ * quince mil— y ponen un techo a lo que puede crecer la base por documento.
+ */
+const MAXIMO_DE_LA_COPIA = 200_000;
+
+/**
+ * Valida la copia de lo impreso que manda el renderer.
+ *
+ * Se comprueba la forma mínima —que tenga los renglones y los totales— y no
+ * cada campo: lo que se guarda es un reflejo de lo que se dibujó, y el que lo
+ * arma es el mismo módulo que lo dibuja. Lo que sí importa es que no entre
+ * cualquier cosa y que no entre algo enorme.
+ */
+const copiaValida = (valor: unknown): valor is DocumentSnapshot => {
+  if (!valor || typeof valor !== "object") return false;
+  const copia = valor as Partial<DocumentSnapshot>;
+  if (!Array.isArray(copia.jobs)) return false;
+  if (!copia.totals || typeof copia.totals.total !== "number") return false;
+  if (!copia.car || typeof copia.car.licensePlate !== "string") return false;
+  return JSON.stringify(valor).length <= MAXIMO_DE_LA_COPIA;
+};
 
 const toPlainDocument = (doc: Document): IssuedDocument => ({
   id: doc.id,
@@ -29,6 +60,7 @@ const toPlainDocument = (doc: Document): IssuedDocument => ({
     doc.createdAt instanceof Date
       ? doc.createdAt.toISOString()
       : new Date(doc.createdAt).toISOString(),
+  hasSnapshot: doc.snapshot != null,
 });
 
 /**
@@ -69,6 +101,16 @@ handleIpc(
       };
     }
 
+    // La copia de lo impreso es obligatoria: un documento sin ella es un número
+    // en el historial que no se puede volver a imprimir, que es exactamente el
+    // agujero que esta columna vino a tapar.
+    if (!copiaValida(body.snapshot)) {
+      return {
+        status: "failed",
+        message: "No se pudo registrar el contenido del documento",
+      };
+    }
+
     const qr = AppDataSource.createQueryRunner();
     await qr.connect();
     await qr.startTransaction();
@@ -87,6 +129,7 @@ handleIpc(
         licensePlate: body.licensePlate ?? "",
         clientName: body.clientName ?? "",
         total,
+        snapshot: body.snapshot,
       });
       const saved = await qr.manager.save(doc);
       await qr.commitTransaction();
@@ -216,31 +259,163 @@ handleIpc(
   }
 );
 
-/** Últimos documentos emitidos de un tipo (historial, más recientes primero). */
-handleIpc(
-  "document:list",
-  async (_event, filters?: DocumentQueryParams): Promise<IssuedDocument[]> => {
+/**
+ * Un documento con su copia impresa, para volver a generar el PDF.
+ *
+ * Va aparte del listado a propósito: el historial trae veinte documentos y no
+ * tiene por qué arrastrar veinte copias completas. La copia se pide sólo cuando
+ * alguien aprieta reimprimir.
+ */
+handleIpcQuery(
+  "document:get",
+  "No se pudo leer el documento",
+  async (
+    _event,
+    id: unknown
+  ): Promise<
+    (IssuedDocument & { snapshot: DocumentSnapshot | null }) | null
+  > => {
+    if (!esIdentificador(id)) return null;
+    const doc = await getRepositories().documentRepository.findOne({
+      where: { id },
+    });
+    if (!doc) return null;
+    return { ...toPlainDocument(doc), snapshot: doc.snapshot };
+  }
+);
+
+/** Cuántos huecos se detallan antes de que el detalle deje de servir. */
+const MAXIMO_DE_HUECOS = 50;
+
+/**
+ * Comprueba que la numeración no tenga huecos.
+ *
+ * Toda la maquinaria del correlativo —la transacción, el índice único, el
+ * descarte— existe para que no falte ninguno, y no había forma de verificarlo:
+ * ni una pantalla, ni un aviso. Un hueco quedaba invisible.
+ *
+ * Se lee la columna `number` de cada tipo y se camina: son pocos documentos, y
+ * esto lo pide una persona cuando quiere revisar, no una pantalla en cada
+ * render.
+ */
+handleIpcQuery(
+  "document:check-sequence",
+  "No se pudo revisar la numeración",
+  async (): Promise<SequenceCheck[]> => {
     const repo = getRepositories().documentRepository;
 
-    const where: { type?: DocumentType; licensePlate?: string } = {};
+    return await Promise.all(
+      (Object.values(DocumentType) as DocumentType[]).map(async (type) => {
+        const filas = await repo
+          .createQueryBuilder("document")
+          .select("document.number", "number")
+          .where("document.type = :type", { type })
+          .orderBy("document.number", "ASC")
+          .getRawMany<{ number: number }>();
+
+        const numeros = filas.map((f) => Number(f.number));
+        const last = numeros.length > 0 ? numeros[numeros.length - 1] : 0;
+
+        // Se camina desde 1 hasta el último: así se detecta tanto un hueco en
+        // el medio como que la serie no arranque en 1.
+        const missing: number[] = [];
+        const presentes = new Set(numeros);
+        for (let n = 1; n <= last && missing.length <= MAXIMO_DE_HUECOS; n++) {
+          if (!presentes.has(n)) missing.push(n);
+        }
+
+        const truncated = missing.length > MAXIMO_DE_HUECOS;
+        return {
+          type,
+          emitted: numeros.length,
+          last,
+          missing: truncated ? missing.slice(0, MAXIMO_DE_HUECOS) : missing,
+          truncated,
+        };
+      })
+    );
+  }
+);
+
+/** Últimos documentos emitidos de un tipo (historial, más recientes primero). */
+handleIpcQuery(
+  "document:list",
+  "No se pudo cargar el historial de documentos",
+  async (
+    _event,
+    entrada?: DocumentQueryParams
+  ): Promise<Paginated<IssuedDocument>> => {
+    const filters = comoParametros<DocumentQueryParams>(entrada);
+    const repo = getRepositories().documentRepository;
+    const { page, pageSize, skip, take } = resolvePage(filters);
+    const vacio = { items: [], total: 0, page, pageSize };
+
     // Un tipo inválido no se ignora: filtrar por "algo que no existe" tiene que
     // devolver vacío, no el historial completo.
-    if (filters?.type !== undefined) {
-      if (!VALID_TYPES.includes(filters.type)) return [];
-      where.type = filters.type;
+    if (filters?.type !== undefined && !VALID_TYPES.includes(filters.type)) {
+      return vacio;
     }
+
+    const qb = repo.createQueryBuilder("document");
+
+    if (filters?.type !== undefined) {
+      qb.andWhere("document.type = :type", { type: filters.type });
+    }
+
     if (filters?.licensePlate) {
-      where.licensePlate = filters.licensePlate;
+      // Pertenencia a la lista, no igualdad.
+      //
+      // El documento **consolidado** de un cliente guarda todas las patentes en
+      // esta columna: `"AB123CD, XY456ZW"`. Con igualdad exacta no salía en el
+      // historial de ninguno de los dos autos —sólo en el listado general—, que
+      // es justo donde el usuario lo va a buscar.
+      //
+      // Se rodea la columna y el término con el separador y se compara: así
+      // `AB123CD` encuentra la lista que lo contiene y **no** una patente que lo
+      // tenga como fragmento. Un `LIKE '%...%'` a secas haría lo segundo.
+      qb.andWhere(
+        "(', ' || document.licensePlate || ', ') LIKE ('%, ' || :plate || ', %') ESCAPE :esc",
+        { plate: escapeLike(filters.licensePlate), esc: "\\" }
+      );
+    }
+
+    if (filters?.search) {
+      // Por titular **y** por número formateado: son las dos formas en que el
+      // usuario tiene el dato cuando busca —el cliente lo menciona por teléfono
+      // o trae el papel en la mano—.
+      const termino = `%${escapeLike(filters.search.trim())}%`;
+      qb.andWhere(
+        "(document.clientName LIKE :termino ESCAPE :esc OR document.licensePlate LIKE :termino ESCAPE :esc)",
+        { termino, esc: "\\" }
+      );
+    }
+
+    // El rango es por día y los dos extremos entran: quien filtra "del 1 al 5"
+    // espera que el 5 esté. Por eso el tope va al final de ese día.
+    if (filters?.from) {
+      qb.andWhere("document.createdAt >= :desde", {
+        desde: `${filters.from} 00:00:00`,
+      });
+    }
+    if (filters?.to) {
+      qb.andWhere("document.createdAt <= :hasta", {
+        hasta: `${filters.to} 23:59:59.999`,
+      });
     }
 
     // Orden por fecha y no por número: el correlativo es por tipo, así que al
     // mezclar presupuestos y facturas ordenar por número intercalaría series.
     // Se desempata por número, que dentro de un tipo es único.
-    const docs = await repo.find({
-      where,
-      order: { createdAt: "DESC", number: "DESC" },
-      take: Math.min(Math.max(Number(filters?.limit) || 20, 1), 100),
-    });
-    return docs.map(toPlainDocument);
+    //
+    // `offset/limit` y no `skip/take`: no hay ningún join a-muchos. Ver
+    // `resolvePage`.
+    const [docs, total] = await qb
+      .orderBy("document.createdAt", "DESC")
+      .addOrderBy("document.number", "DESC")
+      .offset(skip)
+      .limit(take)
+      .getManyAndCount();
+
+    return { items: docs.map(toPlainDocument), total, page, pageSize };
   }
 );

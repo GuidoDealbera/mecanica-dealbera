@@ -1459,7 +1459,7 @@ elige mal.
 
 ### F1 · 🟠 Los contadores y el dashboard nunca se enteran de que pasó el tiempo
 
-**[pendiente]** · `electron/DataBase/dashboardCache.ts`, `src/Components/Header.tsx`
+**[a testear]** · `electron/DataBase/dashboardCache.ts`, `src/Components/Header.tsx`
 
 Dos mecanismos que se invalidan **sólo ante escrituras**, calculando cosas que
 dependen de la fecha:
@@ -1478,9 +1478,24 @@ no lo cuenta hasta la próxima escritura.
 Se arregla con un vencimiento por tiempo en la caché y un refresco periódico (o al
 volver el foco a la ventana).
 
+**Resuelto**, con las dos mitades, porque una sola no alcanza: si la caché vence
+pero nadie vuelve a preguntar, la pantalla sigue mostrando lo mismo.
+
+En el proceso principal, lo cacheado sólo vale dentro del **mismo día
+calendario**, y no por un plazo en minutos. Lo que invalida el cálculo no es que
+haya pasado tiempo sino que haya cambiado la fecha: un plazo fijo vence de más
+durante el día y puede cruzar la medianoche sin enterarse.
+
+En la interfaz, `useRefrescoPorTiempo` refresca al volver el foco a la ventana
+—que es cuando la persona vuelve a mirar, o sea cuando un número viejo se nota—
+y al cambiar el día. Lo segundo se chequea cada minuto pero **sólo refresca si
+la fecha cambió**: comparar dos textos por minuto no le cuesta nada a nadie, y
+sondear la base cada minuto sí. Lo usan los contadores de la barra y el
+dashboard.
+
 ### F2 · 🟠 Cinco endpoints devuelven algo distinto de lo que devuelven los demás
 
-**[pendiente]** · `electron/DataBase/Endpoints/*`
+**[a testear]** · `electron/DataBase/Endpoints/*`
 
 El contrato dominante es el envelope `APIResponse<T>` con `status`, `message` y
 `result`. Pero:
@@ -1498,13 +1513,38 @@ tragarse un `status: "failed"`— no se puede usar en la mitad de las llamadas, 
 cada pantalla inventa su propio manejo de error. Que es exactamente el problema
 que `ensureSuccess` documenta como ya sufrido.
 
+**Resuelto.** Son diez canales: los nueve de la lista más `global:search`, que
+tenía una tercera forma propia —`{ status, cars, clients }`, con `status` pero
+sin `result`—.
+
+Y había un efecto que no estaba anotado: como esos canales no tenían un `catch`,
+una lectura que fallaba de verdad llegaba al renderer como promesa rechazada con
+el mensaje de TypeORM. O sea que el problema no era sólo de uniformidad.
+
+El envoltorio va en `handleIpcQuery`, al lado de `handleIpc`, y no en cada
+handler. Es la diferencia entre una convención que hay que acordarse de
+respetar y algo estructural: un canal de lectura nuevo cumple el contrato por
+usar esa función. En las lecturas el `message` de éxito va vacío a propósito —no
+hay nada que avisar porque algo se leyó, y un texto ahí sólo invita a mostrarlo—.
+
+`contratoDeEntrada.test.ts` gana el contrato de **salida**, recorriendo la misma
+lista registrada: si un canal contesta algo que no es el envelope, el test lo
+nombra. Comprobado devolviendo un canal a la forma vieja.
+
+Ejercitado además contra la aplicación real con una base de verdad: los diez
+canales contestan el envelope y las cinco pantallas siguen andando.
+
 ### F3 · 🟠 `client:create` no devuelve el cliente creado
 
-**[pendiente]** · `electron/DataBase/Endpoints/client.endpoints.ts`
+**[a testear]** · `electron/DataBase/Endpoints/client.endpoints.ts`
 
 Caso particular de F2, pero con efecto propio: quien crea un cliente no recibe su
 `id`, así que para hacer cualquier cosa a continuación tiene que volver a
 buscarlo **por nombre**, que es la clave frágil de **D5**.
+
+**Resuelto**: `client:create` devuelve el cliente guardado. Con D5 ya hecho,
+buscar por nombre después de crear no sólo es frágil sino directamente
+ambiguo —puede haber dos con el mismo—.
 
 ### F4 · 🟡 La regla "teléfono ya registrado" está escrita dos veces y falta en un tercer lugar
 
@@ -1533,7 +1573,7 @@ Un helper, tres criterios.
 
 ### F6 · 🟡 El proyecto detecta "modo desarrollo" con `NODE_ENV` en vez de `app.isPackaged`
 
-**[pendiente]** · `electron/main.ts`, `electron/DataBase/dataSource.ts`
+**[a testear]** · `electron/main.ts`, `electron/DataBase/dataSource.ts`
 
 `process.env.NODE_ENV === "development"` decide cosas serias: **dónde vive la base
 de datos**, dónde van los respaldos, si se hace el respaldo diario y si se
@@ -1546,18 +1586,29 @@ Hoy funciona porque Vite la define, pero es una variable de entorno heredada: un
 
 `app.isPackaged` es la comprobación que no depende del entorno.
 
+**Resuelto** en los seis lugares: dónde vive la base, dónde van los respaldos,
+el respaldo diario, la notificación de arranque, el auto-updater y la
+comprobación manual de actualizaciones.
+
+El log de SQL quedó atado además a que no haya `MECANICA_DATA_DIR`: esa variable
+la ponen los tests y los scripts, y ahí volcar cada consulta a la salida sólo
+tapa lo que se está mirando.
+
 ### F7 · 🟡 `Car` obliga a pasar un objeto al constructor y las demás entidades no
 
-**[pendiente]** · `electron/DataBase/Entities/*.entity.ts`
+**[a testear]** · `electron/DataBase/Entities/*.entity.ts`
 
 `Car` declara `constructor(partial: Partial<Car>)` (obligatorio) mientras `Job`,
 `ServiceReminder`, `Document` y `AppSetting` usan `partial?` (opcional). TypeORM
 instancia entidades sin argumentos: funciona porque `Object.assign(this, undefined)`
 no hace nada, o sea **por una casualidad del lenguaje**. Conviene unificar.
 
+**Resuelto**: opcional en las seis. Eran dos y no una —`Car` y `Client`—, y el
+motivo queda escrito en el código: el tipo decía lo contrario de lo que ocurre.
+
 ### F8 · ⚪ Queda código de la plantilla de electron-vite
 
-**[pendiente]** · `src/main.tsx`, `electron/main.ts`, `electron/preload.ts`
+**[a testear]** · `src/main.tsx`, `electron/main.ts`, `electron/preload.ts`
 
 El canal `main-process-message` sólo existe para hacer un `console.log` de la
 fecha al cargar. Arrastra consigo la exposición del `ipcRenderer` genérico
@@ -1566,14 +1617,21 @@ fecha al cargar. Arrastra consigo la exposición del `ipcRenderer` genérico
 `// You can expose other APTs you need here.`, con la errata incluida) en un
 proyecto cuya convención es comentar en castellano.
 
+**Ya estaba resuelto al hacer C1**: sacar el puente genérico se llevó el canal y
+sus comentarios. Se comprobó que no queda ninguno de los dos.
+
 ### F9 · ⚪ `FormWrapper` desactiva el chequeo de tipos de todo el archivo
 
-**[pendiente]** · `src/Components/Forms/FormWrapper.tsx`
+**[a testear]** · `src/Components/Forms/FormWrapper.tsx`
 
 `/* eslint-disable @typescript-eslint/no-explicit-any */` con
 `form: UseFormReturn<any>`. Es un componente genérico, así que se resuelve con un
 parámetro de tipo (`<T extends FieldValues>`) en vez de apagar la regla para el
 archivo entero.
+
+**Resuelto** con el parámetro de tipo. Lo que importa no es el `any` en sí sino
+el `eslint-disable` de archivo entero: es lo que hace que el segundo `any` entre
+sin que nadie lo note.
 
 ---
 
@@ -1582,9 +1640,9 @@ archivo entero.
 Con la base de hoy (3 vehículos) nada de esto se nota. Todos son casos que
 aparecen al crecer, y algunos crecen rápido.
 
-### G1 · 🟠 La ficha de un vehículo trae **todos** sus trabajos, siempre
+### G1 · ⚪ La ficha de un vehículo trae **todos** sus trabajos, siempre
 
-**[pendiente]** · `electron/DataBase/Endpoints/car.crud.endpoints.ts` →
+**[medido, no se cambia]** · `electron/DataBase/Endpoints/car.crud.endpoints.ts` →
 `car:get-by-license`
 
 `relations: { owner: true, jobs: true }` sin límite. Cada trabajo viaja completo
@@ -1597,9 +1655,44 @@ historia hace que abrir su ficha sea la operación más pesada de la aplicación
 Corresponde paginar del lado del servidor, como ya se hace en los otros tres
 listados.
 
+**Medido, y no se cambia.** Baja de 🟠 a ⚪.
+
+Un vehículo con historia inventada, con notas y repuestos realistas en cada
+trabajo:
+
+| trabajos | consulta | ficha completa | sólo el auto | sin notas | sin notas ni repuestos |
+| -------- | -------- | -------------- | ------------ | --------- | ---------------------- |
+| 200      | 7 ms     | 124 kB         | 10 kB        | 72 kB     | 46 kB                  |
+| 1000     | —        | 583 kB         | 10 kB        | 362 kB    | 234 kB                 |
+
+Siete milisegundos y 124 kB no son "la operación más pesada de la aplicación".
+Y la consulta ya está indexada: `IDX_job_car` sobre `job(carId)` existe desde
+`NormalizeJobs`, así que lo que se mide es hidratar y serializar, no recorrer.
+
+Para que la ficha de **un** vehículo llegue a 200 trabajos hacen falta décadas
+de un auto que vuelve todos los meses. Mil es directamente irreal.
+
+Contra eso, lo que cuesta el arreglo: los trabajos de la ficha no alimentan sólo
+la tabla de 5 filas. Alimentan también los tres contadores, la línea de tiempo
+—que hoy muestra **todo** el historial— y el modal de emisión, que necesita los
+trabajos elegibles para armar el documento. Paginar del lado del servidor
+obliga a partir eso en tres consultas más y a tocar seis archivos de la pantalla
+más compleja de la aplicación, incluida la emisión de facturas.
+
+Queda anotado cómo se haría el día que haga falta: `car:get-by-license` sin
+`jobs` y con los tres contadores resueltos en SQL; un `car:jobs` paginado con
+filtro y orden para la tabla; una consulta liviana para la línea de tiempo
+—`id`, descripción, estado y fecha, que es lo único que pinta— y otra de
+trabajos elegibles para el documento, que en la práctica son unos pocos.
+
+Y si algo va a doler antes que el IPC en esa pantalla, es la línea de tiempo:
+pinta un nodo por trabajo **y** uno por actualización de kilometraje, sin tope.
+Con 200 trabajos son 400 nodos en el DOM. Acotarla es un cambio de producto, no
+de rendimiento, así que no se hace por cuenta propia.
+
 ### G2 · 🟡 Listar recordatorios escribe en la base
 
-**[pendiente]** · `electron/DataBase/serviceReminders.service.ts` →
+**[a testear]** · `electron/DataBase/serviceReminders.service.ts` →
 `reactivateExpiredSnoozes`
 
 Se llama al principio de `service:list`, de `service:by-car` y de
@@ -1612,18 +1705,45 @@ páginas y ensucia el archivo. Y son dos sentencias que podrían ser una.
 
 Mejor: correrlo una vez al arrancar y después en un intervalo, no en cada lectura.
 
+**Resuelto así**, y las dos sentencias pasaron a ser una: los dos casos —plazo
+vencido y postergado sin fecha— son la misma condición con un `OR`.
+
+El barrido corre al arrancar, **antes** de contar y de abrir la ventana —el badge
+y la notificación tienen que ver lo que venció mientras la aplicación estaba
+cerrada—, y después cada hora. Una hora es holgado porque postergar se mide en
+días: el desfase máximo es irrelevante frente a lo que se está representando.
+
+Los tests cubren las dos mitades, y la segunda es la que importa: con un
+postergado vencido a mano, listar, contar y abrir la ficha de un vehículo dejan
+la base **byte por byte igual**. Antes cualquiera de las tres lo reactivaba de
+paso.
+
 ### G3 · 🟡 `getServiceSettings` consulta la base varias veces por request
 
-**[pendiente]** · `electron/DataBase/serviceReminders.service.ts`
+**[a testear]** · `electron/DataBase/serviceReminders.service.ts`
 
 Cada llamada hace un `find` sobre `app_setting`. En `service:list` se llama una vez
 directamente y otra vez por cada `evaluate()`; en `service:snooze` y compañía, otra
 vez más. Es configuración que cambia una vez al año: se cachea en memoria y se
 invalida al guardarla.
 
-### G4 · 🟡 `service:list` carga el historial de kilometraje completo de cada vehículo
+**Resuelto así**, invalidando en los dos lugares donde puede cambiar: al
+guardarla y al **reemplazar la base entera**. El segundo no estaba en la tarea y
+es el que muerde: importar un respaldo trae otra configuración en el archivo, y
+sin invalidar la aplicación seguiría evaluando los vencimientos con la del
+archivo anterior.
 
-**[pendiente]** · `electron/DataBase/Endpoints/service.endpoints.ts` → `toView`
+Lo cacheado se devuelve congelado. Lo comparten todos los que lo piden, así que
+un descuido que lo modifique se llevaría puesta la configuración de todo el
+proceso hasta el reinicio: es la clase de error que aparece meses después y no
+se puede reproducir.
+
+Que esté cacheada se prueba por su consecuencia observable: se cambia el valor
+por SQL, por detrás, y la función sigue devolviendo el anterior.
+
+### G4 · ⚪ `service:list` carga el historial de kilometraje completo de cada vehículo
+
+**[medido, no se cambia]** · `electron/DataBase/Endpoints/service.endpoints.ts` → `toView`
 
 `toView` calcula `estimateKmPerDay(reminder.car?.kmHistory)` para no mandar el
 historial por IPC —bien pensado— pero el `innerJoinAndSelect("reminder.car")`
@@ -1633,18 +1753,49 @@ con cada actualización de kilometraje.
 Se resuelve seleccionando las columnas que hacen falta en vez de la entidad
 completa, como ya hace `client:get-all` con `addSelect(["cars.id", "cars.licensePlate"])`.
 
+**Medido, y no se cambia.** Baja de 🟡 a ⚪.
+
+El detalle que la tarea pasa por alto es que `kmHistory` **sí hace falta**:
+`estimateKmPerDay` lo necesita para encontrar el primero y el último registro.
+No es una columna que sobre, es una que se usa y no se manda.
+
+Y la página son ocho filas, no la tabla entera. Con 300 vehículos de 200
+registros de kilometraje cada uno, la misma consulta con y sin la columna:
+
+| consulta      | por página |
+| ------------- | ---------- |
+| sin kmHistory | 0,22 ms    |
+| con kmHistory | 0,40 ms    |
+
+Dieciocho centésimas de milisegundo, contra perder la estimación de kilómetros
+por día o inventar una forma de calcularla en SQL sobre un JSON.
+
+(`service:list` completo da 2,62 ms con esos mismos 300 vehículos.)
+
 ### G5 · 🟡 `document:list` ordena por una columna sin índice
 
-**[pendiente]** · `electron/DataBase/Entities/document.entity.ts`
+**[a testear]** · `electron/DataBase/Entities/document.entity.ts`
 
 El único índice es el único compuesto `(type, number)`. El listado ordena por
 `createdAt DESC, number DESC`, así que hace un recorrido completo más un ordenado
 en memoria. Hoy son pocos documentos; crecen uno por presupuesto emitido y no se
 borran nunca por diseño.
 
+**Resuelto**: índice `(createdAt, number)`, con `number` adentro para que el
+desempate también salga del índice. Medido con 20 000 documentos, el listado
+pasa de **2,1 ms a 0,46 ms**.
+
+Son milisegundos, sí. Lo que lo hace valer la pena es que la tabla sólo crece
+—es lo que significa un correlativo— y que el arreglo es un `CREATE INDEX` sin
+tocar una línea de código.
+
+El test no se conforma con que el índice exista: mira el `EXPLAIN QUERY PLAN` y
+comprueba que la consulta lo **usa** y que ya no hay ordenado en memoria. Un
+índice que el planificador no elige no compra nada.
+
 ### G6 · ⚪ Consultas que traen relaciones que no se usan
 
-**[pendiente]** · `electron/DataBase/Endpoints/client.endpoints.ts`
+**[a testear]** · `electron/DataBase/Endpoints/client.endpoints.ts`
 
 - `client:toggle-active` carga `relations: { cars: true }` y no toca los autos.
 - `client:update` hace un `findOne` extra **después** de guardar sólo para
@@ -1652,9 +1803,21 @@ borran nunca por diseño.
 - `client:find-by-name` trae `cars.jobs` completos para mostrar **un número** por
   vehículo; alcanzaría con un conteo.
 
+**Los dos primeros, resueltos.** `client:toggle-active` deja de cargar los autos
+—toca un booleano y no los mira, y quien llama tampoco: usa el `status` y
+recarga el listado—. `client:update` carga los autos en el `findOne` que ya
+hacía y devuelve lo guardado: la misma consulta corrida de lugar, no una más.
+
+**El tercero no**, porque la premisa no se sostiene. La ficha del cliente no
+muestra "un número por vehículo": con esos trabajos calcula el resumen de
+actividad —trabajos activos, facturado, fecha del último—, arma la línea de
+tiempo cruzada de todos sus vehículos y alimenta el documento consolidado, que
+necesita los elegibles para que el usuario elija. Es el mismo caso que **G1**, y
+la misma conclusión.
+
 ### G7 · ⚪ El respaldo diario retrasa la apertura de la ventana
 
-**[pendiente]** · `electron/main.ts` → `createWindow`
+**[a testear]** · `electron/main.ts` → `createWindow`
 
 El orden del arranque es: base → respaldo diario (`VACUUM INTO` de toda la base) →
 conteo de recordatorios → recién ahí se crea la ventana. Con la base chica no se
@@ -1662,6 +1825,11 @@ nota; con una base grande, el usuario mira la pantalla de carga mientras se copi
 un archivo que no necesita para empezar a trabajar.
 
 El respaldo es best-effort por diseño: puede correr después de mostrar la ventana.
+
+**Resuelto**, y con un detalle que no era obvio: no alcanzaba con dejar de
+esperarlo antes de crear la ventana. SQLite serializa, así que las primeras
+consultas del renderer se habrían puesto en la cola detrás del `VACUUM`. El
+respaldo arranca en `ready-to-show`, o sea con la ventana ya a la vista.
 
 ---
 
@@ -1672,7 +1840,7 @@ decisiones que todavía no se tomaron.
 
 ### H1 · 🟠 Una factura emitida no se puede volver a imprimir
 
-**[pendiente]** · `electron/DataBase/Entities/document.entity.ts`
+**[a testear]** · `electron/DataBase/Entities/document.entity.ts`
 
 `Document` guarda tipo, número, patente, nombre del titular y total. **No guarda
 los renglones**: ni los trabajos, ni los repuestos, ni las observaciones.
@@ -1686,27 +1854,80 @@ lado.
 Para un documento que es un comprobante, guardar el snapshot completo de lo que se
 imprimió no es una mejora: es la razón de existir de la tabla.
 
+**Resuelto.** El documento guarda la copia de lo que se imprimió y el historial
+tiene un botón para volver a generarlo. Reimprimir **no emite nada**: no toma un
+número nuevo ni toca la base, sólo vuelve a dibujar lo guardado y pregunta dónde
+ponerlo.
+
+Se guarda **sólo lo que sale en el papel**: los renglones con sus repuestos, los
+totales, el vehículo y el titular. Nada de `kmHistory`, ni las notas internas del
+taller, ni los trabajos que no entraron. Guardar de más ensucia para siempre una
+tabla que no se borra nunca, y guardar cosas que el documento no muestra invita a
+que alguien las lea creyendo que son parte del comprobante.
+
+Dos decisiones que conviene dejar escritas:
+
+- **Emitir sin la copia se rechaza.** Un documento sin ella es un número en el
+  historial que no se puede reimprimir, o sea el agujero que esto vino a tapar.
+- **Los documentos viejos no se reconstruyen.** La columna es `nullable` y se
+  queda así: armarles una copia desde los trabajos de hoy daría un papel distinto
+  del que firmó el cliente, que es peor que no tener ninguno. El historial los
+  distingue y el botón explica por qué está deshabilitado.
+
+La copia tiene tope de tamaño, por la misma razón: la tabla no se borra nunca y
+una copia por documento se acumula para siempre.
+
+El listado no arrastra las copias —veinte documentos serían veinte copias
+completas para decidir si mostrar un botón—: trae un `hasSnapshot` y la copia se
+pide sólo al reimprimir.
+
+Verificado contra la aplicación real: emitir guarda la copia entera, releerla
+devuelve el renglón, el total y el titular, y emitir sin copia se rechaza.
+
 ### H2 · 🟠 Un documento consolidado no aparece en el historial de ningún vehículo
 
-**[pendiente]** · `src/Hooks/useBudgetPdf.ts`,
+**[a testear]** · `src/Hooks/useBudgetPdf.ts`,
 `electron/DataBase/Endpoints/document.endpoints.ts`
 
 En el consolidado de un cliente, `licensePlate` se guarda como `"AB123CD, XY456ZW"`.
 `document:list` filtra por patente con **igualdad exacta**, así que ese documento
 no sale en el historial de ninguno de los dos autos: sólo en el listado general.
 
+**Resuelto** sin cambiar el esquema: el filtro pasó de igualdad a **pertenencia a
+la lista**. Se rodean la columna y el término con el separador y se comparan, así
+que `AB123CD` encuentra la lista que lo contiene.
+
+La forma fácil de arreglarlo —un `LIKE '%patente%'`— trae el problema de al lado:
+haría que buscar `AB123` devolviera los documentos de `AB123CD`. Hay un caso que
+lo fija.
+
 ### H3 · 🟠 El correlativo se puede saltear sin que nadie se entere
 
-**[pendiente]** · varios
+**[a testear]** · varios
 
 Ver **E4**. Además del bug, falta lo de producto: **no hay forma de detectar un
 hueco**. Ni una pantalla que lo muestre, ni un aviso. Para una numeración
 correlativa que existe justamente para no tener huecos, corresponde al menos
 poder verificarla.
 
+**Resuelto**: hay un botón "Revisar numeración" en Gestión de datos que recorre
+cada serie y dice si falta alguno, con cuáles.
+
+Tres decisiones:
+
+- **Por tipo y no en conjunto.** El correlativo es por tipo: un hueco en
+  presupuestos no es un hueco en facturas, y mezclarlos daría huecos donde no
+  los hay.
+- **Desde 1 y no desde el primero que existe.** Así también se detecta que la
+  serie no arranque en 1, que es lo que pasa si el hueco quedó al principio.
+- **A pedido, no en cada render.** Es una verificación, no un dato de la
+  pantalla, y recorre la columna entera.
+
+El detalle se acota: con cien huecos, listarlos deja de servir para nada.
+
 ### H4 · 🟠 No se puede corregir un trabajo mal cargado
 
-**[pendiente]** · `electron/DataBase/Types/car.dto.ts` → `UpdateJobDto`
+**[a testear]** · `electron/DataBase/Types/car.dto.ts` → `UpdateJobDto`
 
 `UpdateJobDto` permite cambiar `status`, `price`, `parts`, `notes`, `clientNote` e
 `isService`. **No permite cambiar `description` ni `isThirdParty`.**
@@ -1719,9 +1940,24 @@ Junto con **B4** (no se puede editar marca/modelo/año del vehículo), el patró
 claro: la aplicación sabe crear y sabe borrar, pero **corregir un error de carga
 casi siempre implica borrar y rehacer**.
 
+**Resuelto**: los dos campos se pueden corregir, en el DTO, en el endpoint y en
+el modal de edición.
+
+Lo de `isThirdParty` no es un detalle de completitud: el documento **separa el
+total propio del de terceros**, así que marcarlo mal cambia lo que dice el papel
+y hasta ahora no había forma de arreglarlo.
+
+Y borrar y rehacer no era un rodeo equivalente: el trabajo cambia de id y de
+fecha, y si ya se había emitido un documento, deja de existir el trabajo que lo
+respaldaba.
+
+La descripción se recorta antes de guardarse, como en el alta: `@IsNotEmpty`
+rechaza `""` pero no `"   "`, y una de puros espacios sale como un renglón en
+blanco en el presupuesto.
+
 ### H5 · 🟠 No hay forma de deshacer un borrado
 
-**[pendiente]** · todos los `delete`
+**[a testear]** · todos los `delete`
 
 Borrar un vehículo se lleva sus trabajos, su historial de kilometraje y su
 recordatorio. Borrar un cliente se lleva además **todos sus vehículos**. Es
@@ -1732,17 +1968,70 @@ Los clientes ya tienen `isActive` para la baja lógica; los vehículos no tienen
 equivalente. Un borrado lógico con papelera resolvería el caso real —"me equivoqué
 de auto"— sin obligar a elegir entre perder un dato y perder un día.
 
+**Resuelto con papelera, pero no con borrado lógico**, y el porqué se midió.
+
+El borrado lógico es lo natural: un `deletedAt` y filtrar. Contando qué habría
+que tocar aparecen **seis consultas agregadas sobre `job` que nunca pasan por
+`car`** —el contador de trabajos activos de la barra y cinco del dashboard—. Con
+un `deletedAt`, los trabajos de un vehículo borrado seguirían contando en el
+badge, en la torta de estados y en la facturación del mes. Y lo peor no son esas
+seis: es que la regla "acordate de excluir los borrados" no se ve desde la
+consulta, así que la próxima que alguien escriba va a estar mal y nadie se va a
+enterar.
+
+Así que el vehículo se borra **de verdad**, igual que antes, y lo que queda es
+una copia de sus filas en una tabla aparte. Ninguna consulta existente cambia, no
+hay invariante nueva que recordar, y restaurar es volver a insertar lo que había.
+Es el mismo criterio que el de **H1** con los documentos: guardar la copia de lo
+que hubo, no marcar lo que sigue estando.
+
+Detalles que importan:
+
+- Se guardan las **filas crudas**, no un objeto armado a mano: una columna nueva
+  entra sola en la copia en vez de olvidarse.
+- Restaurar es todo o nada, en una transacción. Media restauración deja un
+  vehículo sin sus trabajos y sin forma de saberlo.
+- Si la patente se volvió a usar, no se restaura y se explica: la patente es la
+  identidad del vehículo, y restaurar crearía dos.
+- El titular se reinserta sólo si no está. Borrar el auto no borra al cliente, y
+  el auto recuperado tiene que volver a ser de quien era.
+- La papelera se poda a los últimos 50: guarda copias enteras de vehículos con
+  sus trabajos, así que sin tope crece como crecía la carpeta de respaldos antes
+  de tener retención.
+- Tirar de la papelera sí es definitivo, y se pregunta.
+
+Verificado contra la aplicación real con una base de verdad: borrar deja el auto
+en la papelera con lo que arrastra, los contadores bajan de inmediato —que es lo
+que el borrado lógico habría roto—, y recuperarlo lo devuelve con su titular.
+
 ### H6 · 🟡 No hay búsqueda ni filtro en el historial de documentos
 
-**[pendiente]** · `src/Components/DocumentHistory.tsx`
+**[a testear]** · `src/Components/DocumentHistory.tsx`
 
 `document:list` acepta `type`, `licensePlate` y `limit` (tope 100). No hay
 búsqueda por nombre de cliente, ni rango de fechas, ni paginado. Con dos años de
 presupuestos, el historial es una lista de 100 y nada más.
 
+**Resuelto**: `document:list` pasó a devolver `Paginated`, como los otros
+listados, y acepta búsqueda y rango de fechas.
+
+La búsqueda mira el titular **y la patente**, que son las dos formas en que el
+usuario tiene el dato: o el cliente lo menciona por teléfono, o trae el papel en
+la mano. El término se escapa, o un `%` devolvería el historial completo.
+
+El rango incluye los dos extremos: quien filtra "del 15 al 20" espera que el 20
+esté, así que el tope va al final de ese día y no a su medianoche.
+
+Los filtros se muestran sólo donde sirven: en Gestión de datos, que es la
+pantalla que se usa para encontrar un documento. Dentro de la ficha de un
+vehículo el listado sigue siendo un bloque compacto.
+
+Detalle de la pantalla vacía: con filtros puestos dice "ningún documento
+coincide" y no "todavía no se emitió ninguno", que sería mentira.
+
 ### H7 · 🟡 Los intervalos de service por vehículo no se pueden configurar
 
-**[pendiente]** · `electron/DataBase/Entities/car.entity.ts`
+**[a testear]** · `electron/DataBase/Entities/car.entity.ts`
 
 `Car.serviceIntervalMonths` y `Car.serviceIntervalKm` existen en la entidad, los
 usa `computeNextService`, y **ninguna pantalla los edita**. La funcionalidad está
@@ -1752,9 +2041,26 @@ generales.
 Es justo el caso que el comentario de la entidad describe —"distinguir un auto de
 uso intensivo de uno de fin de semana"— y no se puede hacer.
 
+**Resuelto.** Los dos campos se editan desde la tarjeta de próximo service de la
+ficha del vehículo, que es donde el usuario está pensando en esto, y no en el
+formulario de alta —el intervalo propio es una excepción, no un dato que se
+cargue con el auto—.
+
+Vacío significa "usar los generales", y el placeholder muestra cuáles son. Por
+eso el campo vacío manda `null` y no se omite: omitir es "no lo toques", que es
+otra cosa. En el listado había además un hueco de tipos —`serviceIntervalMonths`
+y `serviceIntervalKm` no estaban en el `Car` del renderer—, así que ninguna
+pantalla podía siquiera leerlos.
+
+Los topes son los mismos que los de la configuración general, y por el mismo
+motivo: diez años de intervalo ya es "no hacerle service".
+
+Verificado en la aplicación real: guardar 4 meses / 5.000 km queda en el
+vehículo y **no toca los generales**, y vaciar los campos lo devuelve a `null`.
+
 ### H8 · ⚪ Los respaldos exportados a mano no aparecen en la lista de restauración
 
-**[pendiente]** · `electron/DataBase/backups.ts` → `listBackups`
+**[a testear]** · `electron/DataBase/backups.ts` → `listBackups`
 
 `listBackups` reconoce sólo el patrón `taller_<AAAA-MM-DD>.db`. El nombre que
 propone la exportación manual es `taller_backup_<fecha>.db`, que **no matchea**:
@@ -1762,13 +2068,31 @@ si el usuario lo guarda en la carpeta de respaldos esperando verlo ahí, no
 aparece. Además la fecha que muestra la pantalla sale del **nombre del archivo**,
 no de su fecha real.
 
+**Resuelto, y no como parecía.** La forma fácil —que `listBackups` acepte más
+nombres— tiene una trampa que descubre leer quién más la usa: de esa misma lista
+sale lo que `applyRetention` **borra**. Aceptar ahí los respaldos manuales habría
+hecho que la poda diaria se los llevara, o sea lo contrario exacto de lo que
+espera quien guarda una copia.
+
+Así que son dos listas y cada una dice para qué es. `listBackups` sigue siendo la
+de los automáticos, y es la que poda. `listRestorable` es lo que se le ofrece al
+usuario: cualquier `.db` de la carpeta, etiquetado según de dónde salió
+—automático, manual, o previo a una actualización—, porque los tres no
+significan lo mismo.
+
+La fecha ahora es la del archivo. La del nombre no existe para los manuales y
+para los automáticos puede mentir: alcanza con renombrar uno.
+
+Hay un caso que corre la poda con veinte respaldos automáticos y comprueba que
+los manuales sigan ahí.
+
 ---
 
 ## Sprint I — Interfaz y accesibilidad
 
 ### I1 · 🟠 Ninguno de los 24 botones de sólo ícono tiene nombre accesible
 
-**[pendiente]** · varios componentes
+**[a testear]** · varios componentes
 
 Hay **24 usos de `isIconOnly`** en la interfaz y **ninguno** declara `aria-label`
 en el mismo elemento. Un botón cuyo único contenido es un `<svg>` no tiene texto:
@@ -1781,17 +2105,33 @@ la forma correcta de testear.
 
 Muchos tienen `Tooltip`, que ayuda con el mouse y no con el teclado.
 
+**Resuelto**, los 25. Los de fila llevan el dato adentro —"Eliminar AB123CD",
+"Corregir Filtro de aceite"—: en una tabla de diez, "botón eliminar" diez veces
+no le sirve a nadie, ni a un lector de pantalla ni a un test.
+
+Lo fija un test que **lee los archivos** en vez de montar la aplicación: la regla
+vale para todos los botones, incluidos los de pantallas que ningún test monta, y
+es justo ahí donde se cuela el que falta.
+
+Comprobado en la aplicación real: de 20 botones de sólo ícono en la pantalla de
+autos, el único sin nombre es un botón interno de HeroUI que está oculto y no es
+enfocable. Queda pendiente que ese widget rotula su propio botón en inglés
+("Show suggestions"), que es de la librería y no de este código.
+
 ### I2 · 🟠 El documento se declara en inglés
 
-**[pendiente]** · `index.html`
+**[a testear]** · `index.html`
 
 `<html lang="en">` en una aplicación íntegramente en castellano. Los lectores de
 pantalla la van a leer con pronunciación inglesa, y los correctores del navegador
 usan el diccionario equivocado. Es un atributo.
 
+**Resuelto**: `es-AR`. Con la región y no sólo `es`, porque el formato de fechas
+y números que usa toda la aplicación es el argentino.
+
 ### I3 · 🟡 El `ErrorBoundary` esconde el motivo justo cuando hace falta
 
-**[pendiente]** · `src/Pages/Components/ErrorBoundary.tsx`
+**[a testear]** · `src/Pages/Components/ErrorBoundary.tsx`
 
 El detalle técnico se muestra sólo con `import.meta.env.DEV`. En producción el
 usuario ve "Ocurrió un error inesperado" y nada más, y como tampoco queda en los
@@ -1800,9 +2140,14 @@ logs (**E1**), la información se pierde del todo.
 No hace falta mostrarle un stack trace: alcanza con un identificador de error que
 pueda dictar por teléfono y que esté en el log.
 
+**Resuelto así**: la pantalla muestra un código corto y ese mismo código viaja al
+archivo de log junto con la traza. Es lo que convierte "se rompió" en algo que se
+puede buscar: sin él, con el log delante no hay forma de saber cuál de todos los
+errores es el que el usuario está contando.
+
 ### I4 · 🟡 `removeAllListeners` del updater es un martillo
 
-**[pendiente]** · `electron/preload.ts`
+**[a testear]** · `electron/preload.ts`
 
 Los `onUpdate*` no devuelven función de baja; la limpieza es
 `removeAllListeners()`, que borra **todos** los listeners de esos canales, sean de
@@ -1813,22 +2158,49 @@ ningún error.
 El patrón correcto ya está en el mismo archivo: `onDataChanged` devuelve su propia
 función de baja.
 
+**Resuelto**: cada `on*` devuelve su baja y el martillo se fue. La lista de
+canales pasó de arreglo a tipo, porque lo que hacía falta era acotar qué se puede
+escuchar, no enumerarlos en tiempo de ejecución.
+
 ### I5 · ⚪ `onUpdateNotAvailable` y `onDownloaded` le pasan el evento IPC al callback
 
-**[pendiente]** · `electron/preload.ts`
+**[a testear]** · `electron/preload.ts`
 
 Mientras `onUpdateAvailable`, `onProgress` y `onError` envuelven el callback para
 pasar sólo los datos, estos dos registran el callback directo, así que reciben
 `(event, ...args)`. Hoy no molesta porque no usan argumentos, pero es una
 inconsistencia que filtra el objeto del evento al renderer.
 
+**Resuelto junto con I4**: ahora hay un solo `suscribir` y los cinco pasan por
+él, así que no hay dos formas de registrar un listener y el evento IPC no sale
+del preload.
+
 ### I6 · ⚪ Los repuestos no se pueden editar ni se detectan repetidos
 
-**[pendiente]** · `src/Components/Parts/PartsEditor.tsx`
+**[a testear]** · `src/Components/Parts/PartsEditor.tsx`
 
 Sólo agregar y borrar: corregir el precio de un repuesto obliga a borrarlo y
 volver a cargarlo. Tampoco avisa si se agrega dos veces el mismo nombre, ni hay
 tope de precio.
+
+**Resuelto los tres.** Se puede corregir en el lugar, el repetido se avisa
+—comparando sin acentos ni mayúsculas, que es como lo lee quien lo mira— y hay
+techo de precio, porque sin él un cero de más va derecho al total del
+presupuesto.
+
+**Y acá apareció una regresión mía del Sprint D**, que es lo mejor que dio este
+sprint. Al escribir el primer test del editor, cargar 15.000 guardaba **2**.
+
+El campo se muestra formateado, así que tipear pasa por `"1.500"` y la tecla
+siguiente deja `"1.5000"` en el input. La regla que había puesto en D6 —"punto
+decimal salvo que agrupe de a tres"— leía eso como `1,5`. Los tests de D6 no lo
+vieron porque probaban la función con textos bien formados, no con la secuencia
+de tipeo que produce la pantalla.
+
+La regla ahora es: un punto es decimal sólo si es **el único** y lo siguen **una
+o dos cifras al final**. Un precio de miles no tiene cuatro decimales; uno de
+centavos no tiene más de dos. Hay un caso que tipea dígito por dígito, que es lo
+que faltaba.
 
 ---
 
@@ -1855,7 +2227,7 @@ que lo permite (los módulos de dominio reciben el `EntityManager` por parámetr
 
 ### J1 · 🟡 Ninguna prueba sobre los endpoints IPC
 
-**[pendiente]** · `electron/DataBase/Endpoints/*`
+**[a testear]** · `electron/DataBase/Endpoints/*`
 
 Prioridad por riesgo: `car:create` (transacción + titular + recordatorio),
 `car:add-job` y `car:update-job` (transacción + cierre de service),
@@ -1865,9 +2237,18 @@ Prioridad por riesgo: `car:create` (transacción + titular + recordatorio),
 Se pueden ejercitar contra una base SQLite en memoria o contra una copia, como ya
 hace `dashboardStats.test.ts`.
 
+**Resuelto, y en su mayor parte antes de llegar a este sprint**: cada arreglo de
+los sprints A a I trajo los suyos. Los ocho archivos de endpoints pasaron de
+**cero** archivos de prueba a **quince**, y `electron/DataBase` mide 70 % de
+lineas.
+
+Lo que faltaba y se agrego aca es el contrato de **salida** —que todos los
+canales contesten el mismo envelope, recorriendo la lista registrada— y las
+costuras entre endpoints, que es J5.
+
 ### J2 · 🟡 Ninguna prueba sobre las migraciones
 
-**[pendiente]** · `electron/DataBase/Migrations/*`
+**[a testear]** · `electron/DataBase/Migrations/*`
 
 Son 11 migraciones que **reescriben datos del usuario**, y ninguna tiene prueba.
 `SimplifyServiceType` colapsa recordatorios y borra una columna;
@@ -1879,27 +2260,56 @@ El patrón razonable: armar la base en el esquema anterior, insertar los casos
 raros, correr la migración y verificar el resultado. Es lo que se hizo a mano
 contra la base real; hay que dejarlo escrito.
 
+**Resuelto** para las que reescriben datos: `SimplifyServiceType` (en D1),
+`AllowHomonymClients` (D5), `RoundPartPrices` (D6), `AddDocumentDateIndex` (G5) y
+ahora `NormalizeJobDates`, que era la que tenia la trampa documentada.
+
+Y ahi hubo una leccion. El primer caso que escribi para el `strftime` **pasaba
+igual con el filtro sacado**: la fecha rota que habia elegido ni siquiera entraba
+en el `WHERE`, asi que no probaba nada. La fecha tiene que parecerse a las que la
+migracion busca —con `T` y con `Z`— y fallar recien al interpretarse. Con un mes
+99 el caso pasa con el filtro y **revienta con `NOT NULL constraint failed` sin
+el**, que es lo que se queria fijar.
+
+Es el mismo criterio de siempre: un test que no se comprobo que falle no es un
+test, es una expectativa.
+
 ### J3 · 🟡 Ninguna prueba sobre el store ni los thunks
 
-**[pendiente]** · `src/Store/*`
+**[a testear]** · `src/Store/*`
 
 El contrato "los thunks **resuelven** con `status: failed`" está documentado en
 `CLAUDE.md` como algo que ya se pagó una vez —una pantalla mostró "guardado con
 éxito" sin haber guardado—. Justamente ese contrato no tiene ninguna prueba que lo
 sostenga.
 
+**Resuelto**: hay casos para las dos mitades de la distincion —un rechazo de
+negocio **resuelve**, un fallo de transporte **rechaza**— y para lo que se sigue
+de eso: que `unwrap()` no alcance para saber si salio bien, que es exactamente el
+error que se cometio una vez.
+
 ### J4 · 🟡 Los hooks de consulta no tienen prueba
 
-**[pendiente]** · `src/Hooks/*`
+**[a testear]** · `src/Hooks/*`
 
 `useCarQueries` (273 renglones, con los `catch (error: any)` de **A10**),
 `useBudgetPdf` (el flujo de emisión, con **E4**) y `useFormGuard` (con el bug
 **A8**) son los tres que más lo justifican: cada uno tiene un bug de este plan que
 una prueba habría atrapado.
 
+**Los tres tienen prueba.** `useFormGuard` desde A8, `useBudgetPdf` desde E4, y
+`useCarQueries` ahora: que un rechazo del backend llegue al usuario con **el
+mensaje del backend**, y que un error que no es un `Error` no deje el cartel rojo
+en blanco, que es lo que hacia A10.
+
+De paso: al escribir esto sobrescribi sin querer el archivo de `useFormGuard`, que
+ya tenia seis casos mejores que los mios. Se recupero del historial. Lo unico que
+quedo del intento es una correccion al comentario, que todavia afirmaba el
+sintoma de A8 que despues se comprobo falso.
+
 ### J5 · 🟡 No hay ninguna prueba de extremo a extremo
 
-**[pendiente]**
+**[a testear]**
 
 Se evaluó y se descartó en su momento (ver la nota del 2026-08-16 en el plan v1) y
 la decisión sigue siendo razonable. Pero conviene revisarla ahora que hay **28
@@ -1907,22 +2317,75 @@ tareas marcadas "a testear" que nadie ejercitó**: un puñado de recorridos
 completos —cargar un auto, cargar un trabajo, emitir un presupuesto, cerrar un
 service— cubriría más que cualquier prueba unitaria nueva.
 
+**Hecho el recorrido, sin traer un framework de extremo a extremo**, y conviene
+ser preciso sobre que es y que no.
+
+`recorridoCompleto.test.ts` recorre el dia entero por los **canales IPC** contra
+una base SQLite real: entra el auto, se le carga un service, se emite el
+presupuesto, se cierra el trabajo, se borra el vehiculo y se lo recupera. No hay
+ventana ni clics, asi que no cubre la interfaz.
+
+Lo que agrega sobre los tests de cada endpoint son las **costuras**: que el alta
+meta al auto en el circuito, que cerrar el service programe el proximo y sea otro
+recordatorio, que borrar se lleve el trabajo pero **no** al titular ni al
+documento emitido. Ninguna prueba de un endpoint solo ve eso.
+
+Para la interfaz, lo que se hizo en cada sprint fue manejar la aplicacion real
+por CDP con una copia de la base del usuario. Queda anotado como lo que es: una
+comprobacion manual reproducible, no una prueba automatizada.
+
 ### J6 · ⚪ No se mide la cobertura
 
-**[pendiente]** · `vitest.config.ts`
+**[a testear]** · `vitest.config.ts`
 
 No hay `coverage` configurado, así que la tabla de arriba la armé contando
 archivos a mano. Con `@vitest/coverage-v8` y un umbral mínimo, la conversación
 sobre qué falta probar deja de ser una opinión.
 
+**Resuelto**, con `npm run test:coverage`. Y la tabla de arriba quedo vieja:
+
+| Capa                | Lineas |
+| ------------------- | ------ |
+| `src/Utils`         | 97 %   |
+| `electron/DataBase` | 70 %   |
+| `src/Hooks`         | 43 %   |
+| `src/Components`    | 34 %   |
+| `src/Store`         | 22 %   |
+| `src/Pages`         | 10 %   |
+| **Total**           | 48 %   |
+
+Los umbrales estan puestos **apenas por debajo de lo medido**, como trinquete y
+no como meta: no dicen "esto alcanza" —no alcanza— sino "de aca no se baja". Un
+numero aspiracional que falla todos los dias se termina bajando o apagando; uno
+que solo falla cuando la cobertura retrocede avisa de algo real.
+
+Se excluyen los tipos, las entidades y el andamiaje de los tests: medir archivos
+sin codigo solo infla el numero.
+
 ### J7 · ⚪ Los tests no cubren los caminos de error del backend
 
-**[pendiente]**
+**[a testear]**
 
 Ni un test comprueba qué pasa cuando la base está bloqueada, cuando el disco está
 lleno, cuando una transacción falla a mitad o cuando el IPC rechaza. Son
 exactamente los caminos donde el manejo de errores importa, y donde el plan v1
 puso mucho trabajo que hoy nadie verifica.
+
+**Resuelto**, tres de los cuatro, repartidos entre los sprints:
+
+- **Disco**: el CSV y el PDF a una carpeta que no existe (E5, E3), y exportar la
+  base con la escritura rota, que ademas comprueba que el respaldo anterior siga
+  ahi (E7).
+- **IPC que rechaza**: el thunk rechaza con el motivo, y el hook no deja el
+  cartel en blanco (J3, J4).
+- **Transaccion a mitad**: dos casos nuevos que esconden la tabla de
+  recordatorios para que el alta y el cierre de service fallen **despues** de
+  haber escrito lo demas. El alta no deja ni el vehiculo ni el titular, y el
+  trabajo no queda cerrado. Es la atomicidad que `CLAUDE.md` afirma —"cerrar un
+  service y guardar el trabajo son un solo hecho"— y que nadie estaba
+  verificando.
+- **Base bloqueada**: no se cubre. Es de un solo proceso con una sola conexion, y
+  simularlo pediria mas andamiaje del que el caso justifica.
 
 ---
 
@@ -1930,7 +2393,7 @@ puso mucho trabajo que hoy nadie verifica.
 
 ### K1 · 🟠 La carpeta de salida del instalador es una ruta absoluta de una máquina
 
-**[pendiente]** · `electron-builder.json5`
+**[a testear]** · `electron-builder.json5`
 
 ```json5
 directories: {
@@ -1946,18 +2409,28 @@ flujo de publicación funciona **sólo porque la pisa** con
 Corresponde `output: "release"` (relativo, ignorado por git) y que quien quiera
 otra carpeta la pase por parámetro.
 
+**Resuelto** asi, y comprobado armando el instalador: sale en `release/`, que
+ahora esta en `.gitignore`.
+
 ### K2 · 🟡 `package.json` no declara autor ni licencia
 
-**[pendiente]** · `package.json`
+**[a testear]** · `package.json`
 
 Faltan `author` y `license`. No es cosmético: electron-builder **avisa durante el
 build** (`author is missed in the package.json`) y usa ese campo para el nombre
 del publicador en las propiedades del ejecutable de Windows —que es lo que ve el
 usuario cuando SmartScreen le pregunta si confía—.
 
+**Resuelto**, y se ve en el ejecutable armado: `CompanyName` dice ahora
+`Guido Dealbera`, que es el nombre que aparece en las propiedades del archivo. El
+aviso del build desaparecio.
+
+`license: UNLICENSED` y `private: true`: es software de un taller, no un paquete
+para publicar en npm, y conviene que el `package.json` lo diga.
+
 ### K3 · 🟡 Se empaqueta para macOS y Linux sin que nadie lo haya probado
 
-**[pendiente]** · `electron-builder.json5`
+**[a testear]** · `electron-builder.json5`
 
 Hay objetivos `mac` (dmg) y `linux` (AppImage) configurados. Pero el código asume
 Windows en varios lados —`app.getPath("documents")` para los respaldos, el traslado
@@ -1966,39 +2439,72 @@ desde `Documentos`, `signtool`— y no hay ninguna prueba en esas plataformas.
 Un artefacto que se puede construir y nunca se probó es peor que no tenerlo: da a
 entender que está soportado. O se prueba, o se saca hasta que se decida.
 
+**Se sacaron.** No hay con que probarlos, y el codigo asume Windows en varios
+lados. Queda el comentario en el lugar donde estaban, diciendo que el trabajo de
+soportar otra plataforma no es volver a agregar esas diez lineas sino revisar
+esas suposiciones.
+
 ### K4 · 🟡 El ícono de Windows es un PNG
 
-**[pendiente]** · `electron-builder.json5`
+**[a testear]** · `electron-builder.json5`
 
 `icon: "public/logo-grande.png"`. electron-builder lo convierte, pero un `.ico`
 real con varias resoluciones (16, 32, 48, 256) se ve mejor en la barra de tareas y
 en el explorador, que es donde el usuario lo mira todos los días.
 
+**Resuelto**: `build/icon.ico` con las cuatro resoluciones, generado una vez
+desde el PNG de 512 y versionado.
+
+La herramienta que lo genero (`png-to-ico`) **no quedo como dependencia**: se usa
+cuando cambia el logo, que no es algo que pase en cada build. Detalle del camino:
+pasandole la ruta como arreglo la libreria no redimensiona y mete el PNG de 512
+declarado como 256 —un `.ico` mal formado que igual parece funcionar—; hay que
+pasarle la ruta suelta.
+
 ### K5 · 🟡 No hay forma de saber qué cambió entre versiones
 
-**[pendiente]**
+**[a testear]**
 
 No hay `CHANGELOG.md`, y los releases de GitHub se publican sin notas. La
 aplicación **muestra `info.releaseNotes`** en el modal de actualización —el código
 está escrito— y hoy recibe siempre vacío. El usuario ve "hay una versión nueva" sin
 una palabra sobre qué trae.
 
+**Resuelto** de punta a punta, no sólo escribiendo el archivo: hay `CHANGELOG.md`,
+un script que extrae **la seccion de la version que se publica** —no el changelog
+entero, o el cartel repetiria lo de todas las versiones— y el flujo de
+publicacion lo corre antes de compilar.
+
+Si falta la seccion de esa version, **el flujo corta**. Publicar sin notas es lo
+que se estaba tratando de arreglar, y en silencio no se arregla nunca.
+
+Comprobado en el `latest.yml` del instalador armado: las notas estan adentro.
+
 ### K6 · ⚪ `.gitignore` no cubre la carpeta de salida del build
 
-**[pendiente]** · `.gitignore`
+**[a testear]** · `.gitignore`
 
 Ignora `dist`, `dist-electron` y `data`, pero no `release/` —que es adonde escribe
 el flujo de publicación— ni `coverage/`. Hoy no molesta porque el build local
 escribe en `Downloads` (**K1**); al arreglar K1, empieza a molestar.
 
+**Resuelto**, mas `build/release-notes.md`, que se genera al publicar.
+
 ### K7 · ⚪ No hay plantilla de reporte ni guía de contribución
 
-**[pendiente]** · `.github/`
+**[a testear]** · `.github/`
 
 Para un proyecto de una persona es opinable. Pero como el propio `CLAUDE.md` dice,
 "cada regla costó una sesión de depuración": un `CONTRIBUTING.md` corto que apunte
 a `CLAUDE.md` y al plan evita que la próxima persona —o la próxima sesión— tenga
 que redescubrirlas.
+
+**Resuelto**, corto y apuntando a los dos. Lo unico propio son las tres cosas que
+esta revision dejo como forma de trabajo: que un test que no se comprobo que
+falle no es un test, que se mide antes de optimizar, y como estan las ramas.
+
+No hay plantillas de issue: para un repositorio de una persona serian formularios
+que nadie completa.
 
 ---
 

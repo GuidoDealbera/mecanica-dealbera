@@ -32,6 +32,7 @@ import UpdateModal from "./UpdateModal";
 import { useToasts } from "../Hooks/useToasts";
 import { useGlobalShortcuts } from "../Hooks/useGlobalShortcuts";
 import { useTheme } from "../Theme/themeContext";
+import { useRefrescoPorTiempo } from "../Hooks/useRefrescoPorTiempo";
 
 const BUTTONS = [
   { path: "/", text: "Inicio" },
@@ -81,14 +82,21 @@ const Header = () => {
   const refreshCounters = React.useCallback(() => {
     // Recordatorios que requieren atención (misma regla que la bandeja, el
     // dashboard y la notificación de arranque).
+    // Un fallo deja el badge como estaba en vez de ponerlo en cero: mostrar
+    // "0 services por vencer" cuando en realidad no se pudo contar es peor que
+    // mostrar el número anterior, porque parece una respuesta.
     window.api.service
       .countDue()
-      .then(setServiceAlertCount)
+      .then((res) => {
+        if (res.status === "success") setServiceAlertCount(res.result);
+      })
       .catch(() => {});
     // Trabajos activos (pendientes o en progreso).
     window.api.cars
       .getActiveJobsCount()
-      .then(setPendingJobsCount)
+      .then((res) => {
+        if (res.status === "success") setPendingJobsCount(res.result);
+      })
       .catch(() => {});
   }, []);
 
@@ -104,6 +112,11 @@ const Header = () => {
     return window.api.onDataChanged(refreshCounters);
   }, [refreshCounters]);
 
+  // Y también cuando pasa el tiempo. Los recordatorios vencen a una fecha, no a
+  // una escritura: con la aplicación abierta toda la noche, el badge no contaba
+  // el service que vencía a medianoche hasta que alguien cargara algo.
+  useRefrescoPorTiempo(refreshCounters);
+
   // Atajos de teclado globales (navegación, búsqueda, ayuda, nuevo vehículo).
   useGlobalShortcuts({
     onSearch: () => setSearchOpen(true),
@@ -115,57 +128,63 @@ const Header = () => {
   const isManualCheck = React.useRef<boolean>(false);
 
   React.useEffect(() => {
-    window.updater.onUpdateAvailable((data) => {
-      isManualCheck.current = false;
-      setChecking(false);
-      setUpdateError(null);
-      setUpdateAvailable(true);
-      setUpdateVersion(data.version);
-      // Abrimos el modal automáticamente para que el usuario lo vea
-      setModalOpen(true);
-    });
-
-    window.updater.onUpdateNotAvailable(() => {
-      setChecking(false);
-      if (isManualCheck.current) {
+    // Cada suscripción devuelve su propia baja. Antes la limpieza era un
+    // `removeAllListeners()` que borraba los listeners de esos canales fueran
+    // de quien fueran: el día que otra pantalla escuchara uno, desmontar el
+    // Header la dejaba sorda sin ningún error.
+    const bajas = [
+      window.updater.onUpdateAvailable((data) => {
         isManualCheck.current = false;
+        setChecking(false);
+        setUpdateError(null);
+        setUpdateAvailable(true);
+        setUpdateVersion(data.version);
+        // Abrimos el modal automáticamente para que el usuario lo vea
+        setModalOpen(true);
+      }),
+
+      window.updater.onUpdateNotAvailable(() => {
+        setChecking(false);
+        if (isManualCheck.current) {
+          isManualCheck.current = false;
+          showToast(
+            "La aplicación ya está en su última versión",
+            "success",
+            "Actualización de sistema"
+          );
+        }
+      }),
+
+      window.updater.onProgress((data) => {
+        setProgress(data.percent);
+      }),
+
+      window.updater.onDownloaded(() => {
+        setDownloaded(true);
+      }),
+
+      window.updater.onError((data) => {
+        setChecking(false);
+        isManualCheck.current = false;
+        const reason = data?.message?.trim();
+        setUpdateError(reason || "No se pudo completar la actualización");
+        // Se muestra el motivo real: sin esto, un fallo de actualización sólo
+        // decía "hubo un error" y no había forma de saber qué pasó sin abrir los
+        // logs.
         showToast(
-          "La aplicación ya está en su última versión",
-          "success",
+          reason
+            ? `No se pudo actualizar el sistema: ${reason}`
+            : "No se pudo actualizar el sistema",
+          "danger",
           "Actualización de sistema"
         );
-      }
-    });
-
-    window.updater.onProgress((data) => {
-      setProgress(data.percent);
-    });
-
-    window.updater.onDownloaded(() => {
-      setDownloaded(true);
-    });
-
-    window.updater.onError((data) => {
-      setChecking(false);
-      isManualCheck.current = false;
-      const reason = data?.message?.trim();
-      setUpdateError(reason || "No se pudo completar la actualización");
-      // Se muestra el motivo real: sin esto, un fallo de actualización sólo
-      // decía "hubo un error" y no había forma de saber qué pasó sin abrir los
-      // logs.
-      showToast(
-        reason
-          ? `No se pudo actualizar el sistema: ${reason}`
-          : "No se pudo actualizar el sistema",
-        "danger",
-        "Actualización de sistema"
-      );
-    });
+      }),
+    ];
 
     // Los listeners viven en el proceso de preload, así que hay que darlos de
     // baja al desmontar: si no, cada montaje suma un handler y los avisos se
     // duplican.
-    return () => window.updater.removeAllListeners();
+    return () => bajas.forEach((baja) => baja());
   }, [showToast]);
 
   const handleManualCheck = async () => {
@@ -212,6 +231,7 @@ const Header = () => {
             <Tooltip content="Atrás" color="primary" showArrow>
               <Button
                 isIconOnly
+                aria-label="Volver atrás"
                 size="sm"
                 onPress={() => navigate(-1)}
                 radius="full"
@@ -281,6 +301,9 @@ const Header = () => {
             const button = (
               <Button
                 isIconOnly
+                // El mismo texto que el tooltip: con el mouse se ve, con el
+                // teclado o un lector de pantalla es lo único que hay.
+                aria-label={tooltip}
                 radius="full"
                 color={isActive ? color : "default"}
                 className={
@@ -327,6 +350,7 @@ const Header = () => {
           >
             <Button
               isIconOnly
+              aria-label="Buscar"
               radius="full"
               color="primary"
               onPress={() => setSearchOpen(true)}

@@ -7,6 +7,7 @@ import "./DataBase/Endpoints/dashboard.endpoints";
 import "./DataBase/Endpoints/document.endpoints";
 import "./DataBase/Endpoints/service.endpoints";
 import "./DataBase/Endpoints/backup.endpoints";
+import "./DataBase/Endpoints/trash.endpoints";
 import {
   app,
   BrowserWindow,
@@ -31,7 +32,10 @@ import {
 } from "./DataBase/dataSource";
 import { createDailyBackup } from "./DataBase/backups";
 import { onDashboardStatsInvalidated } from "./DataBase/dashboardCache";
-import { countDueReminders } from "./DataBase/serviceReminders.service";
+import {
+  countDueReminders,
+  reactivateExpiredSnoozes,
+} from "./DataBase/serviceReminders.service";
 import type { APIResponse } from "../src/Types/apiTypes";
 
 log.initialize();
@@ -162,6 +166,26 @@ onDashboardStatsInvalidated(() => {
 
 const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000;
 
+/**
+ * Cada cuánto se barren los recordatorios postergados cuyo plazo venció.
+ *
+ * Antes ese barrido lo hacía cada lectura —listar, contar, abrir una ficha—, o
+ * sea que leer escribía. Ahora corre acá. Una hora es holgado porque postergar
+ * se mide en días: el desfase máximo es irrelevante frente a lo que representa.
+ */
+const SNOOZE_SWEEP_INTERVAL_MS = 60 * 60 * 1000;
+
+/** Devuelve a la bandeja lo que ya venció, sin que ninguna lectura escriba. */
+async function barrerPostergados(): Promise<void> {
+  try {
+    await reactivateExpiredSnoozes(AppDataSource.manager);
+  } catch (error) {
+    // Best-effort: que falle no puede impedir usar la aplicación. Lo peor que
+    // pasa es que un recordatorio postergado tarde una hora más en reaparecer.
+    logError("service:sweep", error);
+  }
+}
+
 /** Tiempo máximo que se deja el splash esperando a que la ventana esté lista. */
 const SPLASH_TIMEOUT_MS = 20_000;
 
@@ -239,7 +263,9 @@ process.on("unhandledRejection", (reason) => {
 });
 
 function setupAutoUpdater() {
-  if (process.env.NODE_ENV === "development") return;
+  // `app.isPackaged` y no `NODE_ENV`: la variable de entorno es una convención
+  // de las herramientas y se hereda de la terminal, así que decidía mal.
+  if (!app.isPackaged) return;
 
   autoUpdater.autoDownload = false;
 
@@ -400,20 +426,17 @@ async function createWindow() {
     return;
   }
 
-  if (process.env.NODE_ENV !== "development") {
-    try {
-      await performAutoBackup();
-    } catch (err) {
-      // El respaldo es best-effort: si falla no impide usar la aplicación.
-      logError("backup:auto", err);
-    }
-  }
+  // Antes de contar y de abrir la ventana: el badge y la notificación de
+  // arranque tienen que ver los que vencieron mientras la aplicación estaba
+  // cerrada, que es justo lo que hacía el barrido de cada lectura.
+  await barrerPostergados();
+  setInterval(barrerPostergados, SNOOZE_SWEEP_INTERVAL_MS);
 
   // Notificación de recordatorios de service al iniciar (solo en producción).
   // El conteo sale de `countDueReminders`, la misma función que alimenta el
   // badge y la bandeja: antes la regla estaba reimplementada acá y podía
   // divergir de la del listado.
-  if (process.env.NODE_ENV !== "development") {
+  if (app.isPackaged) {
     try {
       const dueCount = await countDueReminders(AppDataSource.manager);
       if (dueCount > 0 && Notification.isSupported()) {
@@ -511,6 +534,22 @@ async function createWindow() {
     closeSplash();
     win?.show();
     win?.maximize();
+
+    // El respaldo diario, recién acá.
+    //
+    // Es un `VACUUM INTO` de toda la base y estaba en el camino crítico del
+    // arranque: base → respaldo → conteo → recién ahí la ventana. Con la base
+    // chica no se nota; con una grande el usuario mira la pantalla de carga
+    // mientras se copia un archivo que no necesita para empezar a trabajar.
+    //
+    // No alcanzaba con dejar de esperarlo antes de crear la ventana: SQLite
+    // serializa, así que las primeras consultas del renderer se habrían puesto
+    // en la cola detrás del `VACUUM`. Va cuando la ventana ya está a la vista.
+    //
+    // Es best-effort por diseño: si falla se registra y la aplicación sigue.
+    if (app.isPackaged) {
+      void performAutoBackup().catch((err) => logError("backup:auto", err));
+    }
   });
 
   // Si la carga del renderer falla no hay `ready-to-show`, así que hay que
@@ -681,7 +720,7 @@ ipcMain.on("install-update", () => {
 });
 
 handleIpc("check-for-updates", async () => {
-  if (process.env.NODE_ENV === "development") {
+  if (!app.isPackaged) {
     win?.webContents.send("update-not-available");
     return;
   }

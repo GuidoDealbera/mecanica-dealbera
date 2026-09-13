@@ -190,3 +190,70 @@ describe("car:update", () => {
     expect(res.status).toBe("failed");
   });
 });
+
+describe("intervalos de service propios del vehículo", () => {
+  /**
+   * Las columnas existían y `computeNextService` ya las usaba, pero ninguna
+   * pantalla las editaba: la funcionalidad estaba escrita y era inalcanzable,
+   * así que todos los vehículos usaban los intervalos generales.
+   */
+  it("los guarda", async () => {
+    const res = await invocar("car:update", "auto-1", {
+      serviceIntervalMonths: 4,
+      serviceIntervalKm: 5000,
+    });
+
+    expect(res.status).toBe("success");
+    const [fila] = (await ds.query(
+      "SELECT serviceIntervalMonths, serviceIntervalKm FROM car WHERE id = 'auto-1'"
+    )) as { serviceIntervalMonths: number; serviceIntervalKm: number }[];
+    expect(fila.serviceIntervalMonths).toBe(4);
+    expect(fila.serviceIntervalKm).toBe(5000);
+  });
+
+  it("null los devuelve a los generales, y ausente no los toca", async () => {
+    await invocar("car:update", "auto-1", {
+      serviceIntervalMonths: 4,
+      serviceIntervalKm: 5000,
+    });
+
+    // Ausente: se edita otra cosa y los intervalos quedan como estaban.
+    await invocar("car:update", "auto-1", { model: "Gol Trend" });
+    let [fila] = (await ds.query(
+      "SELECT serviceIntervalMonths FROM car WHERE id = 'auto-1'"
+    )) as { serviceIntervalMonths: number | null }[];
+    expect(fila.serviceIntervalMonths).toBe(4);
+
+    // `null`: vaciar el campo es volver a los generales, y hay que poder
+    // distinguirlo de "no lo mandé".
+    await invocar("car:update", "auto-1", {
+      serviceIntervalMonths: null,
+      serviceIntervalKm: null,
+    });
+    [fila] = (await ds.query(
+      "SELECT serviceIntervalMonths FROM car WHERE id = 'auto-1'"
+    )) as { serviceIntervalMonths: number | null }[];
+    expect(fila.serviceIntervalMonths).toBeNull();
+  });
+
+  it("rechaza intervalos que no son intervalos", async () => {
+    const casos = [
+      { serviceIntervalMonths: 0 },
+      { serviceIntervalMonths: 121 },
+      { serviceIntervalMonths: 1.5 },
+      { serviceIntervalKm: 50 },
+      { serviceIntervalKm: 300_000 },
+      { serviceIntervalKm: "muchos" },
+    ];
+
+    for (const caso of casos) {
+      const res = await invocar("car:update", "auto-1", caso);
+      expect(res.status, JSON.stringify(caso)).toBe("failed");
+    }
+
+    const [fila] = (await ds.query(
+      "SELECT serviceIntervalMonths, serviceIntervalKm FROM car WHERE id = 'auto-1'"
+    )) as { serviceIntervalMonths: number | null }[];
+    expect(fila.serviceIntervalMonths).toBeNull();
+  });
+});

@@ -99,6 +99,7 @@ const CarsTable: React.FC<CarsTableProps> = ({
                     <Button
                       onPress={() => onSortChange(column.key)}
                       isIconOnly
+                      aria-label={`Ordenar por ${column.label}`}
                       size="sm"
                       className="bg-transparent"
                     >
@@ -194,6 +195,7 @@ const CarsTable: React.FC<CarsTableProps> = ({
                   <Tooltip content="Agregar trabajo" color="success" showArrow>
                     <Button
                       isIconOnly
+                      aria-label={`Agregar trabajo a ${car.licensePlate}`}
                       size="sm"
                       className="bg-transparent"
                       onPress={() =>
@@ -208,6 +210,7 @@ const CarsTable: React.FC<CarsTableProps> = ({
                   <Tooltip content="Detalle" color="primary" showArrow>
                     <Button
                       isIconOnly
+                      aria-label={`Ver detalle de ${car.licensePlate}`}
                       size="sm"
                       className="bg-transparent"
                       onPress={() => navigate(`/cars/${car.licensePlate}`)}
@@ -219,6 +222,7 @@ const CarsTable: React.FC<CarsTableProps> = ({
                     <Button
                       onPress={() => deleteCar(car.licensePlate)}
                       isIconOnly
+                      aria-label={`Eliminar ${car.licensePlate}`}
                       size="sm"
                       className="bg-transparent"
                     >

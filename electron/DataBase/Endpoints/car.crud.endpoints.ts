@@ -1,4 +1,4 @@
-import { handleIpc } from "../../ipc";
+import { handleIpc, handleIpcQuery } from "../../ipc";
 import { logError } from "../../logger";
 import { comoParametros, esIdentificador, validateDto } from "../../validation";
 import { escapeLike, resolvePage } from "../../pagination";
@@ -14,6 +14,7 @@ import {
   describeClientDuplicates,
   describeOwnerMismatch,
 } from "../clients.service";
+import { moveCarToTrash } from "../trash.service";
 
 // Columnas por las que se permite ordenar el listado de autos (mapa
 // campo-de-la-UI → columna calificada de la query, para no interpolar texto
@@ -128,8 +129,9 @@ handleIpc("car:create", async (_event, payload: CreateCarDto) => {
 // Listado paginado server-side. Solo carga la relación `owner` (el listado no
 // muestra los trabajos, así que no se traen para no cargar todos los `job` de
 // todos los autos). Búsqueda por patente (LIKE) y orden opcional en la DB.
-handleIpc(
+handleIpcQuery(
   "car:get-all",
+  "No se pudo cargar el listado de vehículos",
   async (_event, entrada: CarQueryParams): Promise<Paginated<Car>> => {
     // Un canal IPC recibe lo que le manden, y más abajo se hace
     // `params.search.trim()`: con una cadena en vez de un objeto eso revienta.
@@ -255,6 +257,12 @@ handleIpc("car:update", async (_, id: string, cambios: UpdateCarDto) => {
   if (datos.brand !== undefined) car.brand = datos.brand;
   if (datos.model !== undefined) car.model = datos.model;
   if (datos.year !== undefined) car.year = datos.year;
+  // `null` es "usar los intervalos generales", y se distingue de ausente, que
+  // es "no lo toques".
+  if (datos.serviceIntervalMonths !== undefined)
+    car.serviceIntervalMonths = datos.serviceIntervalMonths;
+  if (datos.serviceIntervalKm !== undefined)
+    car.serviceIntervalKm = datos.serviceIntervalKm;
 
   // El kilometraje tiene reglas propias: no puede bajar, y sólo deja un punto
   // en el historial cuando efectivamente cambia. Antes se agregaba un punto
@@ -282,7 +290,9 @@ handleIpc("car:update", async (_, id: string, cambios: UpdateCarDto) => {
   const otroCambio =
     datos.brand !== undefined ||
     datos.model !== undefined ||
-    datos.year !== undefined;
+    datos.year !== undefined ||
+    datos.serviceIntervalMonths !== undefined ||
+    datos.serviceIntervalKm !== undefined;
   if (!huboCambioDeKm && !otroCambio) {
     return {
       status: "success",
@@ -324,11 +334,22 @@ handleIpc("car:delete", async (_, license: CreateCarDto["licensePlate"]) => {
     // forma irreversible en una acción que era "borrar un auto". Un cliente sin
     // vehículos es un estado válido (la pantalla de Clientes los lista) y para
     // darlo de baja de verdad está `client:delete`, que sí lo avisa.
+    // Antes de borrar, la copia. Es lo que permite deshacerlo: el vehículo se
+    // borra igual que siempre —con la cascada de sus trabajos y su
+    // recordatorio—, y lo que queda es una copia de esas filas en la papelera.
+    await moveCarToTrash(
+      qr.manager,
+      car.id,
+      `${car.licensePlate} — ${car.brand} ${car.model}`
+    );
     await qr.manager.remove(car);
 
     await qr.commitTransaction();
     invalidateDashboardStatsCache();
-    return { status: "success", message: "Vehículo eliminado correctamente" };
+    return {
+      status: "success",
+      message: "Vehículo eliminado. Se puede recuperar desde la papelera.",
+    };
   } catch (error) {
     await qr.rollbackTransaction();
     logError("car:delete", error);

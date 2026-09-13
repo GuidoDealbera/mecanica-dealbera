@@ -1,5 +1,5 @@
 import { In } from "typeorm";
-import { handleIpc } from "../../ipc";
+import { handleIpc, handleIpcQuery } from "../../ipc";
 import { logError } from "../../logger";
 import { AppDataSource, getRepositories } from "../dataSource";
 import { CreateJobDto, UpdateJobDto } from "../Types/car.dto";
@@ -112,12 +112,16 @@ handleIpc("car:add-job", async (_, license: string, jobDto: CreateCarJob) => {
 // Cantidad de trabajos activos (pendientes o en progreso) en todo el taller.
 // Alimenta el badge de la barra de navegación: es un COUNT liviano sobre la
 // tabla `job`, sin traer autos ni trabajos completos al renderer.
-handleIpc("car:active-jobs-count", async (): Promise<number> => {
-  const { jobRepository } = getRepositories();
-  return await jobRepository.count({
-    where: { status: In([JobStatus.PENDING, JobStatus.IN_PROGRESS]) },
-  });
-});
+handleIpcQuery(
+  "car:active-jobs-count",
+  "No se pudo contar los trabajos activos",
+  async (): Promise<number> => {
+    const { jobRepository } = getRepositories();
+    return await jobRepository.count({
+      where: { status: In([JobStatus.PENDING, JobStatus.IN_PROGRESS]) },
+    });
+  }
+);
 
 // Misma transacción única que en el alta: actualizar el trabajo y cerrar el
 // recordatorio del service son la misma operación.
@@ -161,6 +165,10 @@ handleIpc(
       const wasClosed = isClosed(job.status);
 
       if (cambios.status !== undefined) job.status = cambios.status;
+      if (cambios.description !== undefined)
+        job.description = cambios.description;
+      if (cambios.isThirdParty !== undefined)
+        job.isThirdParty = cambios.isThirdParty;
       if (cambios.price !== undefined) job.price = cambios.price;
       if (cambios.parts !== undefined) job.parts = cambios.parts;
       if (cambios.notes !== undefined) job.notes = cambios.notes;

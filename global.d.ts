@@ -14,6 +14,8 @@ import {
   DocumentType,
   IssueDocumentBody,
   IssuedDocument,
+  DocumentSnapshot,
+  SequenceCheck,
   Paginated,
   ReminderQueryParams,
   SaveReminderBody,
@@ -22,6 +24,7 @@ import {
   UpdateClientBody,
 } from "./src/Types/apiTypes";
 import { Car, Client, DashboardStats, Jobs } from "./src/Types/types";
+import type { TrashItem } from "./electron/DataBase/trash.service";
 export {};
 
 interface SearchResult {
@@ -56,18 +59,22 @@ export interface UpdateError {
   message: string;
 }
 
+/**
+ * Cada `on*` devuelve **su propia** baja, como `onDataChanged`.
+ *
+ * Antes no devolvían nada y la limpieza era un `removeAllListeners()` que
+ * borraba todos los listeners de esos canales, fueran de quien fueran.
+ */
 export interface UpdaterAPI {
-  onUpdateAvailable: (callback: (data: UpdateInfo) => void) => void;
-  onUpdateNotAvailable: (callback: () => void) => void;
-  onProgress: (callback: (data: UpdateProgress) => void) => void;
-  onDownloaded: (callback: () => void) => void;
-  onError: (callback: (data: UpdateError) => void) => void;
+  onUpdateAvailable: (callback: (data: UpdateInfo) => void) => () => void;
+  onUpdateNotAvailable: (callback: () => void) => () => void;
+  onProgress: (callback: (data: UpdateProgress) => void) => () => void;
+  onDownloaded: (callback: () => void) => () => void;
+  onError: (callback: (data: UpdateError) => void) => () => void;
 
   startDownload: () => void;
   installUpdate: () => void;
   checkForUpdates: () => Promise<void>;
-  /** Da de baja los listeners registrados con los `on*` (limpieza del efecto). */
-  removeAllListeners: () => void;
 }
 
 declare global {
@@ -75,8 +82,10 @@ declare global {
     api: {
       cars: {
         create: (car: CreateCarDto) => Promise<APIResponse>;
-        getAll: (params: CarQueryParams) => Promise<Paginated<Car>>;
-        getActiveJobsCount: () => Promise<number>;
+        getAll: (
+          params: CarQueryParams
+        ) => Promise<APIResponse<Paginated<Car>>>;
+        getActiveJobsCount: () => Promise<APIResponse<number>>;
         getByLicense: (license: string) => Promise<APIResponse<Car>>;
         update: (
           id: string,
@@ -99,11 +108,18 @@ declare global {
             | { mode: "new"; newOwner: CreateClientDto }
         ) => Promise<APIResponse>;
       };
+      trash: {
+        list: () => Promise<APIResponse<TrashItem[]>>;
+        restore: (id: string) => Promise<APIResponse>;
+        purge: (id: string) => Promise<APIResponse>;
+      };
       clients: {
-        create: (dto: CreateClientDto) => Promise<APIResponse>;
-        getAll: (params: ClientQueryParams) => Promise<Paginated<Client>>;
+        create: (dto: CreateClientDto) => Promise<APIResponse<Client>>;
+        getAll: (
+          params: ClientQueryParams
+        ) => Promise<APIResponse<Paginated<Client>>>;
         getById: (id: string) => Promise<APIResponse<Client>>;
-        getCities: () => Promise<string[]>;
+        getCities: () => Promise<APIResponse<string[]>>;
         search: (query: string) => Promise<APIResponse<Client[]>>;
         update: (dto: UpdateClientBody) => Promise<APIResponse<Client>>;
         toggleActive: (id: string) => Promise<APIResponse>;
@@ -115,9 +131,11 @@ declare global {
       service: {
         list: (
           params: ReminderQueryParams
-        ) => Promise<Paginated<ServiceReminderView>>;
-        countDue: () => Promise<number>;
-        byCar: (licensePlate: string) => Promise<ServiceReminderView[]>;
+        ) => Promise<APIResponse<Paginated<ServiceReminderView>>>;
+        countDue: () => Promise<APIResponse<number>>;
+        byCar: (
+          licensePlate: string
+        ) => Promise<APIResponse<ServiceReminderView[]>>;
         snooze: (
           id: string,
           days: number
@@ -131,7 +149,7 @@ declare global {
         save: (
           body: SaveReminderBody
         ) => Promise<APIResponse<ServiceReminderView>>;
-        getSettings: () => Promise<ServiceSettings>;
+        getSettings: () => Promise<APIResponse<ServiceSettings>>;
         setSettings: (
           settings: Partial<ServiceSettings>
         ) => Promise<APIResponse<ServiceSettings>>;
@@ -141,11 +159,21 @@ declare global {
           body: IssueDocumentBody
         ) => Promise<APIResponse<IssuedDocument>>;
         discard: (id: string) => Promise<APIResponse>;
-        list: (filters?: DocumentQueryParams) => Promise<IssuedDocument[]>;
+        list: (
+          filters?: DocumentQueryParams
+        ) => Promise<APIResponse<Paginated<IssuedDocument>>>;
+        get: (
+          id: string
+        ) => Promise<
+          APIResponse<
+            (IssuedDocument & { snapshot: DocumentSnapshot | null }) | null
+          >
+        >;
         savePdf: (payload: {
           defaultName: string;
           bytes: Uint8Array;
         }) => Promise<APIResponse<{ filePath: string }>>;
+        checkSequence: () => Promise<APIResponse<SequenceCheck[]>>;
       };
       /** Suscribe al aviso de "los datos cambiaron". Devuelve la baja. */
       onDataChanged: (callback: () => void) => () => void;
@@ -158,7 +186,7 @@ declare global {
         restore: (name: string) => Promise<APIResponse>;
       };
       global: {
-        search: (query: string) => Promise<{ status: string } & SearchResult>;
+        search: (query: string) => Promise<APIResponse<SearchResult>>;
         openLogsFolder: () => Promise<void>;
         openExternal: (url: string) => Promise<APIResponse>;
         setUnsavedChanges: (dirty: boolean) => void;
@@ -169,6 +197,7 @@ declare global {
           stack?: string;
           componentStack?: string;
           route?: string;
+          errorId?: string;
         }) => void;
       };
     };

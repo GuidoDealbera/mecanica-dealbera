@@ -25,6 +25,9 @@ export interface UpdateJobBody {
   notes?: string;
   clientNote?: string;
   isService?: boolean;
+  /** Lo que sale impreso en el presupuesto. Ver `UpdateJobDto`. */
+  description?: string;
+  isThirdParty?: boolean;
 }
 
 export interface CreateCarBody {
@@ -54,9 +57,16 @@ export type ApiStatus = "success" | "failed" | "cancelled";
  * - `failed` / `cancelled`: sin `result`.
  * `message` está siempre presente (los consumidores lo muestran en toasts).
  *
- * Los endpoints de solo-lectura que devuelven colecciones crudas
- * (`car:get-all`, `client:get-all`) y la búsqueda global (`global:search`, forma
- * `{ status, cars, clients }`) NO usan este envelope.
+ * **Lo usan todos los canales, también los de sólo lectura.** Antes nueve
+ * devolvían el dato pelado —un `Paginated`, un número, un arreglo—, y eso tenía
+ * dos consecuencias: `ensureSuccess` no se podía usar en la mitad de las
+ * llamadas, así que cada pantalla inventaba su manejo de error; y cuando una
+ * lectura fallaba de verdad, la excepción viajaba cruda hasta el renderer y el
+ * usuario veía el mensaje de TypeORM.
+ *
+ * En las lecturas el `message` de éxito va vacío a propósito: no hay nada que
+ * avisar cuando algo simplemente se leyó, y un texto ahí sólo invita a
+ * mostrarlo.
  */
 export type APIResponse<T = undefined> =
   | { status: "success"; message: string; result: T }
@@ -243,19 +253,108 @@ export const formatDocumentNumber = (
   `${DOCUMENT_PREFIX[type]}-${String(number).padStart(DOCUMENT_NUMBER_PAD, "0")}`;
 
 /** Datos que se guardan al emitir un documento (snapshot del momento). */
+/**
+ * Copia de lo que se imprimió, para poder volver a imprimirlo.
+ *
+ * La tabla `document` guardaba tipo, número, patente, titular y total, pero no
+ * los renglones. O sea que el historial decía que se emitió `FAC-000007` por
+ * $89.000 y **no había forma de reproducir ese PDF**: si el cliente lo perdía, o
+ * si mientras tanto se editaba o borraba el trabajo, lo que decía el documento
+ * ya no existía en ningún lado. Para algo que es un comprobante, eso no es una
+ * mejora que falta: es la razón de ser de la tabla.
+ *
+ * Se guarda **sólo lo que el documento imprime**, no las entidades enteras: sin
+ * `kmHistory`, sin las notas internas del taller y sin los trabajos que no
+ * entraron. Un comprobante es lo que dice el papel.
+ */
+export interface DocumentSnapshot {
+  /** Título impreso (varía según el tipo). */
+  title: string;
+  car: {
+    licensePlate: string;
+    brand: string;
+    model: string;
+    year: number;
+    kilometers: number;
+    owner: {
+      fullname: string;
+      phone: string;
+      address: string;
+      city: string;
+    } | null;
+  };
+  jobs: {
+    id: string;
+    description: string;
+    price: number;
+    isThirdParty: boolean;
+    clientNote?: string;
+    parts: { name: string; price: number }[];
+  }[];
+  /** Mismos campos que `BudgetTotals`, que es lo que el documento imprime. */
+  totals: {
+    laborTotal: number;
+    partsGrandTotal: number;
+    thirdPartyTotal: number;
+    ownTotal: number;
+    total: number;
+  };
+  /** Sólo en el consolidado de un cliente con varios vehículos. */
+  vehicles?: {
+    licensePlate: string;
+    brand: string;
+    model: string;
+    year: number;
+    kilometers: number;
+  }[];
+  /** Patente de cada trabajo, en el consolidado. */
+  jobPlates?: Record<string, string>;
+}
+
 export interface IssueDocumentBody {
   type: DocumentType;
   licensePlate: string;
   clientName: string;
   total: number;
+  /** Ver `DocumentSnapshot`. Es lo que permite reimprimir. */
+  snapshot: DocumentSnapshot;
 }
 
-/** Filtros del historial de documentos. Todos opcionales. */
-export interface DocumentQueryParams {
+/**
+ * Estado del correlativo de un tipo de documento.
+ *
+ * La numeración existe para que no falte ninguno, y no había **forma de
+ * comprobarlo**: ni una pantalla, ni un aviso. Un hueco —por un cierre a
+ * destiempo entre tomar el número y guardar el archivo, o por un descarte que
+ * falló— quedaba invisible.
+ */
+export interface SequenceCheck {
+  type: DocumentType;
+  /** Cuántos hay emitidos de este tipo. */
+  emitted: number;
+  /** El número más alto. Con el correlativo sano, es igual a `emitted`. */
+  last: number;
+  /** Los que faltan, acotados: con muchos, el detalle deja de ser útil. */
+  missing: number[];
+  /** Si `missing` quedó recortado. */
+  truncated: boolean;
+}
+
+/**
+ * Filtros del historial de documentos. Todos opcionales.
+ *
+ * Antes eran tipo, patente y un tope: con dos años de presupuestos el historial
+ * era una lista de cien y nada más. No había forma de encontrar el documento de
+ * un cliente por su nombre, ni de acotar por fecha, ni de pasar de página.
+ */
+export interface DocumentQueryParams extends Partial<PaginationParams> {
   type?: DocumentType;
   licensePlate?: string;
-  /** Cuántos traer (1-100, por defecto 20). */
-  limit?: number;
+  /** Busca en el nombre del titular y en el número formateado del documento. */
+  search?: string;
+  /** Rango de emisión, en `AAAA-MM-DD`. Los dos extremos son inclusivos. */
+  from?: string;
+  to?: string;
 }
 
 /** Documento ya emitido, con su número correlativo asignado. */
@@ -270,6 +369,14 @@ export interface IssuedDocument {
   clientName: string;
   total: number;
   createdAt: string;
+  /**
+   * Si se guardó la copia de lo impreso, o sea si se puede reimprimir.
+   *
+   * Va como booleano y no como la copia entera: el historial trae veinte
+   * documentos y no tiene por qué arrastrar veinte copias completas para
+   * decidir si mostrar un botón.
+   */
+  hasSnapshot: boolean;
 }
 
 /**
@@ -308,4 +415,10 @@ export interface BackupEntry {
   name: string;
   date: string;
   sizeKb: number;
+  /**
+   * De dónde salió: el respaldo diario, uno exportado a mano, o la copia previa
+   * a una actualización. La pantalla los distingue porque no significan lo
+   * mismo: los automáticos se van rotando solos y los otros dos no.
+   */
+  origin: "automatico" | "manual" | "previo";
 }

@@ -1,13 +1,15 @@
 {
   "name": "mecanica-dealbera",
   "private": true,
-  "version": "2.0.0",
-  "type": "module",
+  "version": "2.1.0",
   "description": "Sistema de gestión para Mecánica Dealbera",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/GuidoDealbera/mecanica-dealbera"
+  "author": {
+    "name": "Guido Dealbera",
+    "email": "gdealbera@mecantronic.com.ar"
   },
+  "license": "UNLICENSED",
+  "type": "module",
+  "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build && electron-builder",
@@ -24,7 +26,13 @@
     "migration:generate": "cross-env npx tsx ./node_modules/typeorm/cli.js migration:generate -d electron/DataBase/data-source.cli.ts",
     "migration:run": "cross-env npx tsx ./node_modules/typeorm/cli.js migration:run -d electron/DataBase/data-source.cli.ts",
     "migration:revert": "cross-env npx tsx ./node_modules/typeorm/cli.js migration:revert -d electron/DataBase/data-source.cli.ts",
-    "migration:show": "cross-env npx tsx ./node_modules/typeorm/cli.js migration:show -d electron/DataBase/data-source.cli.ts"
+    "migration:show": "cross-env npx tsx ./node_modules/typeorm/cli.js migration:show -d electron/DataBase/data-source.cli.ts",
+    "test:coverage": "vitest run --coverage",
+    "notas": "node scripts/notas-de-version.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/GuidoDealbera/mecanica-dealbera"
   },
   "dependencies": {
     "@heroui/react": "^2.8.3",
@@ -61,6 +69,7 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
+    "@vitest/coverage-v8": "^5.0.0",
     "cross-env": "^10.1.0",
     "electron": "^44.2.0",
     "electron-builder": "^26.15.3",
@@ -79,7 +88,6 @@
     "vite-plugin-electron-renderer": "^1.0.0",
     "vitest": "^5.0.0"
   },
-  "main": "dist-electron/main.js",
   "engines": {
     "node": "^22.22.2 || >=24.15.0"
   }

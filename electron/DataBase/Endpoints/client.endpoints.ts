@@ -1,4 +1,4 @@
-import { handleIpc } from "../../ipc";
+import { handleIpc, handleIpcQuery } from "../../ipc";
 import { logError } from "../../logger";
 import { comoParametros, esIdentificador, validateDto } from "../../validation";
 import { escapeLike, resolvePage } from "../../pagination";
@@ -9,6 +9,7 @@ import { Car } from "../Entities/car.entity";
 import { Client } from "../Entities/client.entity";
 import { invalidateDashboardStatsCache } from "../dashboardCache";
 import { describeClientDuplicates } from "../clients.service";
+import { moveClientToTrash } from "../trash.service";
 
 // Columnas por las que se permite ordenar el listado de clientes.
 const CLIENT_SORT_COLUMNS: Record<string, string> = {
@@ -31,13 +32,17 @@ handleIpc("client:create", async (_, payload: CreateClientDto) => {
     createClientDto
   );
   const newOwner = repo.create(createClientDto);
-  await repo.save(newOwner);
+  const guardado = await repo.save(newOwner);
   invalidateDashboardStatsCache();
   return {
     status: "success",
     message: aviso
       ? `Cliente registrado correctamente. ${aviso}`
       : "Cliente registrado correctamente",
+    // Con el cliente adentro. Sin esto, quien lo crea no recibe su `id` y para
+    // hacer cualquier cosa a continuación tiene que volver a buscarlo **por
+    // nombre**, que es la clave frágil que D5 vino a sacar del medio.
+    result: guardado,
   };
 });
 
@@ -45,8 +50,9 @@ handleIpc("client:create", async (_, payload: CreateClientDto) => {
 // `includeInactive` los incluye). Búsqueda por nombre (LIKE) y orden en la DB.
 // El join de `cars` es a-muchos: TypeORM pagina con subconsulta de ids, así que
 // `total` cuenta clientes distintos (no filas del join).
-handleIpc(
+handleIpcQuery(
   "client:get-all",
+  "No se pudo cargar el listado de clientes",
   async (_event, entrada: ClientQueryParams): Promise<Paginated<Client>> => {
     const params = comoParametros<ClientQueryParams>(entrada);
     const { page, pageSize, skip, take } = resolvePage(params);
@@ -103,17 +109,21 @@ handleIpc(
 
 // Lista de ciudades/localidades distintas (no vacías), ordenadas. Alimenta el
 // dropdown de filtro por ciudad del listado de clientes.
-handleIpc("client:cities", async (): Promise<string[]> => {
-  const repo = getRepositories().clientRepository;
-  const rows = await repo
-    .createQueryBuilder("client")
-    .select("client.city", "city")
-    .distinct(true)
-    .where("client.city IS NOT NULL AND client.city <> ''")
-    .orderBy("client.city", "ASC")
-    .getRawMany<{ city: string }>();
-  return rows.map((r) => r.city);
-});
+handleIpcQuery(
+  "client:cities",
+  "No se pudieron cargar las localidades",
+  async (): Promise<string[]> => {
+    const repo = getRepositories().clientRepository;
+    const rows = await repo
+      .createQueryBuilder("client")
+      .select("client.city", "city")
+      .distinct(true)
+      .where("client.city IS NOT NULL AND client.city <> ''")
+      .orderBy("client.city", "ASC")
+      .getRawMany<{ city: string }>();
+    return rows.map((r) => r.city);
+  }
+);
 
 /**
  * La ficha del cliente, buscada por `id`.
@@ -175,10 +185,9 @@ handleIpc("client:toggle-active", async (_, id: string) => {
   }
 
   const repo = getRepositories().clientRepository;
-  const client = await repo.findOne({
-    where: { id },
-    relations: { cars: true },
-  });
+  // Sin los autos: esta operación toca un booleano del cliente y no los mira.
+  // Quien llama tampoco: la pantalla usa el `status` y recarga el listado.
+  const client = await repo.findOne({ where: { id } });
   if (!client) {
     return {
       status: "failed",
@@ -208,6 +217,11 @@ handleIpc("client:delete", async (_, id: string) => {
       await qr.rollbackTransaction();
       return { status: "failed", message: "Cliente no encontrado" };
     }
+    // La copia va antes de tocar nada, y del cliente **con todos sus
+    // vehículos**: borrar un cliente es la operación que más se lleva puesto de
+    // toda la aplicación.
+    await moveClientToTrash(qr.manager, client.id, client.fullname);
+
     if (client.cars && client.cars.length > 0) {
       for (const car of client.cars) {
         await qr.manager.remove(Car, car);
@@ -216,7 +230,10 @@ handleIpc("client:delete", async (_, id: string) => {
     await qr.manager.remove(Client, client);
     await qr.commitTransaction();
     invalidateDashboardStatsCache();
-    return { status: "success", message: "Cliente eliminado correctamente" };
+    return {
+      status: "success",
+      message: "Cliente eliminado. Se puede recuperar desde la papelera.",
+    };
   } catch (error) {
     await qr.rollbackTransaction();
     logError("client:delete", error);
@@ -235,7 +252,11 @@ handleIpc("client:update", async (_, payload: UpdateClientDto) => {
 
   const repo = getRepositories().clientRepository;
 
+  // Con los autos desde el principio: hace falta devolverlos, y antes eso se
+  // resolvía con un `findOne` **extra después de guardar**. Es la misma
+  // consulta corrida de lugar, no una consulta más.
   const updateClient = await repo.findOne({
+    relations: { cars: true },
     where: {
       id,
     },
@@ -264,17 +285,11 @@ handleIpc("client:update", async (_, payload: UpdateClientDto) => {
 
   const saved = await repo.save(updateClient);
   invalidateDashboardStatsCache();
-  const withCars = await repo.findOne({
-    where: {
-      id: saved.id,
-    },
-    relations: { cars: true },
-  });
   return {
     status: "success",
     message: aviso
       ? `Cliente actualizado correctamente. ${aviso}`
       : "Cliente actualizado correctamente",
-    result: withCars,
+    result: saved,
   };
 });

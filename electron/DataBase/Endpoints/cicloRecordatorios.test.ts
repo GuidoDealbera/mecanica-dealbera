@@ -39,7 +39,10 @@ const invocar = async <T>(canal: string, ...args: unknown[]): Promise<T> => {
   return (await handler({}, ...args)) as T;
 };
 
-const vigentes = () => invocar<{ id: string }[]>("service:by-car", "AB123CD");
+// Las lecturas devuelven el envelope: se desenvuelve acá, una vez.
+const vigentes = async () =>
+  (await invocar<{ result: { id: string }[] }>("service:by-car", "AB123CD"))
+    .result;
 
 beforeEach(async () => {
   dir = fs.mkdtempSync(path.join(os.tmpdir(), "mecanica-ciclo-"));
@@ -89,11 +92,11 @@ describe("volver al circuito de service después de descartar", () => {
     expect(await vigentes()).toHaveLength(0);
     // Sigue estando: la pantalla lo muestra en "Historial completo", que es de
     // donde se lo reactiva.
-    const historial = await invocar<{ total: number }>("service:list", {
-      scope: "all",
-      pageSize: 50,
-    });
-    expect(historial.total).toBe(1);
+    const historial = await invocar<{ result: { total: number } }>(
+      "service:list",
+      { scope: "all", pageSize: 50 }
+    );
+    expect(historial.result.total).toBe(1);
   });
 
   it("reactivar lo devuelve, que es la salida manual", async () => {

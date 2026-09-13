@@ -17,6 +17,20 @@ Corta en el primero que falla. Es lo mismo que ejecuta GitHub Actions en cada
 push (`.github/workflows/verify.yml`). El instalador lo arma `release.yml` sólo
 en `main`.
 
+### Las ramas: `feat/*` → `develop` → `main`
+
+`main` **es la rama de publicación**, no la de integración: `release.yml` se
+dispara con cada push y arma y publica el instalador. Un merge por sprint son
+cinco releases, y para el usuario instalado eso es una actualización cada vez
+que alguien termina de trabajar.
+
+Por eso el trabajo se integra en `develop`, que sale de `main`, y `main` recibe
+un solo merge cuando hay algo para publicar de verdad —con la versión de
+`package.json` subida, que es lo que decide si el usuario ve la actualización—.
+
+`verify.yml` corre en todas las ramas menos `main`, así que integrar en
+`develop` sigue estando verificado.
+
 Para probar contra datos de verdad sin tocar la base del usuario:
 
 ```bash
