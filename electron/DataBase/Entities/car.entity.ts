@@ -96,7 +96,11 @@ export class Car {
   @ManyToOne(() => Client, (client) => client.cars, { nullable: true })
   owner!: Client | null;
 
-  constructor(partial: Partial<Car>) {
+  // El parámetro es opcional como en el resto de las entidades. TypeORM las
+  // instancia **sin argumentos** al hidratar una fila: con el parámetro
+  // obligatorio eso andaba de casualidad, porque `Object.assign(this, undefined)`
+  // no hace nada, y el tipo decía lo contrario de lo que ocurre.
+  constructor(partial?: Partial<Car>) {
     Object.assign(this, partial);
   }
 }

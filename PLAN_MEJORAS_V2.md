@@ -1596,16 +1596,19 @@ tapa lo que se está mirando.
 
 ### F7 · 🟡 `Car` obliga a pasar un objeto al constructor y las demás entidades no
 
-**[pendiente]** · `electron/DataBase/Entities/*.entity.ts`
+**[a testear]** · `electron/DataBase/Entities/*.entity.ts`
 
 `Car` declara `constructor(partial: Partial<Car>)` (obligatorio) mientras `Job`,
 `ServiceReminder`, `Document` y `AppSetting` usan `partial?` (opcional). TypeORM
 instancia entidades sin argumentos: funciona porque `Object.assign(this, undefined)`
 no hace nada, o sea **por una casualidad del lenguaje**. Conviene unificar.
 
+**Resuelto**: opcional en las seis. Eran dos y no una —`Car` y `Client`—, y el
+motivo queda escrito en el código: el tipo decía lo contrario de lo que ocurre.
+
 ### F8 · ⚪ Queda código de la plantilla de electron-vite
 
-**[pendiente]** · `src/main.tsx`, `electron/main.ts`, `electron/preload.ts`
+**[a testear]** · `src/main.tsx`, `electron/main.ts`, `electron/preload.ts`
 
 El canal `main-process-message` sólo existe para hacer un `console.log` de la
 fecha al cargar. Arrastra consigo la exposición del `ipcRenderer` genérico
@@ -1614,14 +1617,21 @@ fecha al cargar. Arrastra consigo la exposición del `ipcRenderer` genérico
 `// You can expose other APTs you need here.`, con la errata incluida) en un
 proyecto cuya convención es comentar en castellano.
 
+**Ya estaba resuelto al hacer C1**: sacar el puente genérico se llevó el canal y
+sus comentarios. Se comprobó que no queda ninguno de los dos.
+
 ### F9 · ⚪ `FormWrapper` desactiva el chequeo de tipos de todo el archivo
 
-**[pendiente]** · `src/Components/Forms/FormWrapper.tsx`
+**[a testear]** · `src/Components/Forms/FormWrapper.tsx`
 
 `/* eslint-disable @typescript-eslint/no-explicit-any */` con
 `form: UseFormReturn<any>`. Es un componente genérico, así que se resuelve con un
 parámetro de tipo (`<T extends FieldValues>`) en vez de apagar la regla para el
 archivo entero.
+
+**Resuelto** con el parámetro de tipo. Lo que importa no es el `any` en sí sino
+el `eslint-disable` de archivo entero: es lo que hace que el segundo `any` entre
+sin que nadie lo note.
 
 ---
 
