@@ -24,7 +24,8 @@
     "migration:generate": "cross-env npx tsx ./node_modules/typeorm/cli.js migration:generate -d electron/DataBase/data-source.cli.ts",
     "migration:run": "cross-env npx tsx ./node_modules/typeorm/cli.js migration:run -d electron/DataBase/data-source.cli.ts",
     "migration:revert": "cross-env npx tsx ./node_modules/typeorm/cli.js migration:revert -d electron/DataBase/data-source.cli.ts",
-    "migration:show": "cross-env npx tsx ./node_modules/typeorm/cli.js migration:show -d electron/DataBase/data-source.cli.ts"
+    "migration:show": "cross-env npx tsx ./node_modules/typeorm/cli.js migration:show -d electron/DataBase/data-source.cli.ts",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@heroui/react": "^2.8.3",
@@ -61,6 +62,7 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
+    "@vitest/coverage-v8": "^5.0.0",
     "cross-env": "^10.1.0",
     "electron": "^44.2.0",
     "electron-builder": "^26.15.3",

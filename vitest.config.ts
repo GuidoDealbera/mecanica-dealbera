@@ -40,6 +40,40 @@ export default defineConfig({
     testTimeout: 60_000,
     hookTimeout: 60_000,
     environment: "node",
+    coverage: {
+      provider: "v8",
+      // `text` para leerlo acá mismo y `html` para poder navegarlo cuando hay
+      // que buscar qué rama quedó afuera.
+      reporter: ["text", "html"],
+      include: ["src/**/*.{ts,tsx}", "electron/**/*.ts"],
+      exclude: [
+        // Lo que no tiene sentido medir: tipos sin código, la maquetación de
+        // las pantallas y el propio andamiaje de los tests.
+        "**/*.d.ts",
+        "**/*.test.{ts,tsx}",
+        "src/test/**",
+        "src/main.tsx",
+        "src/Types/**",
+        "electron/DataBase/Types/**",
+        "electron/DataBase/Entities/**",
+      ],
+      /**
+       * Umbrales como **trinquete**, no como meta.
+       *
+       * Están puestos apenas por debajo de lo medido hoy: no dicen "esto es
+       * suficiente" —no lo es—, dicen "de acá no se baja". Un número aspiracional
+       * que falla todos los días se termina bajando o apagando; uno que sólo
+       * falla cuando la cobertura **retrocede** avisa de algo real.
+       *
+       * Al agregar tests conviene subirlos.
+       */
+      thresholds: {
+        statements: 47,
+        branches: 39,
+        functions: 35,
+        lines: 48,
+      },
+    },
     include: ["src/**/*.{test,spec}.{ts,tsx}", "electron/**/*.{test,spec}.ts"],
     setupFiles: ["./src/test/setup.ts"],
     globals: true,
