@@ -1692,7 +1692,7 @@ de rendimiento, así que no se hace por cuenta propia.
 
 ### G2 · 🟡 Listar recordatorios escribe en la base
 
-**[pendiente]** · `electron/DataBase/serviceReminders.service.ts` →
+**[a testear]** · `electron/DataBase/serviceReminders.service.ts` →
 `reactivateExpiredSnoozes`
 
 Se llama al principio de `service:list`, de `service:by-car` y de
@@ -1704,6 +1704,19 @@ Que una lectura escriba no es gratis: toma el bloqueo de escritura, invalida
 páginas y ensucia el archivo. Y son dos sentencias que podrían ser una.
 
 Mejor: correrlo una vez al arrancar y después en un intervalo, no en cada lectura.
+
+**Resuelto así**, y las dos sentencias pasaron a ser una: los dos casos —plazo
+vencido y postergado sin fecha— son la misma condición con un `OR`.
+
+El barrido corre al arrancar, **antes** de contar y de abrir la ventana —el badge
+y la notificación tienen que ver lo que venció mientras la aplicación estaba
+cerrada—, y después cada hora. Una hora es holgado porque postergar se mide en
+días: el desfase máximo es irrelevante frente a lo que se está representando.
+
+Los tests cubren las dos mitades, y la segunda es la que importa: con un
+postergado vencido a mano, listar, contar y abrir la ficha de un vehículo dejan
+la base **byte por byte igual**. Antes cualquiera de las tres lo reactivaba de
+paso.
 
 ### G3 · 🟡 `getServiceSettings` consulta la base varias veces por request
 

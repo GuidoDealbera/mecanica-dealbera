@@ -1,4 +1,4 @@
-import { EntityManager, In, IsNull, LessThanOrEqual } from "typeorm";
+import { EntityManager, In } from "typeorm";
 import { AppSetting } from "./Entities/appSetting.entity";
 import { Car } from "./Entities/car.entity";
 import { ServiceReminder } from "./Entities/serviceReminder.entity";
@@ -233,26 +233,35 @@ export const completeAndScheduleNext = async (
 
 /**
  * Reactiva los postergados cuyo plazo ya venció: vuelven a `pending` para que
- * reaparezcan en la bandeja. Se ejecuta antes de listar o contar, así el estado
- * guardado no queda desfasado con el paso del tiempo.
+ * reaparezcan en la bandeja.
+ *
+ * **No se llama al leer.** Se llamaba al principio de `service:list`, de
+ * `service:by-car` y de `countDueReminders` —y a este último lo llaman el badge
+ * de la barra y la notificación de arranque—, o sea que listar recordatorios
+ * **escribía en la base**, casi siempre sin ninguna fila que tocar. Que una
+ * lectura escriba no es gratis: toma el bloqueo de escritura, invalida páginas y
+ * ensucia el archivo.
+ *
+ * Ahora lo lanza el proceso principal al arrancar y cada tanto. Postergar se
+ * mide en días, así que un barrido por hora deja un desfase irrelevante frente a
+ * lo que se está representando.
+ *
+ * Y era **una** sentencia disfrazada de dos: los dos casos —plazo vencido y
+ * postergado sin fecha, que no tiene forma de volver solo— son la misma
+ * condición con un `OR`.
  */
 export const reactivateExpiredSnoozes = async (
   manager: EntityManager
 ): Promise<void> => {
-  await manager.update(
-    ServiceReminder,
-    {
-      status: ReminderStatus.SNOOZED,
-      snoozedUntil: LessThanOrEqual(new Date()),
-    },
-    { status: ReminderStatus.PENDING, snoozedUntil: null }
-  );
-  // Un postergado sin fecha no tiene forma de volver: se normaliza.
-  await manager.update(
-    ServiceReminder,
-    { status: ReminderStatus.SNOOZED, snoozedUntil: IsNull() },
-    { status: ReminderStatus.PENDING }
-  );
+  await manager
+    .createQueryBuilder()
+    .update(ServiceReminder)
+    .set({ status: ReminderStatus.PENDING, snoozedUntil: null })
+    .where("status = :snoozed", { snoozed: ReminderStatus.SNOOZED })
+    .andWhere("(snoozedUntil IS NULL OR snoozedUntil <= :ahora)", {
+      ahora: new Date(),
+    })
+    .execute();
 };
 
 /**
@@ -263,7 +272,6 @@ export const reactivateExpiredSnoozes = async (
 export const countDueReminders = async (
   manager: EntityManager
 ): Promise<number> => {
-  await reactivateExpiredSnoozes(manager);
   const settings = await getServiceSettings(manager);
   const soonDate = new Date();
   soonDate.setDate(soonDate.getDate() + settings.soonDays);

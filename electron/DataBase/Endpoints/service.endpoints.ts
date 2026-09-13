@@ -11,7 +11,6 @@ import {
   countDueReminders,
   findActiveReminder,
   getServiceSettings,
-  reactivateExpiredSnoozes,
   saveServiceSettings,
 } from "../serviceReminders.service";
 import {
@@ -125,7 +124,6 @@ handleIpcQuery(
     entrada: ReminderQueryParams
   ): Promise<Paginated<ServiceReminderView>> => {
     const params = comoParametros<ReminderQueryParams>(entrada);
-    await reactivateExpiredSnoozes(AppDataSource.manager);
 
     const { page, pageSize, skip, take } = resolvePage(params);
     const settings = await getServiceSettings(AppDataSource.manager);
@@ -208,7 +206,6 @@ handleIpcQuery(
   async (_event, licensePlate: string): Promise<ServiceReminderView[]> => {
     if (!esIdentificador(licensePlate)) return [];
 
-    await reactivateExpiredSnoozes(AppDataSource.manager);
     const reminders = await getRepositories().serviceReminderRepository.find({
       where: {
         car: { licensePlate },
