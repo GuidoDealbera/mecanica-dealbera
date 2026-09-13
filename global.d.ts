@@ -142,6 +142,10 @@ declare global {
         ) => Promise<APIResponse<IssuedDocument>>;
         discard: (id: string) => Promise<APIResponse>;
         list: (filters?: DocumentQueryParams) => Promise<IssuedDocument[]>;
+        savePdf: (payload: {
+          defaultName: string;
+          bytes: Uint8Array;
+        }) => Promise<APIResponse<{ filePath: string }>>;
       };
       /** Suscribe al aviso de "los datos cambiaron". Devuelve la baja. */
       onDataChanged: (callback: () => void) => () => void;

@@ -31,8 +31,12 @@ const BudgetButton: React.FC<BudgetButtonProps> = ({
     async (type: DocumentType, selected: Jobs[]) => {
       try {
         const issued = await generatePDF(car, selected, { type });
+        // `null` es que el usuario canceló el diálogo de guardado. No es un
+        // error: no se avisa nada y el modal queda abierto, que es lo que
+        // permite volver a intentar sin rearmar la selección.
+        if (!issued) return;
         showToast(
-          `Descargado con éxito — N° ${issued.formatted}`,
+          `Guardado con éxito — N° ${issued.formatted}`,
           "success",
           type === DocumentType.INVOICE ? "Factura" : "Presupuesto"
         );

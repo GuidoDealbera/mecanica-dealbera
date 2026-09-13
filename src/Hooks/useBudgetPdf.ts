@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import { Cars, Jobs } from "../Types/types";
 import { DocumentType, type IssuedDocument } from "../Types/apiTypes";
 import { computeTotals, eligibleJobsForDocument } from "../Utils/documentRules";
+import { reportarError } from "../Utils/reportarError";
 import type { VehicleSummary } from "../Utils/budgetPdf";
 
 /** Título impreso según el tipo de documento. */
@@ -19,7 +20,7 @@ export interface BudgetOptions {
 
 /**
  * Orquesta la emisión de un documento: pide el número correlativo a la DB,
- * delega el dibujo en `renderBudgetDocument` (módulo puro) y lo descarga.
+ * delega el dibujo en `renderBudgetDocument` (módulo puro) y lo guarda.
  *
  * El dibujo se carga con `import()` **en el momento de emitir**: jsPDF,
  * jspdf-autotable y la fuente de patentes embebida pesan ~500 kB, y con el
@@ -31,9 +32,35 @@ export const useBudgetPDF = () => {
   const [error, setError] = useState<string | null>(null);
 
   /**
+   * Devuelve el número al mostrador.
+   *
+   * Antes esto era un `catch {}` vacío con el comentario "no se pudo
+   * descartar": si el descarte fallaba, quedaba un hueco en el correlativo y
+   * **ningún rastro** de por qué. Descartar es lo único que evita el hueco, así
+   * que cuando no se puede hay que poder averiguarlo.
+   */
+  const descartar = useCallback(async (id: string) => {
+    try {
+      const res = await window.api.documents.discard(id);
+      if (res.status !== "success") {
+        reportarError("document:discard", new Error(res.message), {});
+      }
+    } catch (error) {
+      reportarError("document:discard", error);
+    }
+  }, []);
+
+  /**
    * Emite el documento: asigna su número correlativo en la DB, dibuja el PDF y
-   * lo descarga. Si algo falla después de tomar el número, lo descarta para no
-   * dejar un hueco en el correlativo.
+   * pregunta dónde guardarlo. Si algo falla —o si el usuario cancela— lo
+   * descarta para no dejar un hueco en el correlativo.
+   *
+   * El número se toma **antes** de preguntar dónde guardar, y no al revés como
+   * sugería el plan, porque el número va impreso en el documento y en el nombre
+   * del archivo. Invertirlo obligaría a adivinar el número antes de reservarlo,
+   * y el riesgo cambia de lado: en vez de un hueco en el correlativo —molesto—
+   * quedarían dos documentos con el **mismo** número en la calle, que en una
+   * factura es peor. Cancelar y fallar al escribir sí devuelven el número.
    *
    * Emisión propiamente dicha. La comparten el documento de un vehículo y el
    * consolidado de un cliente: cambia **qué** se imprime, no cómo se numera,
@@ -59,7 +86,7 @@ export const useBudgetPDF = () => {
       plateForRecord: string;
       /** Cola del nombre del archivo. */
       fileSuffix: string;
-    }): Promise<IssuedDocument> => {
+    }): Promise<IssuedDocument | null> => {
       setIsGenerating(true);
       setError(null);
 
@@ -112,19 +139,32 @@ export const useBudgetPDF = () => {
         const safeName = title
           .replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ ]/g, "_")
           .replace(/\s+/g, "_");
-        doc.save(`${docNumber}_${safeName}_${fileSuffix}.pdf`);
+
+        // Lo escribe el proceso principal, que además pregunta dónde y
+        // **devuelve si pudo**. `doc.save()` no informaba nada: un fallo al
+        // escribir dejaba el número quemado y ningún PDF.
+        const guardado = await window.api.documents.savePdf({
+          defaultName: `${docNumber}_${safeName}_${fileSuffix}.pdf`,
+          bytes: new Uint8Array(doc.output("arraybuffer")),
+        });
+
+        if (guardado.status === "cancelled") {
+          // Cancelar no es un error, pero el número ya está tomado: se devuelve
+          // en el acto, que es cuando el descarte funciona seguro —no se emitió
+          // nada después—.
+          await descartar(issuedId);
+          issuedId = null;
+          return null;
+        }
+        if (guardado.status !== "success") {
+          throw new Error(guardado.message);
+        }
 
         return issued.result;
       } catch (err) {
         // Si algo falló después de tomar el número, se descarta el documento
         // para no dejar un hueco en el correlativo.
-        if (issuedId) {
-          try {
-            await window.api.documents.discard(issuedId);
-          } catch {
-            /* no se pudo descartar: se deja el registro y se sigue */
-          }
-        }
+        if (issuedId) await descartar(issuedId);
         const msg =
           err instanceof Error
             ? err.message
@@ -135,7 +175,7 @@ export const useBudgetPDF = () => {
         setIsGenerating(false);
       }
     },
-    []
+    [descartar]
   );
 
   /**

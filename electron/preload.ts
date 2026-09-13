@@ -104,6 +104,9 @@ contextBridge.exposeInMainWorld("api", {
       await ipcRenderer.invoke("document:discard", id),
     list: async (filters?: DocumentQueryParams) =>
       await ipcRenderer.invoke("document:list", filters),
+    /** Pregunta dónde guardar el PDF ya dibujado y lo escribe. */
+    savePdf: async (payload: { defaultName: string; bytes: Uint8Array }) =>
+      await ipcRenderer.invoke("document:save-pdf", payload),
   },
   /**
    * Aviso de "los datos cambiaron", que emite el proceso principal cada vez que

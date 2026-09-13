@@ -1263,7 +1263,7 @@ herramienta para eso ya estaba en el proyecto.
 
 ### E3 · 🟠 El PDF se descarga sin preguntar y sin confirmar que se guardó
 
-**[pendiente]** · `src/Hooks/useBudgetPdf.ts`
+**[a testear]** · `src/Hooks/useBudgetPdf.ts`
 
 La emisión termina en `doc.save(...)`, que es la descarga de jsPDF: el archivo cae
 en la carpeta de descargas del sistema sin diálogo, sin elegir dónde y **sin
@@ -1277,9 +1277,20 @@ Dos cosas mal:
 - Como `doc.save()` no informa el resultado, **un fallo al escribir no dispara el
   descarte del documento**. Ver E4.
 
+**Resuelto.** El PDF ya dibujado se manda al proceso principal, que pregunta
+dónde con `dialog.showSaveDialog`, escribe a un temporal, renombra al final y
+muestra el archivo en su carpeta —el mismo patrón que la exportación de la base
+y la del CSV—. Y devuelve un `APIResponse`, así que las tres salidas se
+distinguen: guardado, cancelado y fallido.
+
+Esa distinción es la que hacía falta. Cancelar deja de ser indistinguible de un
+error —no aparece ningún cartel rojo por algo que el usuario hizo a propósito— y
+un fallo al escribir deja de ser indistinguible del éxito, que es de lo que
+dependía E4.
+
 ### E4 · 🟠 El número de documento se puede quemar sin que salga ningún PDF
 
-**[pendiente]** · `src/Hooks/useBudgetPdf.ts`,
+**[a testear]** · `src/Hooks/useBudgetPdf.ts`,
 `electron/DataBase/Endpoints/document.endpoints.ts`
 
 La secuencia es: pedir el número (se **commitea** en la base) → dibujar el PDF →
@@ -1298,6 +1309,30 @@ Los caminos por los que se pierde el número igual:
 Resultado: un hueco en el correlativo, que es justo lo que toda esta maquinaria
 existe para evitar. Lo correcto es al revés: **generar el PDF primero y tomar el
 número al confirmar que se guardó**.
+
+**Resuelto, pero sin invertir el orden**, y conviene dejar escrito por qué.
+
+El número va impreso **adentro** del PDF y en el nombre del archivo, así que
+"dibujar primero" obliga a adivinar cuál va a ser antes de reservarlo. Y ahí el
+riesgo cambia de lado: si el registro no llega a guardarse, ese número se le
+vuelve a dar al documento siguiente y quedan **dos documentos con el mismo
+número en la calle**. En una factura eso es peor que un hueco. Un hueco es una
+molestia de auditoría; un duplicado es un problema con un cliente.
+
+Así que el número se sigue tomando primero, y lo que se arregló son los caminos
+por los que no se devolvía:
+
+- `doc.save()` no informaba fallos → ahora lo escribe el proceso principal y
+  devuelve el resultado (E3), así que un error de escritura descarta el número.
+- Cancelar el diálogo → descarta en el acto, que además es cuando el descarte
+  funciona seguro: no se emitió nada después, así que sigue siendo el último de
+  su tipo.
+- El descarte se tragaba su propio error con un `catch {}` → ahora queda
+  registrado (E1). Si el correlativo tiene un hueco, se puede averiguar por qué.
+
+Queda un caso que ningún orden evita: que la aplicación se cierre entre el
+commit del número y la escritura del archivo. Es una ventana de milisegundos, y
+la alternativa la cambiaría por la posibilidad de un número repetido.
 
 ### E5 · 🟠 `data:export-csv` revienta hacia el renderer en vez de devolver el error
 
