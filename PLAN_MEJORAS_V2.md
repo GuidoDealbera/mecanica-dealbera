@@ -1336,7 +1336,7 @@ la alternativa la cambiaría por la posibilidad de un número repetido.
 
 ### E5 · 🟠 `data:export-csv` revienta hacia el renderer en vez de devolver el error
 
-**[pendiente]** · `electron/DataBase/Endpoints/backup.endpoints.ts`
+**[a testear]** · `electron/DataBase/Endpoints/backup.endpoints.ts`
 
 `fs.writeFileSync(filePath, csv, "utf8")` no está en un `try`. Un disco lleno, una
 carpeta sin permisos o un pendrive desconectado lanzan, `handleIpc` relanza y el
@@ -1345,9 +1345,14 @@ renderer recibe una promesa rechazada con el mensaje crudo de Node.
 Todos los demás flujos de respaldo devuelven `{ status: "failed", message }` con
 un texto entendible. Éste no.
 
+**Resuelto**: la escritura va en un `try` y devuelve el motivo nombrando la
+carpeta, sin el texto de Node. De paso se escribe a un temporal y se renombra al
+final, como el resto: exportar encima de un CSV anterior no puede dejarlo a
+medio escribir.
+
 ### E6 · 🟡 Los archivos `_pre_import_*.db` se acumulan sin límite
 
-**[pendiente]** · `electron/DataBase/Endpoints/backup.endpoints.ts`
+**[a testear]** · `electron/DataBase/Endpoints/backup.endpoints.ts`
 
 Cada importación o restauración guarda la base anterior al lado, con nombre
 `taller_pre_import_<marca>.db`, y **nunca se borra ninguna**. Las copias previas a
@@ -1357,9 +1362,13 @@ diarios también (por niveles). Éstas no.
 No es grave, pero es la misma decisión tomada tres veces con tres resultados
 distintos, y con el tiempo llena la carpeta de datos con copias enteras de la base.
 
+**Resuelto**: se conservan las tres últimas, igual que `pruneSnapshots`. Se
+podan al terminar bien el reemplazo y no antes, porque hasta ese momento la
+copia recién apartada es la única red que hay.
+
 ### E7 · 🟡 `backup:export` borra el archivo de destino antes de saber si puede escribirlo
 
-**[pendiente]** · `electron/DataBase/Endpoints/backup.endpoints.ts`
+**[a testear]** · `electron/DataBase/Endpoints/backup.endpoints.ts`
 
 ```ts
 fs.rmSync(filePath, { force: true });
@@ -1376,9 +1385,17 @@ nuevo.
 Lo correcto es el patrón que el propio proyecto ya usa en `createPreMigrationSnapshot`:
 escribir a `<destino>.parcial` y renombrar al final.
 
+**Resuelto**, con eso mismo: el archivo que había sólo desaparece cuando hay uno
+nuevo y completo para reemplazarlo.
+
+Comprobado en las dos direcciones. Con el arreglo, un fallo al escribir deja el
+respaldo anterior intacto; con el código anterior el mismo caso **dice que la
+exportación tuvo éxito** habiendo borrado el respaldo viejo, que es lo peor de
+los dos mundos.
+
 ### E8 · 🟡 El reemplazo de base no limpia los archivos laterales de SQLite
 
-**[pendiente]** · `electron/DataBase/Endpoints/backup.endpoints.ts`,
+**[a testear]** · `electron/DataBase/Endpoints/backup.endpoints.ts`,
 `electron/DataBase/migrationSafety.ts` → `restoreSnapshot`
 
 Las dos funciones hacen `fs.copyFileSync` sobre el `.db` sin borrar antes un
@@ -1390,6 +1407,11 @@ Comprobé que hoy el riesgo es bajo: la base corre en `journal_mode = delete`
 una suposición no escrita en ningún lado: alcanza con que alguien active WAL para
 buscar rendimiento y esto pase de improbable a corrupción. Borrar los laterales
 antes de copiar cuesta dos renglones.
+
+**Resuelto** con `removeSidecarFiles`, en los tres lugares que dejan un `.db`
+distinto en la ruta de la base: el reemplazo, la vuelta atrás del reemplazo y
+`restoreSnapshot`. La suposición sobre `journal_mode` queda escrita ahí, que era
+media tarea.
 
 ### E9 · 🔴 El campo del titular del alta de vehículos no se podía tipear
 
