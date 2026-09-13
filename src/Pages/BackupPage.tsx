@@ -40,6 +40,13 @@ const Note: React.FC<{ icon: React.ReactNode; children: React.ReactNode }> = ({
   </>
 );
 
+/** Cómo se nombra cada origen en la lista de respaldos. */
+const ORIGEN_ETIQUETA: Record<string, string> = {
+  automatico: "automático",
+  manual: "manual",
+  previo: "previo a actualizar",
+};
+
 const BackupPage: React.FC = () => {
   const { showToast } = useToasts();
   const [exporting, setExporting] = React.useState(false);
@@ -230,6 +237,12 @@ const BackupPage: React.FC = () => {
                   />
                   <span className="truncate flex-1">
                     {formatBackupDate(backup.date)}
+                  </span>
+                  {/* De dónde salió. Los tres no significan lo mismo: el
+                      automático se va rotando solo, el manual lo guardó el
+                      usuario y el previo lo dejó una actualización. */}
+                  <span className="flex-shrink-0 text-foreground-400">
+                    {ORIGEN_ETIQUETA[backup.origin]}
                   </span>
                   <span className="flex-shrink-0 tabular-nums text-foreground-400">
                     {backup.sizeKb} KB

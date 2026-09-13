@@ -386,4 +386,10 @@ export interface BackupEntry {
   name: string;
   date: string;
   sizeKb: number;
+  /**
+   * De dónde salió: el respaldo diario, uno exportado a mano, o la copia previa
+   * a una actualización. La pantalla los distingue porque no significan lo
+   * mismo: los automáticos se van rotando solos y los otros dos no.
+   */
+  origin: "automatico" | "manual" | "previo";
 }

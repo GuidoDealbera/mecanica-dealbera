@@ -1975,13 +1975,31 @@ uso intensivo de uno de fin de semana"— y no se puede hacer.
 
 ### H8 · ⚪ Los respaldos exportados a mano no aparecen en la lista de restauración
 
-**[pendiente]** · `electron/DataBase/backups.ts` → `listBackups`
+**[a testear]** · `electron/DataBase/backups.ts` → `listBackups`
 
 `listBackups` reconoce sólo el patrón `taller_<AAAA-MM-DD>.db`. El nombre que
 propone la exportación manual es `taller_backup_<fecha>.db`, que **no matchea**:
 si el usuario lo guarda en la carpeta de respaldos esperando verlo ahí, no
 aparece. Además la fecha que muestra la pantalla sale del **nombre del archivo**,
 no de su fecha real.
+
+**Resuelto, y no como parecía.** La forma fácil —que `listBackups` acepte más
+nombres— tiene una trampa que descubre leer quién más la usa: de esa misma lista
+sale lo que `applyRetention` **borra**. Aceptar ahí los respaldos manuales habría
+hecho que la poda diaria se los llevara, o sea lo contrario exacto de lo que
+espera quien guarda una copia.
+
+Así que son dos listas y cada una dice para qué es. `listBackups` sigue siendo la
+de los automáticos, y es la que poda. `listRestorable` es lo que se le ofrece al
+usuario: cualquier `.db` de la carpeta, etiquetado según de dónde salió
+—automático, manual, o previo a una actualización—, porque los tres no
+significan lo mismo.
+
+La fecha ahora es la del archivo. La del nombre no existe para los manuales y
+para los automáticos puede mentir: alcanza con renombrar uno.
+
+Hay un caso que corre la poda con veinte respaldos automáticos y comprueba que
+los manuales sigan ahí.
 
 ---
 

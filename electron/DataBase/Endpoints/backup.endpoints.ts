@@ -12,7 +12,7 @@ import {
 } from "../dataSource";
 import { invalidateDashboardStatsCache } from "../dashboardCache";
 import { invalidateServiceSettingsCache } from "../serviceReminders.service";
-import { listBackups } from "../backups";
+import { listRestorable } from "../backups";
 import { toCsv } from "../csv";
 import { checkDatabaseHealth, removeSidecarFiles } from "../migrationSafety";
 import type { APIResponse, BackupEntry } from "../../../src/Types/apiTypes";
@@ -143,10 +143,11 @@ handleIpc("backup:open-folder", () => {
 // necesita la pantalla para que el usuario elija cuál restaurar sin tener que
 // interpretar un nombre de archivo.
 handleIpc("backup:list", (): APIResponse<BackupEntry[]> => {
-  const result = listBackups(getBackupDir()).map((backup) => ({
+  const result = listRestorable(getBackupDir()).map((backup) => ({
     name: backup.name,
     date: backup.date.toISOString(),
     sizeKb: Math.max(1, Math.round(fs.statSync(backup.path).size / 1024)),
+    origin: backup.origin,
   }));
   return { status: "success", message: "Backups listados", result };
 });
@@ -308,7 +309,7 @@ const replaceDatabaseWith = async (sourcePath: string, scope: string) => {
 // una ruta, el renderer podría pedir que se copie cualquier archivo del disco
 // encima de la base.
 handleIpc("backup:restore", async (_event, name: string) => {
-  const backup = listBackups(getBackupDir()).find((b) => b.name === name);
+  const backup = listRestorable(getBackupDir()).find((b) => b.name === name);
   if (!backup) {
     return { status: "failed", message: "No se encontró ese respaldo" };
   }
