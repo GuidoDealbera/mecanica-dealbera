@@ -42,6 +42,11 @@ const Jobs: React.FC<JobsProps> = ({ jobs, isLoading, license }) => {
   >([]);
   const [editNotes, setEditNotes] = React.useState<string>("");
   const [editIsService, setEditIsService] = React.useState(false);
+  // La descripción es la que sale impresa en el presupuesto del cliente, y no
+  // se podía corregir: un error de tipeo obligaba a borrar el trabajo y
+  // cargarlo de nuevo.
+  const [editDescription, setEditDescription] = React.useState<string>("");
+  const [editIsThirdParty, setEditIsThirdParty] = React.useState(false);
 
   const handleOpenEdit = React.useCallback((job: CarJobs) => {
     setEditingJob(job);
@@ -50,6 +55,8 @@ const Jobs: React.FC<JobsProps> = ({ jobs, isLoading, license }) => {
     setEditParts(job.parts ?? []);
     setEditNotes(job.notes ?? "");
     setEditIsService(job.isService ?? false);
+    setEditDescription(job.description ?? "");
+    setEditIsThirdParty(job.isThirdParty ?? false);
   }, []);
 
   const handleCloseEdit = React.useCallback(() => {
@@ -73,13 +80,19 @@ const Jobs: React.FC<JobsProps> = ({ jobs, isLoading, license }) => {
       JSON.stringify(editParts) !== JSON.stringify(editingJob.parts ?? []);
     const notesChanged = editNotes !== (editingJob.notes ?? "");
     const isServiceChanged = editIsService !== (editingJob.isService ?? false);
+    const descriptionChanged =
+      editDescription.trim() !== (editingJob.description ?? "");
+    const thirdPartyChanged =
+      editIsThirdParty !== (editingJob.isThirdParty ?? false);
 
     const hasChanges =
       editStatus !== editingJob.status ||
       editPrice !== editingJob.price ||
       partsChanged ||
       notesChanged ||
-      isServiceChanged;
+      isServiceChanged ||
+      descriptionChanged ||
+      thirdPartyChanged;
 
     if (!hasChanges) {
       showToast("No hay cambios para guardar", "warning", "Editar trabajo");
@@ -93,6 +106,8 @@ const Jobs: React.FC<JobsProps> = ({ jobs, isLoading, license }) => {
     if (partsChanged) body.parts = editParts;
     if (notesChanged) body.notes = editNotes;
     if (isServiceChanged) body.isService = editIsService;
+    if (descriptionChanged) body.description = editDescription.trim();
+    if (thirdPartyChanged) body.isThirdParty = editIsThirdParty;
 
     const response = await updateJob(license, editingJob.id, body);
     if (response?.status === "success") {
@@ -101,6 +116,14 @@ const Jobs: React.FC<JobsProps> = ({ jobs, isLoading, license }) => {
   };
 
   const isPriceValid = editPrice > 0;
+  // Vacía no: es lo que se imprime. La misma regla que aplica el backend.
+  const isDescriptionValid = editDescription.trim().length > 0;
+  const descriptionChanged = editingJob
+    ? editDescription.trim() !== (editingJob.description ?? "")
+    : false;
+  const thirdPartyChanged = editingJob
+    ? editIsThirdParty !== (editingJob.isThirdParty ?? false)
+    : false;
   const partsChanged = editingJob
     ? JSON.stringify(editParts) !== JSON.stringify(editingJob.parts ?? [])
     : false;
@@ -113,11 +136,14 @@ const Jobs: React.FC<JobsProps> = ({ jobs, isLoading, license }) => {
   const canSave =
     editingJob !== null &&
     isPriceValid &&
+    isDescriptionValid &&
     (editStatus !== editingJob.status ||
       editPrice !== editingJob.price ||
       partsChanged ||
       notesChanged ||
-      isServiceChanged);
+      isServiceChanged ||
+      descriptionChanged ||
+      thirdPartyChanged);
 
   return (
     <div className="w-full min-h-full shadow shadow-primary bg-content1 rounded-md p-3">
@@ -210,6 +236,24 @@ const Jobs: React.FC<JobsProps> = ({ jobs, isLoading, license }) => {
                   ))}
                 </Select>
 
+                {/* La descripción, que es lo que sale impreso en el
+                    presupuesto del cliente. Antes no se podía corregir: un
+                    error de tipeo obligaba a borrar el trabajo y rehacerlo. */}
+                <Textarea
+                  label="Descripción"
+                  description="Es lo que sale impreso en el presupuesto."
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  minRows={2}
+                  isInvalid={!isDescriptionValid}
+                  errorMessage={
+                    !isDescriptionValid
+                      ? "La descripción no puede quedar vacía"
+                      : undefined
+                  }
+                  isDisabled={updating}
+                />
+
                 {/* Sección repuestos */}
                 <div className="flex flex-col gap-2 p-3 rounded-lg">
                   <h6 className="font-semibold text-sm uppercase tracking-wide">
@@ -252,6 +296,22 @@ const Jobs: React.FC<JobsProps> = ({ jobs, isLoading, license }) => {
                 >
                   <SelectItem key="false">No, es un trabajo común</SelectItem>
                   <SelectItem key="true">Sí, es un service</SelectItem>
+                </Select>
+
+                {/* Trabajo de terceros. El documento separa el total propio
+                    del de terceros, así que marcarlo mal cambia lo que dice el
+                    papel, y tampoco se podía corregir. */}
+                <Select
+                  label="¿Lo hizo un tercero?"
+                  description="El documento separa el total propio del de terceros"
+                  selectedKeys={[editIsThirdParty ? "true" : "false"]}
+                  onSelectionChange={(keys) => {
+                    setEditIsThirdParty(Array.from(keys)[0] === "true");
+                  }}
+                  isDisabled={updating}
+                >
+                  <SelectItem key="false">No, lo hizo el taller</SelectItem>
+                  <SelectItem key="true">Sí, lo hizo un tercero</SelectItem>
                 </Select>
 
                 {/* Notas internas */}

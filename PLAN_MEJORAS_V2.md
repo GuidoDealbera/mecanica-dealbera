@@ -1912,7 +1912,7 @@ poder verificarla.
 
 ### H4 · 🟠 No se puede corregir un trabajo mal cargado
 
-**[pendiente]** · `electron/DataBase/Types/car.dto.ts` → `UpdateJobDto`
+**[a testear]** · `electron/DataBase/Types/car.dto.ts` → `UpdateJobDto`
 
 `UpdateJobDto` permite cambiar `status`, `price`, `parts`, `notes`, `clientNote` e
 `isService`. **No permite cambiar `description` ni `isThirdParty`.**
@@ -1924,6 +1924,21 @@ corregirla; hay que borrar el trabajo y cargarlo de nuevo.
 Junto con **B4** (no se puede editar marca/modelo/año del vehículo), el patrón es
 claro: la aplicación sabe crear y sabe borrar, pero **corregir un error de carga
 casi siempre implica borrar y rehacer**.
+
+**Resuelto**: los dos campos se pueden corregir, en el DTO, en el endpoint y en
+el modal de edición.
+
+Lo de `isThirdParty` no es un detalle de completitud: el documento **separa el
+total propio del de terceros**, así que marcarlo mal cambia lo que dice el papel
+y hasta ahora no había forma de arreglarlo.
+
+Y borrar y rehacer no era un rodeo equivalente: el trabajo cambia de id y de
+fecha, y si ya se había emitido un documento, deja de existir el trabajo que lo
+respaldaba.
+
+La descripción se recorta antes de guardarse, como en el alta: `@IsNotEmpty`
+rechaza `""` pero no `"   "`, y una de puros espacios sale como un renglón en
+blanco en el presupuesto.
 
 ### H5 · 🟠 No hay forma de deshacer un borrado
 

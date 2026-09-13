@@ -209,6 +209,33 @@ export class UpdateJobDto {
   @IsEnum(JobStatus, { message: "El estado del trabajo no es válido" })
   status?: JobStatus;
 
+  /**
+   * La descripción, que **no se podía corregir**.
+   *
+   * Es la que sale impresa en el presupuesto del cliente: un error de tipeo
+   * obligaba a borrar el trabajo y cargarlo de nuevo, con lo que eso arrastra
+   * —el trabajo cambia de id y de fecha, y si ya se emitió un documento, deja
+   * de existir el que lo respaldaba—.
+   *
+   * Mismas reglas que en el alta, incluido el recorte: `@IsNotEmpty` rechaza
+   * `""` pero no `"   "`, y una descripción de puros espacios sale como un
+   * renglón en blanco en el documento.
+   */
+  @IsOptional()
+  @IsString()
+  @Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
+  @IsNotEmpty({ message: "La descripción del trabajo no puede estar vacía" })
+  description?: string;
+
+  /**
+   * Si el trabajo lo hizo un tercero. Tampoco se podía corregir, y no es un
+   * detalle: el documento separa el total propio del de terceros, así que
+   * marcarlo mal cambia lo que dice el papel.
+   */
+  @IsOptional()
+  @IsBoolean()
+  isThirdParty?: boolean;
+
   @IsOptional()
   @IsInt({ message: "El precio del trabajo tiene que ser un número entero" })
   @Min(0, { message: "El precio del trabajo no puede ser negativo" })

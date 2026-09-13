@@ -25,6 +25,9 @@ export interface UpdateJobBody {
   notes?: string;
   clientNote?: string;
   isService?: boolean;
+  /** Lo que sale impreso en el presupuesto. Ver `UpdateJobDto`. */
+  description?: string;
+  isThirdParty?: boolean;
 }
 
 export interface CreateCarBody {
