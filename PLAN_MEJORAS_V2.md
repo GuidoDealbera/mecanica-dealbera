@@ -1903,12 +1903,27 @@ lo fija.
 
 ### H3 · 🟠 El correlativo se puede saltear sin que nadie se entere
 
-**[pendiente]** · varios
+**[a testear]** · varios
 
 Ver **E4**. Además del bug, falta lo de producto: **no hay forma de detectar un
 hueco**. Ni una pantalla que lo muestre, ni un aviso. Para una numeración
 correlativa que existe justamente para no tener huecos, corresponde al menos
 poder verificarla.
+
+**Resuelto**: hay un botón "Revisar numeración" en Gestión de datos que recorre
+cada serie y dice si falta alguno, con cuáles.
+
+Tres decisiones:
+
+- **Por tipo y no en conjunto.** El correlativo es por tipo: un hueco en
+  presupuestos no es un hueco en facturas, y mezclarlos daría huecos donde no
+  los hay.
+- **Desde 1 y no desde el primero que existe.** Así también se detecta que la
+  serie no arranque en 1, que es lo que pasa si el hueco quedó al principio.
+- **A pedido, no en cada render.** Es una verificación, no un dato de la
+  pantalla, y recorre la columna entera.
+
+El detalle se acota: con cien huecos, listarlos deja de servir para nada.
 
 ### H4 · 🟠 No se puede corregir un trabajo mal cargado
 

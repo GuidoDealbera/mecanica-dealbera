@@ -15,6 +15,7 @@ import {
   IssueDocumentBody,
   IssuedDocument,
   DocumentSnapshot,
+  SequenceCheck,
   Paginated,
   ReminderQueryParams,
   SaveReminderBody,
@@ -162,6 +163,7 @@ declare global {
           defaultName: string;
           bytes: Uint8Array;
         }) => Promise<APIResponse<{ filePath: string }>>;
+        checkSequence: () => Promise<APIResponse<SequenceCheck[]>>;
       };
       /** Suscribe al aviso de "los datos cambiaron". Devuelve la baja. */
       onDataChanged: (callback: () => void) => () => void;

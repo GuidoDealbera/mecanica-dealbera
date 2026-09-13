@@ -209,3 +209,80 @@ describe("el historial de un vehículo", () => {
     expect(await listar({ licensePlate: "ZZ999ZZ" })).toEqual([]);
   });
 });
+
+describe("revisar la numeración", () => {
+  const revisar = async () => {
+    const handler = stub.handlers.get("document:check-sequence");
+    if (!handler) throw new Error("No se registró document:check-sequence");
+    const res = (await handler({})) as {
+      result: {
+        type: string;
+        emitted: number;
+        last: number;
+        missing: number[];
+        truncated: boolean;
+      }[];
+    };
+    return Object.fromEntries(res.result.map((r) => [r.type, r]));
+  };
+
+  it("con la serie completa no reporta nada", async () => {
+    await emitir("d1", "budget", 1, "2026-01-01 09:00:00");
+    await emitir("d2", "budget", 2, "2026-01-02 09:00:00");
+    await emitir("d3", "budget", 3, "2026-01-03 09:00:00");
+
+    const r = await revisar();
+
+    expect(r.budget.missing).toEqual([]);
+    expect(r.budget.emitted).toBe(3);
+    expect(r.budget.last).toBe(3);
+  });
+
+  it("encuentra el hueco del medio", async () => {
+    // El caso real: se tomó el 2 y el archivo nunca se escribió, o el descarte
+    // falló. Toda la maquinaria del correlativo existe para que esto no pase, y
+    // no había forma de comprobarlo.
+    await emitir("d1", "budget", 1, "2026-01-01 09:00:00");
+    await emitir("d3", "budget", 3, "2026-01-03 09:00:00");
+
+    const r = await revisar();
+
+    expect(r.budget.missing).toEqual([2]);
+    expect(r.budget.emitted).toBe(2);
+    expect(r.budget.last).toBe(3);
+  });
+
+  it("también avisa si la serie no arranca en 1", async () => {
+    await emitir("d1", "budget", 3, "2026-01-03 09:00:00");
+
+    expect((await revisar()).budget.missing).toEqual([1, 2]);
+  });
+
+  it("revisa cada tipo por separado", async () => {
+    // El correlativo es por tipo: un hueco en presupuestos no es un hueco en
+    // facturas, y mezclarlos daría huecos donde no los hay.
+    await emitir("d1", "budget", 1, "2026-01-01 09:00:00");
+    await emitir("d2", "invoice", 2, "2026-01-02 09:00:00");
+
+    const r = await revisar();
+
+    expect(r.budget.missing).toEqual([]);
+    expect(r.invoice.missing).toEqual([1]);
+  });
+
+  it("sin documentos no inventa huecos", async () => {
+    const r = await revisar();
+
+    expect(r.budget).toMatchObject({ emitted: 0, last: 0, missing: [] });
+  });
+
+  it("acota el detalle cuando faltan demasiados", async () => {
+    // Con cien huecos, listarlos deja de servir para nada.
+    await emitir("d1", "budget", 200, "2026-01-01 09:00:00");
+
+    const r = await revisar();
+
+    expect(r.budget.truncated).toBe(true);
+    expect(r.budget.missing).toHaveLength(50);
+  });
+});

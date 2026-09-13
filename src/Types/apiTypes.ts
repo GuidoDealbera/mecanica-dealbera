@@ -320,6 +320,26 @@ export interface IssueDocumentBody {
   snapshot: DocumentSnapshot;
 }
 
+/**
+ * Estado del correlativo de un tipo de documento.
+ *
+ * La numeración existe para que no falte ninguno, y no había **forma de
+ * comprobarlo**: ni una pantalla, ni un aviso. Un hueco —por un cierre a
+ * destiempo entre tomar el número y guardar el archivo, o por un descarte que
+ * falló— quedaba invisible.
+ */
+export interface SequenceCheck {
+  type: DocumentType;
+  /** Cuántos hay emitidos de este tipo. */
+  emitted: number;
+  /** El número más alto. Con el correlativo sano, es igual a `emitted`. */
+  last: number;
+  /** Los que faltan, acotados: con muchos, el detalle deja de ser útil. */
+  missing: number[];
+  /** Si `missing` quedó recortado. */
+  truncated: boolean;
+}
+
 /** Filtros del historial de documentos. Todos opcionales. */
 export interface DocumentQueryParams {
   type?: DocumentType;

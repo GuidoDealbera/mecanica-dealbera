@@ -17,6 +17,7 @@ import DataCard from "../Components/DataCard";
 import PageShell from "../Components/PageShell";
 import { useToasts } from "../Hooks/useToasts";
 import type { BackupEntry } from "../Types/apiTypes";
+import type { SequenceCheck } from "../Types/apiTypes";
 
 /** "sábado 6 de septiembre" — más legible que `taller_2026-09-06.db`. */
 const formatBackupDate = (iso: string): string => {
@@ -40,11 +41,82 @@ const Note: React.FC<{ icon: React.ReactNode; children: React.ReactNode }> = ({
   </>
 );
 
+/** Cómo se nombra cada tipo de documento en la revisión del correlativo. */
+const TIPO_ETIQUETA: Record<string, string> = {
+  budget: "Presupuestos",
+  invoice: "Facturas",
+};
+
 /** Cómo se nombra cada origen en la lista de respaldos. */
 const ORIGEN_ETIQUETA: Record<string, string> = {
   automatico: "automático",
   manual: "manual",
   previo: "previo a actualizar",
+};
+
+/**
+ * Revisa que la numeración de documentos no tenga huecos.
+ *
+ * Toda la maquinaria del correlativo —la transacción, el índice único, el
+ * descarte cuando algo falla— existe para que no falte ninguno, y no había
+ * **forma de comprobarlo**: ni una pantalla, ni un aviso. Un hueco quedaba
+ * invisible.
+ *
+ * Se revisa cuando el usuario lo pide y no en cada render: es una verificación,
+ * no un dato de la pantalla.
+ */
+const RevisionDelCorrelativo: React.FC = () => {
+  const [revisando, setRevisando] = React.useState(false);
+  const [resultado, setResultado] = React.useState<SequenceCheck[] | null>(
+    null
+  );
+  const { showToast } = useToasts();
+
+  const revisar = async () => {
+    setRevisando(true);
+    try {
+      const res = await window.api.documents.checkSequence();
+      if (res.status !== "success") {
+        showToast(res.message, "danger", "Numeración");
+        return;
+      }
+      setResultado(res.result);
+    } finally {
+      setRevisando(false);
+    }
+  };
+
+  const conHuecos = (resultado ?? []).filter((r) => r.missing.length > 0);
+
+  return (
+    <div className="flex flex-col gap-2 mb-3">
+      <div className="flex items-center gap-2">
+        <Button
+          size="sm"
+          variant="flat"
+          color="primary"
+          isLoading={revisando}
+          onPress={revisar}
+        >
+          Revisar numeración
+        </Button>
+        {resultado !== null && conHuecos.length === 0 && (
+          <span className="text-xs text-success">
+            Sin huecos: la numeración está completa.
+          </span>
+        )}
+      </div>
+
+      {conHuecos.map((r) => (
+        <p key={r.type} className="text-xs text-warning">
+          {TIPO_ETIQUETA[r.type]}: faltan {r.missing.length}
+          {r.truncated ? " o más" : ""} de {r.last} —{" "}
+          {r.missing.slice(0, 12).join(", ")}
+          {r.missing.length > 12 ? "…" : ""}
+        </p>
+      ))}
+    </div>
+  );
 };
 
 const BackupPage: React.FC = () => {
@@ -315,11 +387,12 @@ const BackupPage: React.FC = () => {
           description="Últimos documentos emitidos con su número correlativo, vehículo, titular y total. Sirve para ubicar un número cuando el cliente lo menciona por teléfono."
           note={
             <Note icon={<MdInfo size={16} className="text-primary" />}>
-              Se guarda el registro del documento, no sus ítems: el PDF original
-              no se puede volver a generar.
+              De cada documento se guarda lo que se imprimió, así que se puede
+              volver a generar el PDF con el botón de cada fila.
             </Note>
           }
         >
+          <RevisionDelCorrelativo />
           <DocumentHistory filters={{ limit: 15 }} showPlate />
         </DataCard>
       </div>

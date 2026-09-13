@@ -13,6 +13,7 @@ import {
   type APIResponse,
   type DocumentQueryParams,
   type DocumentSnapshot,
+  type SequenceCheck,
   type IssueDocumentBody,
   type IssuedDocument,
 } from "../../../src/Types/apiTypes";
@@ -279,6 +280,59 @@ handleIpcQuery(
     });
     if (!doc) return null;
     return { ...toPlainDocument(doc), snapshot: doc.snapshot };
+  }
+);
+
+/** Cuántos huecos se detallan antes de que el detalle deje de servir. */
+const MAXIMO_DE_HUECOS = 50;
+
+/**
+ * Comprueba que la numeración no tenga huecos.
+ *
+ * Toda la maquinaria del correlativo —la transacción, el índice único, el
+ * descarte— existe para que no falte ninguno, y no había forma de verificarlo:
+ * ni una pantalla, ni un aviso. Un hueco quedaba invisible.
+ *
+ * Se lee la columna `number` de cada tipo y se camina: son pocos documentos, y
+ * esto lo pide una persona cuando quiere revisar, no una pantalla en cada
+ * render.
+ */
+handleIpcQuery(
+  "document:check-sequence",
+  "No se pudo revisar la numeración",
+  async (): Promise<SequenceCheck[]> => {
+    const repo = getRepositories().documentRepository;
+
+    return await Promise.all(
+      (Object.values(DocumentType) as DocumentType[]).map(async (type) => {
+        const filas = await repo
+          .createQueryBuilder("document")
+          .select("document.number", "number")
+          .where("document.type = :type", { type })
+          .orderBy("document.number", "ASC")
+          .getRawMany<{ number: number }>();
+
+        const numeros = filas.map((f) => Number(f.number));
+        const last = numeros.length > 0 ? numeros[numeros.length - 1] : 0;
+
+        // Se camina desde 1 hasta el último: así se detecta tanto un hueco en
+        // el medio como que la serie no arranque en 1.
+        const missing: number[] = [];
+        const presentes = new Set(numeros);
+        for (let n = 1; n <= last && missing.length <= MAXIMO_DE_HUECOS; n++) {
+          if (!presentes.has(n)) missing.push(n);
+        }
+
+        const truncated = missing.length > MAXIMO_DE_HUECOS;
+        return {
+          type,
+          emitted: numeros.length,
+          last,
+          missing: truncated ? missing.slice(0, MAXIMO_DE_HUECOS) : missing,
+          truncated,
+        };
+      })
+    );
   }
 );
 
