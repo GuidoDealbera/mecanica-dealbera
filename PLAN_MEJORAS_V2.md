@@ -1720,12 +1720,26 @@ paso.
 
 ### G3 · 🟡 `getServiceSettings` consulta la base varias veces por request
 
-**[pendiente]** · `electron/DataBase/serviceReminders.service.ts`
+**[a testear]** · `electron/DataBase/serviceReminders.service.ts`
 
 Cada llamada hace un `find` sobre `app_setting`. En `service:list` se llama una vez
 directamente y otra vez por cada `evaluate()`; en `service:snooze` y compañía, otra
 vez más. Es configuración que cambia una vez al año: se cachea en memoria y se
 invalida al guardarla.
+
+**Resuelto así**, invalidando en los dos lugares donde puede cambiar: al
+guardarla y al **reemplazar la base entera**. El segundo no estaba en la tarea y
+es el que muerde: importar un respaldo trae otra configuración en el archivo, y
+sin invalidar la aplicación seguiría evaluando los vencimientos con la del
+archivo anterior.
+
+Lo cacheado se devuelve congelado. Lo comparten todos los que lo piden, así que
+un descuido que lo modifique se llevaría puesta la configuración de todo el
+proceso hasta el reinicio: es la clase de error que aparece meses después y no
+se puede reproducir.
+
+Que esté cacheada se prueba por su consecuencia observable: se cambia el valor
+por SQL, por detrás, y la función sigue devolviendo el anterior.
 
 ### G4 · 🟡 `service:list` carga el historial de kilometraje completo de cada vehículo
 

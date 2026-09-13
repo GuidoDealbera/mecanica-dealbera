@@ -11,6 +11,7 @@ import {
   getRepositories,
 } from "../dataSource";
 import { invalidateDashboardStatsCache } from "../dashboardCache";
+import { invalidateServiceSettingsCache } from "../serviceReminders.service";
 import { listBackups } from "../backups";
 import { toCsv } from "../csv";
 import { checkDatabaseHealth, removeSidecarFiles } from "../migrationSafety";
@@ -245,6 +246,9 @@ const replaceDatabaseWith = async (sourcePath: string, scope: string) => {
     // Un respaldo puede ser de una versión anterior. Si falla, el `catch` de
     // abajo vuelve a la base que se apartó recién.
     const migradas = await applyPendingMigrations();
+
+    // La base es otra: lo que estuviera cacheado en memoria es de la anterior.
+    invalidateServiceSettingsCache();
 
     const borradas = prunePreImportCopies(destPath);
     if (borradas.length > 0) {

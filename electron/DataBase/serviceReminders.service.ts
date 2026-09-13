@@ -33,12 +33,31 @@ const SETTING_KEYS: Record<keyof ServiceSettings, string> = {
 };
 
 /**
+ * Lo último leído de `app_setting`, o `null` si hay que volver a la base.
+ *
+ * Es configuración que se cambia una vez al año y se lee todo el tiempo: en
+ * `service:list` se leía una vez directa y **otra vez por cada fila**, porque
+ * `evaluate()` la pide para cada recordatorio. Una página de ocho eran nueve
+ * consultas a una tabla de cuatro filas.
+ *
+ * Se invalida en los dos únicos lugares donde puede cambiar: al guardarla y al
+ * reemplazar la base entera (importar o restaurar un respaldo).
+ */
+let ajustesCacheados: ServiceSettings | null = null;
+
+/** Obliga a releer la configuración en la próxima consulta. */
+export const invalidateServiceSettingsCache = (): void => {
+  ajustesCacheados = null;
+};
+
+/**
  * Configuración vigente: los valores guardados sobre los valores por defecto.
  * Un valor inválido en la base no rompe nada (se ignora y queda el default).
  */
 export const getServiceSettings = async (
   manager: EntityManager
 ): Promise<ServiceSettings> => {
+  if (ajustesCacheados) return ajustesCacheados;
   const rows = await manager.find(AppSetting, {
     where: { key: In(Object.values(SETTING_KEYS)) },
   });
@@ -52,12 +71,16 @@ export const getServiceSettings = async (
       : DEFAULT_SERVICE_SETTINGS[field];
   };
 
-  return {
+  // Congelado: lo comparten todos los que lo piden, y un descuido que lo
+  // modifique se llevaría puesta la configuración de todo el proceso hasta el
+  // próximo reinicio.
+  ajustesCacheados = Object.freeze({
     intervalMonths: read("intervalMonths"),
     intervalKm: read("intervalKm"),
     soonDays: read("soonDays"),
     soonKm: read("soonKm"),
-  };
+  });
+  return ajustesCacheados;
 };
 
 /**
@@ -132,6 +155,7 @@ export const saveServiceSettings = async (
     );
   }
 
+  invalidateServiceSettingsCache();
   return { ok: true, settings: await getServiceSettings(manager) };
 };
 
