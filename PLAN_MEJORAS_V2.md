@@ -1963,7 +1963,7 @@ presupuestos, el historial es una lista de 100 y nada más.
 
 ### H7 · 🟡 Los intervalos de service por vehículo no se pueden configurar
 
-**[pendiente]** · `electron/DataBase/Entities/car.entity.ts`
+**[a testear]** · `electron/DataBase/Entities/car.entity.ts`
 
 `Car.serviceIntervalMonths` y `Car.serviceIntervalKm` existen en la entidad, los
 usa `computeNextService`, y **ninguna pantalla los edita**. La funcionalidad está
@@ -1972,6 +1972,23 @@ generales.
 
 Es justo el caso que el comentario de la entidad describe —"distinguir un auto de
 uso intensivo de uno de fin de semana"— y no se puede hacer.
+
+**Resuelto.** Los dos campos se editan desde la tarjeta de próximo service de la
+ficha del vehículo, que es donde el usuario está pensando en esto, y no en el
+formulario de alta —el intervalo propio es una excepción, no un dato que se
+cargue con el auto—.
+
+Vacío significa "usar los generales", y el placeholder muestra cuáles son. Por
+eso el campo vacío manda `null` y no se omite: omitir es "no lo toques", que es
+otra cosa. En el listado había además un hueco de tipos —`serviceIntervalMonths`
+y `serviceIntervalKm` no estaban en el `Car` del renderer—, así que ninguna
+pantalla podía siquiera leerlos.
+
+Los topes son los mismos que los de la configuración general, y por el mismo
+motivo: diez años de intervalo ya es "no hacerle service".
+
+Verificado en la aplicación real: guardar 4 meses / 5.000 km queda en el
+vehículo y **no toca los generales**, y vaciar los campos lo devuelve a `null`.
 
 ### H8 · ⚪ Los respaldos exportados a mano no aparecen en la lista de restauración
 

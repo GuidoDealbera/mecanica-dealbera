@@ -8,6 +8,7 @@ import {
   IsString,
   Length,
   Matches,
+  Max,
   Min,
   ValidateNested,
 } from "class-validator";
@@ -194,6 +195,36 @@ export class UpdateCarDto {
   @IsInt({ message: "El kilometraje tiene que ser un número entero" })
   @Min(0, { message: "Los kilómetros no pueden ser negativos" })
   kilometers?: number;
+
+  /**
+   * Intervalos de service **propios de este vehículo**.
+   *
+   * Las columnas existían y `computeNextService` ya las usaba, pero ninguna
+   * pantalla las editaba: la funcionalidad estaba escrita y era inalcanzable,
+   * así que todos los vehículos usaban los intervalos generales.
+   *
+   * `null` significa "usar los generales", y por eso se distingue de ausente:
+   * ausente es "no lo toques". `@IsOptional` de class-validator saltea la
+   * validación tanto con `undefined` como con `null`, que es justo lo que hace
+   * falta —el `null` pasa y el endpoint lo aplica—.
+   *
+   * Los topes son los mismos que los de la configuración general: diez años de
+   * intervalo ya es "no hacerle service", y menos de un mes es un error de
+   * tipeo.
+   */
+  @IsOptional()
+  @IsInt({ message: "El intervalo en meses tiene que ser un número entero" })
+  @Min(1, { message: "El intervalo en meses no puede ser menor a 1" })
+  @Max(120, { message: "El intervalo en meses no puede superar los 120" })
+  serviceIntervalMonths?: number | null;
+
+  @IsOptional()
+  @IsInt({ message: "El intervalo en kilómetros tiene que ser un entero" })
+  @Min(100, { message: "El intervalo en kilómetros no puede ser menor a 100" })
+  @Max(200_000, {
+    message: "El intervalo en kilómetros no puede superar los 200.000",
+  })
+  serviceIntervalKm?: number | null;
 }
 
 /**

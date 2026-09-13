@@ -256,6 +256,12 @@ handleIpc("car:update", async (_, id: string, cambios: UpdateCarDto) => {
   if (datos.brand !== undefined) car.brand = datos.brand;
   if (datos.model !== undefined) car.model = datos.model;
   if (datos.year !== undefined) car.year = datos.year;
+  // `null` es "usar los intervalos generales", y se distingue de ausente, que
+  // es "no lo toques".
+  if (datos.serviceIntervalMonths !== undefined)
+    car.serviceIntervalMonths = datos.serviceIntervalMonths;
+  if (datos.serviceIntervalKm !== undefined)
+    car.serviceIntervalKm = datos.serviceIntervalKm;
 
   // El kilometraje tiene reglas propias: no puede bajar, y sólo deja un punto
   // en el historial cuando efectivamente cambia. Antes se agregaba un punto
@@ -283,7 +289,9 @@ handleIpc("car:update", async (_, id: string, cambios: UpdateCarDto) => {
   const otroCambio =
     datos.brand !== undefined ||
     datos.model !== undefined ||
-    datos.year !== undefined;
+    datos.year !== undefined ||
+    datos.serviceIntervalMonths !== undefined ||
+    datos.serviceIntervalKm !== undefined;
   if (!huboCambioDeKm && !otroCambio) {
     return {
       status: "success",
