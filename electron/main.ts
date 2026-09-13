@@ -431,15 +431,6 @@ async function createWindow() {
   await barrerPostergados();
   setInterval(barrerPostergados, SNOOZE_SWEEP_INTERVAL_MS);
 
-  if (app.isPackaged) {
-    try {
-      await performAutoBackup();
-    } catch (err) {
-      // El respaldo es best-effort: si falla no impide usar la aplicación.
-      logError("backup:auto", err);
-    }
-  }
-
   // Notificación de recordatorios de service al iniciar (solo en producción).
   // El conteo sale de `countDueReminders`, la misma función que alimenta el
   // badge y la bandeja: antes la regla estaba reimplementada acá y podía
@@ -542,6 +533,22 @@ async function createWindow() {
     closeSplash();
     win?.show();
     win?.maximize();
+
+    // El respaldo diario, recién acá.
+    //
+    // Es un `VACUUM INTO` de toda la base y estaba en el camino crítico del
+    // arranque: base → respaldo → conteo → recién ahí la ventana. Con la base
+    // chica no se nota; con una grande el usuario mira la pantalla de carga
+    // mientras se copia un archivo que no necesita para empezar a trabajar.
+    //
+    // No alcanzaba con dejar de esperarlo antes de crear la ventana: SQLite
+    // serializa, así que las primeras consultas del renderer se habrían puesto
+    // en la cola detrás del `VACUUM`. Va cuando la ventana ya está a la vista.
+    //
+    // Es best-effort por diseño: si falla se registra y la aplicación sigue.
+    if (app.isPackaged) {
+      void performAutoBackup().catch((err) => logError("backup:auto", err));
+    }
   });
 
   // Si la carga del renderer falla no hay `ready-to-show`, así que hay que

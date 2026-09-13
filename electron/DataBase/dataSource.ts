@@ -31,6 +31,7 @@ import { SimplifyServiceType1700000011000 } from "./Migrations/SimplifyServiceTy
 import { UniqueActiveReminder1700000012000 } from "./Migrations/UniqueActiveReminder1700000012000";
 import { AllowHomonymClients1700000013000 } from "./Migrations/AllowHomonymClients1700000013000";
 import { RoundPartPrices1700000014000 } from "./Migrations/RoundPartPrices1700000014000";
+import { AddDocumentDateIndex1700000015000 } from "./Migrations/AddDocumentDateIndex1700000015000";
 
 export const AppDataSource = new DataSource({
   type: "better-sqlite3",
@@ -60,6 +61,7 @@ export const AppDataSource = new DataSource({
     UniqueActiveReminder1700000012000,
     AllowHomonymClients1700000013000,
     RoundPartPrices1700000014000,
+    AddDocumentDateIndex1700000015000,
   ],
   subscribers: [],
 });

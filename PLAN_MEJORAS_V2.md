@@ -1741,9 +1741,9 @@ se puede reproducir.
 Que esté cacheada se prueba por su consecuencia observable: se cambia el valor
 por SQL, por detrás, y la función sigue devolviendo el anterior.
 
-### G4 · 🟡 `service:list` carga el historial de kilometraje completo de cada vehículo
+### G4 · ⚪ `service:list` carga el historial de kilometraje completo de cada vehículo
 
-**[pendiente]** · `electron/DataBase/Endpoints/service.endpoints.ts` → `toView`
+**[medido, no se cambia]** · `electron/DataBase/Endpoints/service.endpoints.ts` → `toView`
 
 `toView` calcula `estimateKmPerDay(reminder.car?.kmHistory)` para no mandar el
 historial por IPC —bien pensado— pero el `innerJoinAndSelect("reminder.car")`
@@ -1753,18 +1753,49 @@ con cada actualización de kilometraje.
 Se resuelve seleccionando las columnas que hacen falta en vez de la entidad
 completa, como ya hace `client:get-all` con `addSelect(["cars.id", "cars.licensePlate"])`.
 
+**Medido, y no se cambia.** Baja de 🟡 a ⚪.
+
+El detalle que la tarea pasa por alto es que `kmHistory` **sí hace falta**:
+`estimateKmPerDay` lo necesita para encontrar el primero y el último registro.
+No es una columna que sobre, es una que se usa y no se manda.
+
+Y la página son ocho filas, no la tabla entera. Con 300 vehículos de 200
+registros de kilometraje cada uno, la misma consulta con y sin la columna:
+
+| consulta      | por página |
+| ------------- | ---------- |
+| sin kmHistory | 0,22 ms    |
+| con kmHistory | 0,40 ms    |
+
+Dieciocho centésimas de milisegundo, contra perder la estimación de kilómetros
+por día o inventar una forma de calcularla en SQL sobre un JSON.
+
+(`service:list` completo da 2,62 ms con esos mismos 300 vehículos.)
+
 ### G5 · 🟡 `document:list` ordena por una columna sin índice
 
-**[pendiente]** · `electron/DataBase/Entities/document.entity.ts`
+**[a testear]** · `electron/DataBase/Entities/document.entity.ts`
 
 El único índice es el único compuesto `(type, number)`. El listado ordena por
 `createdAt DESC, number DESC`, así que hace un recorrido completo más un ordenado
 en memoria. Hoy son pocos documentos; crecen uno por presupuesto emitido y no se
 borran nunca por diseño.
 
+**Resuelto**: índice `(createdAt, number)`, con `number` adentro para que el
+desempate también salga del índice. Medido con 20 000 documentos, el listado
+pasa de **2,1 ms a 0,46 ms**.
+
+Son milisegundos, sí. Lo que lo hace valer la pena es que la tabla sólo crece
+—es lo que significa un correlativo— y que el arreglo es un `CREATE INDEX` sin
+tocar una línea de código.
+
+El test no se conforma con que el índice exista: mira el `EXPLAIN QUERY PLAN` y
+comprueba que la consulta lo **usa** y que ya no hay ordenado en memoria. Un
+índice que el planificador no elige no compra nada.
+
 ### G6 · ⚪ Consultas que traen relaciones que no se usan
 
-**[pendiente]** · `electron/DataBase/Endpoints/client.endpoints.ts`
+**[a testear]** · `electron/DataBase/Endpoints/client.endpoints.ts`
 
 - `client:toggle-active` carga `relations: { cars: true }` y no toca los autos.
 - `client:update` hace un `findOne` extra **después** de guardar sólo para
@@ -1772,9 +1803,21 @@ borran nunca por diseño.
 - `client:find-by-name` trae `cars.jobs` completos para mostrar **un número** por
   vehículo; alcanzaría con un conteo.
 
+**Los dos primeros, resueltos.** `client:toggle-active` deja de cargar los autos
+—toca un booleano y no los mira, y quien llama tampoco: usa el `status` y
+recarga el listado—. `client:update` carga los autos en el `findOne` que ya
+hacía y devuelve lo guardado: la misma consulta corrida de lugar, no una más.
+
+**El tercero no**, porque la premisa no se sostiene. La ficha del cliente no
+muestra "un número por vehículo": con esos trabajos calcula el resumen de
+actividad —trabajos activos, facturado, fecha del último—, arma la línea de
+tiempo cruzada de todos sus vehículos y alimenta el documento consolidado, que
+necesita los elegibles para que el usuario elija. Es el mismo caso que **G1**, y
+la misma conclusión.
+
 ### G7 · ⚪ El respaldo diario retrasa la apertura de la ventana
 
-**[pendiente]** · `electron/main.ts` → `createWindow`
+**[a testear]** · `electron/main.ts` → `createWindow`
 
 El orden del arranque es: base → respaldo diario (`VACUUM INTO` de toda la base) →
 conteo de recordatorios → recién ahí se crea la ventana. Con la base chica no se
@@ -1782,6 +1825,11 @@ nota; con una base grande, el usuario mira la pantalla de carga mientras se copi
 un archivo que no necesita para empezar a trabajar.
 
 El respaldo es best-effort por diseño: puede correr después de mostrar la ventana.
+
+**Resuelto**, y con un detalle que no era obvio: no alcanzaba con dejar de
+esperarlo antes de crear la ventana. SQLite serializa, así que las primeras
+consultas del renderer se habrían puesto en la cola detrás del `VACUUM`. El
+respaldo arranca en `ready-to-show`, o sea con la ventana ya a la vista.
 
 ---
 
