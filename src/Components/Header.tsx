@@ -32,6 +32,7 @@ import UpdateModal from "./UpdateModal";
 import { useToasts } from "../Hooks/useToasts";
 import { useGlobalShortcuts } from "../Hooks/useGlobalShortcuts";
 import { useTheme } from "../Theme/themeContext";
+import { useRefrescoPorTiempo } from "../Hooks/useRefrescoPorTiempo";
 
 const BUTTONS = [
   { path: "/", text: "Inicio" },
@@ -81,14 +82,21 @@ const Header = () => {
   const refreshCounters = React.useCallback(() => {
     // Recordatorios que requieren atención (misma regla que la bandeja, el
     // dashboard y la notificación de arranque).
+    // Un fallo deja el badge como estaba en vez de ponerlo en cero: mostrar
+    // "0 services por vencer" cuando en realidad no se pudo contar es peor que
+    // mostrar el número anterior, porque parece una respuesta.
     window.api.service
       .countDue()
-      .then(setServiceAlertCount)
+      .then((res) => {
+        if (res.status === "success") setServiceAlertCount(res.result);
+      })
       .catch(() => {});
     // Trabajos activos (pendientes o en progreso).
     window.api.cars
       .getActiveJobsCount()
-      .then(setPendingJobsCount)
+      .then((res) => {
+        if (res.status === "success") setPendingJobsCount(res.result);
+      })
       .catch(() => {});
   }, []);
 
@@ -103,6 +111,11 @@ const Header = () => {
     refreshCounters();
     return window.api.onDataChanged(refreshCounters);
   }, [refreshCounters]);
+
+  // Y también cuando pasa el tiempo. Los recordatorios vencen a una fecha, no a
+  // una escritura: con la aplicación abierta toda la noche, el badge no contaba
+  // el service que vencía a medianoche hasta que alguien cargara algo.
+  useRefrescoPorTiempo(refreshCounters);
 
   // Atajos de teclado globales (navegación, búsqueda, ayuda, nuevo vehículo).
   useGlobalShortcuts({

@@ -75,8 +75,10 @@ declare global {
     api: {
       cars: {
         create: (car: CreateCarDto) => Promise<APIResponse>;
-        getAll: (params: CarQueryParams) => Promise<Paginated<Car>>;
-        getActiveJobsCount: () => Promise<number>;
+        getAll: (
+          params: CarQueryParams
+        ) => Promise<APIResponse<Paginated<Car>>>;
+        getActiveJobsCount: () => Promise<APIResponse<number>>;
         getByLicense: (license: string) => Promise<APIResponse<Car>>;
         update: (
           id: string,
@@ -100,10 +102,12 @@ declare global {
         ) => Promise<APIResponse>;
       };
       clients: {
-        create: (dto: CreateClientDto) => Promise<APIResponse>;
-        getAll: (params: ClientQueryParams) => Promise<Paginated<Client>>;
+        create: (dto: CreateClientDto) => Promise<APIResponse<Client>>;
+        getAll: (
+          params: ClientQueryParams
+        ) => Promise<APIResponse<Paginated<Client>>>;
         getById: (id: string) => Promise<APIResponse<Client>>;
-        getCities: () => Promise<string[]>;
+        getCities: () => Promise<APIResponse<string[]>>;
         search: (query: string) => Promise<APIResponse<Client[]>>;
         update: (dto: UpdateClientBody) => Promise<APIResponse<Client>>;
         toggleActive: (id: string) => Promise<APIResponse>;
@@ -115,9 +119,11 @@ declare global {
       service: {
         list: (
           params: ReminderQueryParams
-        ) => Promise<Paginated<ServiceReminderView>>;
-        countDue: () => Promise<number>;
-        byCar: (licensePlate: string) => Promise<ServiceReminderView[]>;
+        ) => Promise<APIResponse<Paginated<ServiceReminderView>>>;
+        countDue: () => Promise<APIResponse<number>>;
+        byCar: (
+          licensePlate: string
+        ) => Promise<APIResponse<ServiceReminderView[]>>;
         snooze: (
           id: string,
           days: number
@@ -131,7 +137,7 @@ declare global {
         save: (
           body: SaveReminderBody
         ) => Promise<APIResponse<ServiceReminderView>>;
-        getSettings: () => Promise<ServiceSettings>;
+        getSettings: () => Promise<APIResponse<ServiceSettings>>;
         setSettings: (
           settings: Partial<ServiceSettings>
         ) => Promise<APIResponse<ServiceSettings>>;
@@ -141,7 +147,9 @@ declare global {
           body: IssueDocumentBody
         ) => Promise<APIResponse<IssuedDocument>>;
         discard: (id: string) => Promise<APIResponse>;
-        list: (filters?: DocumentQueryParams) => Promise<IssuedDocument[]>;
+        list: (
+          filters?: DocumentQueryParams
+        ) => Promise<APIResponse<IssuedDocument[]>>;
         savePdf: (payload: {
           defaultName: string;
           bytes: Uint8Array;
@@ -158,7 +166,7 @@ declare global {
         restore: (name: string) => Promise<APIResponse>;
       };
       global: {
-        search: (query: string) => Promise<{ status: string } & SearchResult>;
+        search: (query: string) => Promise<APIResponse<SearchResult>>;
         openLogsFolder: () => Promise<void>;
         openExternal: (url: string) => Promise<APIResponse>;
         setUnsavedChanges: (dirty: boolean) => void;

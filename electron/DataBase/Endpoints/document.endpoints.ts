@@ -1,7 +1,7 @@
 import { dialog, shell } from "electron";
 import fs from "node:fs";
 import path from "node:path";
-import { handleIpc } from "../../ipc";
+import { handleIpc, handleIpcQuery } from "../../ipc";
 import { esIdentificador } from "../../validation";
 import { logError } from "../../logger";
 import { AppDataSource, getRepositories } from "../dataSource";
@@ -217,8 +217,9 @@ handleIpc(
 );
 
 /** Últimos documentos emitidos de un tipo (historial, más recientes primero). */
-handleIpc(
+handleIpcQuery(
   "document:list",
+  "No se pudo cargar el historial de documentos",
   async (_event, filters?: DocumentQueryParams): Promise<IssuedDocument[]> => {
     const repo = getRepositories().documentRepository;
 

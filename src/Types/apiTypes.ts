@@ -54,9 +54,16 @@ export type ApiStatus = "success" | "failed" | "cancelled";
  * - `failed` / `cancelled`: sin `result`.
  * `message` está siempre presente (los consumidores lo muestran en toasts).
  *
- * Los endpoints de solo-lectura que devuelven colecciones crudas
- * (`car:get-all`, `client:get-all`) y la búsqueda global (`global:search`, forma
- * `{ status, cars, clients }`) NO usan este envelope.
+ * **Lo usan todos los canales, también los de sólo lectura.** Antes nueve
+ * devolvían el dato pelado —un `Paginated`, un número, un arreglo—, y eso tenía
+ * dos consecuencias: `ensureSuccess` no se podía usar en la mitad de las
+ * llamadas, así que cada pantalla inventaba su manejo de error; y cuando una
+ * lectura fallaba de verdad, la excepción viajaba cruda hasta el renderer y el
+ * usuario veía el mensaje de TypeORM.
+ *
+ * En las lecturas el `message` de éxito va vacío a propósito: no hay nada que
+ * avisar cuando algo simplemente se leyó, y un texto ahí sólo invita a
+ * mostrarlo.
  */
 export type APIResponse<T = undefined> =
   | { status: "success"; message: string; result: T }

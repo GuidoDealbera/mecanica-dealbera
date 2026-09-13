@@ -239,7 +239,9 @@ process.on("unhandledRejection", (reason) => {
 });
 
 function setupAutoUpdater() {
-  if (process.env.NODE_ENV === "development") return;
+  // `app.isPackaged` y no `NODE_ENV`: la variable de entorno es una convención
+  // de las herramientas y se hereda de la terminal, así que decidía mal.
+  if (!app.isPackaged) return;
 
   autoUpdater.autoDownload = false;
 
@@ -400,7 +402,7 @@ async function createWindow() {
     return;
   }
 
-  if (process.env.NODE_ENV !== "development") {
+  if (app.isPackaged) {
     try {
       await performAutoBackup();
     } catch (err) {
@@ -413,7 +415,7 @@ async function createWindow() {
   // El conteo sale de `countDueReminders`, la misma función que alimenta el
   // badge y la bandeja: antes la regla estaba reimplementada acá y podía
   // divergir de la del listado.
-  if (process.env.NODE_ENV !== "development") {
+  if (app.isPackaged) {
     try {
       const dueCount = await countDueReminders(AppDataSource.manager);
       if (dueCount > 0 && Notification.isSupported()) {
@@ -681,7 +683,7 @@ ipcMain.on("install-update", () => {
 });
 
 handleIpc("check-for-updates", async () => {
-  if (process.env.NODE_ENV === "development") {
+  if (!app.isPackaged) {
     win?.webContents.send("update-not-available");
     return;
   }

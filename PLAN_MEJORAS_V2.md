@@ -1459,7 +1459,7 @@ elige mal.
 
 ### F1 · 🟠 Los contadores y el dashboard nunca se enteran de que pasó el tiempo
 
-**[pendiente]** · `electron/DataBase/dashboardCache.ts`, `src/Components/Header.tsx`
+**[a testear]** · `electron/DataBase/dashboardCache.ts`, `src/Components/Header.tsx`
 
 Dos mecanismos que se invalidan **sólo ante escrituras**, calculando cosas que
 dependen de la fecha:
@@ -1478,9 +1478,24 @@ no lo cuenta hasta la próxima escritura.
 Se arregla con un vencimiento por tiempo en la caché y un refresco periódico (o al
 volver el foco a la ventana).
 
+**Resuelto**, con las dos mitades, porque una sola no alcanza: si la caché vence
+pero nadie vuelve a preguntar, la pantalla sigue mostrando lo mismo.
+
+En el proceso principal, lo cacheado sólo vale dentro del **mismo día
+calendario**, y no por un plazo en minutos. Lo que invalida el cálculo no es que
+haya pasado tiempo sino que haya cambiado la fecha: un plazo fijo vence de más
+durante el día y puede cruzar la medianoche sin enterarse.
+
+En la interfaz, `useRefrescoPorTiempo` refresca al volver el foco a la ventana
+—que es cuando la persona vuelve a mirar, o sea cuando un número viejo se nota—
+y al cambiar el día. Lo segundo se chequea cada minuto pero **sólo refresca si
+la fecha cambió**: comparar dos textos por minuto no le cuesta nada a nadie, y
+sondear la base cada minuto sí. Lo usan los contadores de la barra y el
+dashboard.
+
 ### F2 · 🟠 Cinco endpoints devuelven algo distinto de lo que devuelven los demás
 
-**[pendiente]** · `electron/DataBase/Endpoints/*`
+**[a testear]** · `electron/DataBase/Endpoints/*`
 
 El contrato dominante es el envelope `APIResponse<T>` con `status`, `message` y
 `result`. Pero:
@@ -1498,13 +1513,38 @@ tragarse un `status: "failed"`— no se puede usar en la mitad de las llamadas, 
 cada pantalla inventa su propio manejo de error. Que es exactamente el problema
 que `ensureSuccess` documenta como ya sufrido.
 
+**Resuelto.** Son diez canales: los nueve de la lista más `global:search`, que
+tenía una tercera forma propia —`{ status, cars, clients }`, con `status` pero
+sin `result`—.
+
+Y había un efecto que no estaba anotado: como esos canales no tenían un `catch`,
+una lectura que fallaba de verdad llegaba al renderer como promesa rechazada con
+el mensaje de TypeORM. O sea que el problema no era sólo de uniformidad.
+
+El envoltorio va en `handleIpcQuery`, al lado de `handleIpc`, y no en cada
+handler. Es la diferencia entre una convención que hay que acordarse de
+respetar y algo estructural: un canal de lectura nuevo cumple el contrato por
+usar esa función. En las lecturas el `message` de éxito va vacío a propósito —no
+hay nada que avisar porque algo se leyó, y un texto ahí sólo invita a mostrarlo—.
+
+`contratoDeEntrada.test.ts` gana el contrato de **salida**, recorriendo la misma
+lista registrada: si un canal contesta algo que no es el envelope, el test lo
+nombra. Comprobado devolviendo un canal a la forma vieja.
+
+Ejercitado además contra la aplicación real con una base de verdad: los diez
+canales contestan el envelope y las cinco pantallas siguen andando.
+
 ### F3 · 🟠 `client:create` no devuelve el cliente creado
 
-**[pendiente]** · `electron/DataBase/Endpoints/client.endpoints.ts`
+**[a testear]** · `electron/DataBase/Endpoints/client.endpoints.ts`
 
 Caso particular de F2, pero con efecto propio: quien crea un cliente no recibe su
 `id`, así que para hacer cualquier cosa a continuación tiene que volver a
 buscarlo **por nombre**, que es la clave frágil de **D5**.
+
+**Resuelto**: `client:create` devuelve el cliente guardado. Con D5 ya hecho,
+buscar por nombre después de crear no sólo es frágil sino directamente
+ambiguo —puede haber dos con el mismo—.
 
 ### F4 · 🟡 La regla "teléfono ya registrado" está escrita dos veces y falta en un tercer lugar
 
@@ -1533,7 +1573,7 @@ Un helper, tres criterios.
 
 ### F6 · 🟡 El proyecto detecta "modo desarrollo" con `NODE_ENV` en vez de `app.isPackaged`
 
-**[pendiente]** · `electron/main.ts`, `electron/DataBase/dataSource.ts`
+**[a testear]** · `electron/main.ts`, `electron/DataBase/dataSource.ts`
 
 `process.env.NODE_ENV === "development"` decide cosas serias: **dónde vive la base
 de datos**, dónde van los respaldos, si se hace el respaldo diario y si se
@@ -1546,18 +1586,29 @@ Hoy funciona porque Vite la define, pero es una variable de entorno heredada: un
 
 `app.isPackaged` es la comprobación que no depende del entorno.
 
+**Resuelto** en los seis lugares: dónde vive la base, dónde van los respaldos,
+el respaldo diario, la notificación de arranque, el auto-updater y la
+comprobación manual de actualizaciones.
+
+El log de SQL quedó atado además a que no haya `MECANICA_DATA_DIR`: esa variable
+la ponen los tests y los scripts, y ahí volcar cada consulta a la salida sólo
+tapa lo que se está mirando.
+
 ### F7 · 🟡 `Car` obliga a pasar un objeto al constructor y las demás entidades no
 
-**[pendiente]** · `electron/DataBase/Entities/*.entity.ts`
+**[a testear]** · `electron/DataBase/Entities/*.entity.ts`
 
 `Car` declara `constructor(partial: Partial<Car>)` (obligatorio) mientras `Job`,
 `ServiceReminder`, `Document` y `AppSetting` usan `partial?` (opcional). TypeORM
 instancia entidades sin argumentos: funciona porque `Object.assign(this, undefined)`
 no hace nada, o sea **por una casualidad del lenguaje**. Conviene unificar.
 
+**Resuelto**: opcional en las seis. Eran dos y no una —`Car` y `Client`—, y el
+motivo queda escrito en el código: el tipo decía lo contrario de lo que ocurre.
+
 ### F8 · ⚪ Queda código de la plantilla de electron-vite
 
-**[pendiente]** · `src/main.tsx`, `electron/main.ts`, `electron/preload.ts`
+**[a testear]** · `src/main.tsx`, `electron/main.ts`, `electron/preload.ts`
 
 El canal `main-process-message` sólo existe para hacer un `console.log` de la
 fecha al cargar. Arrastra consigo la exposición del `ipcRenderer` genérico
@@ -1566,14 +1617,21 @@ fecha al cargar. Arrastra consigo la exposición del `ipcRenderer` genérico
 `// You can expose other APTs you need here.`, con la errata incluida) en un
 proyecto cuya convención es comentar en castellano.
 
+**Ya estaba resuelto al hacer C1**: sacar el puente genérico se llevó el canal y
+sus comentarios. Se comprobó que no queda ninguno de los dos.
+
 ### F9 · ⚪ `FormWrapper` desactiva el chequeo de tipos de todo el archivo
 
-**[pendiente]** · `src/Components/Forms/FormWrapper.tsx`
+**[a testear]** · `src/Components/Forms/FormWrapper.tsx`
 
 `/* eslint-disable @typescript-eslint/no-explicit-any */` con
 `form: UseFormReturn<any>`. Es un componente genérico, así que se resuelve con un
 parámetro de tipo (`<T extends FieldValues>`) en vez de apagar la regla para el
 archivo entero.
+
+**Resuelto** con el parámetro de tipo. Lo que importa no es el `any` en sí sino
+el `eslint-disable` de archivo entero: es lo que hace que el segundo `any` entre
+sin que nadie lo note.
 
 ---
 

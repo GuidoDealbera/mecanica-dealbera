@@ -37,7 +37,10 @@ export const AppDataSource = new DataSource({
   database: getDBPath(),
   entities: [Car, Client, Job, Document, ServiceReminder, AppSetting],
   synchronize: false,
-  logging: process.env.NODE_ENV === "development",
+  // El log de SQL sólo en desarrollo **interactivo**: `MECANICA_DATA_DIR` lo
+  // ponen los tests y los scripts, y ahí volcar cada consulta a la salida sólo
+  // tapa lo que se está mirando.
+  logging: !app.isPackaged && !process.env.MECANICA_DATA_DIR,
   // Las migraciones **no** corren solas al conectar: las lanza `initializeDB`
   // después de sacar una copia de la base y comprueba el resultado. Ver
   // `runPendingMigrations`.
@@ -88,8 +91,22 @@ function overrideDir(): string | undefined {
   return process.env.MECANICA_DATA_DIR;
 }
 
+/**
+ * Si esto **no** es una instalación de verdad.
+ *
+ * Era `process.env.NODE_ENV === "development"`, y de esa variable dependían
+ * cosas serias: dónde vive la base de datos y dónde van los respaldos.
+ *
+ * `NODE_ENV` es una convención de las herramientas, no algo que Electron
+ * garantice. Hoy la define Vite, pero es una variable de entorno heredada: un
+ * `NODE_ENV=production` suelto en la terminal del desarrollador hacía que
+ * `npm run dev` **abriera la base real del usuario y escribiera respaldos en
+ * sus Documentos**.
+ *
+ * `app.isPackaged` lo sabe el propio Electron y no se puede pisar desde afuera.
+ */
 function isDev(): boolean {
-  return process.env.NODE_ENV === "development";
+  return !app.isPackaged;
 }
 
 function getDataDir(): string {

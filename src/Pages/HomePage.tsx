@@ -32,6 +32,7 @@ import PageShell from "../Components/PageShell";
 import { formatARS } from "../Utils/utils";
 import { useToasts } from "../Hooks/useToasts";
 import { useChartTheme } from "../Theme/useChartTheme";
+import { useRefrescoPorTiempo } from "../Hooks/useRefrescoPorTiempo";
 
 const StatCard: React.FC<{
   label: string;
@@ -104,6 +105,11 @@ const HomePage: React.FC = () => {
     fetchStats();
     return window.api.onDataChanged(() => fetchStats());
   }, [fetchStats]);
+
+  // El mes en curso y los últimos seis meses salen de `new Date()`, así que
+  // estos números envejecen solos: al cruzar la medianoche del 31 de diciembre
+  // el dashboard seguía mostrando diciembre hasta que alguien cargara algo.
+  useRefrescoPorTiempo(fetchStats);
 
   // Datos de la torta con el color atado a cada estado (así el color no se
   // corre cuando algún estado está ausente). Se descartan los estados en 0.

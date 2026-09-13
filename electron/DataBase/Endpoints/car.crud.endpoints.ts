@@ -1,4 +1,4 @@
-import { handleIpc } from "../../ipc";
+import { handleIpc, handleIpcQuery } from "../../ipc";
 import { logError } from "../../logger";
 import { comoParametros, esIdentificador, validateDto } from "../../validation";
 import { escapeLike, resolvePage } from "../../pagination";
@@ -128,8 +128,9 @@ handleIpc("car:create", async (_event, payload: CreateCarDto) => {
 // Listado paginado server-side. Solo carga la relación `owner` (el listado no
 // muestra los trabajos, así que no se traen para no cargar todos los `job` de
 // todos los autos). Búsqueda por patente (LIKE) y orden opcional en la DB.
-handleIpc(
+handleIpcQuery(
   "car:get-all",
+  "No se pudo cargar el listado de vehículos",
   async (_event, entrada: CarQueryParams): Promise<Paginated<Car>> => {
     // Un canal IPC recibe lo que le manden, y más abajo se hace
     // `params.search.trim()`: con una cadena en vez de un objeto eso revienta.

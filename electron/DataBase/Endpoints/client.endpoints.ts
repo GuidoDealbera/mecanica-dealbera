@@ -1,4 +1,4 @@
-import { handleIpc } from "../../ipc";
+import { handleIpc, handleIpcQuery } from "../../ipc";
 import { logError } from "../../logger";
 import { comoParametros, esIdentificador, validateDto } from "../../validation";
 import { escapeLike, resolvePage } from "../../pagination";
@@ -31,13 +31,17 @@ handleIpc("client:create", async (_, payload: CreateClientDto) => {
     createClientDto
   );
   const newOwner = repo.create(createClientDto);
-  await repo.save(newOwner);
+  const guardado = await repo.save(newOwner);
   invalidateDashboardStatsCache();
   return {
     status: "success",
     message: aviso
       ? `Cliente registrado correctamente. ${aviso}`
       : "Cliente registrado correctamente",
+    // Con el cliente adentro. Sin esto, quien lo crea no recibe su `id` y para
+    // hacer cualquier cosa a continuación tiene que volver a buscarlo **por
+    // nombre**, que es la clave frágil que D5 vino a sacar del medio.
+    result: guardado,
   };
 });
 
@@ -45,8 +49,9 @@ handleIpc("client:create", async (_, payload: CreateClientDto) => {
 // `includeInactive` los incluye). Búsqueda por nombre (LIKE) y orden en la DB.
 // El join de `cars` es a-muchos: TypeORM pagina con subconsulta de ids, así que
 // `total` cuenta clientes distintos (no filas del join).
-handleIpc(
+handleIpcQuery(
   "client:get-all",
+  "No se pudo cargar el listado de clientes",
   async (_event, entrada: ClientQueryParams): Promise<Paginated<Client>> => {
     const params = comoParametros<ClientQueryParams>(entrada);
     const { page, pageSize, skip, take } = resolvePage(params);
@@ -103,17 +108,21 @@ handleIpc(
 
 // Lista de ciudades/localidades distintas (no vacías), ordenadas. Alimenta el
 // dropdown de filtro por ciudad del listado de clientes.
-handleIpc("client:cities", async (): Promise<string[]> => {
-  const repo = getRepositories().clientRepository;
-  const rows = await repo
-    .createQueryBuilder("client")
-    .select("client.city", "city")
-    .distinct(true)
-    .where("client.city IS NOT NULL AND client.city <> ''")
-    .orderBy("client.city", "ASC")
-    .getRawMany<{ city: string }>();
-  return rows.map((r) => r.city);
-});
+handleIpcQuery(
+  "client:cities",
+  "No se pudieron cargar las localidades",
+  async (): Promise<string[]> => {
+    const repo = getRepositories().clientRepository;
+    const rows = await repo
+      .createQueryBuilder("client")
+      .select("client.city", "city")
+      .distinct(true)
+      .where("client.city IS NOT NULL AND client.city <> ''")
+      .orderBy("client.city", "ASC")
+      .getRawMany<{ city: string }>();
+    return rows.map((r) => r.city);
+  }
+);
 
 /**
  * La ficha del cliente, buscada por `id`.

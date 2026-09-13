@@ -89,49 +89,54 @@ afterEach(async () => {
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
+/**
+ * `global:search` devuelve el envelope como el resto de los canales, así que el
+ * resultado se desenvuelve una vez acá en vez de en cada caso.
+ */
+const buscar = async (termino: unknown) =>
+  (await invocar<{ result: Global }>("global:search", termino)).result;
+
 describe("global:search", () => {
   it("el guión bajo es texto, no un comodín", async () => {
     // `_` en SQL significa "un carácter cualquiera", así que sin escapar esto
     // devolvía todos los vehículos y todos los clientes.
-    const res = await invocar<Global>("global:search", "__");
+    const res = await buscar("__");
 
     expect(res.cars).toHaveLength(0);
     expect(res.clients).toHaveLength(0);
   });
 
   it("el porcentaje es texto, no un comodín", async () => {
-    const res = await invocar<Global>("global:search", "%%");
+    const res = await buscar("%%");
     expect(res.cars).toHaveLength(0);
     expect(res.clients).toHaveLength(0);
 
     // Y un porcentaje que sí está en el dato se encuentra.
-    const literal = await invocar<Global>("global:search", "100%");
+    const literal = await buscar("100%");
     expect(literal.clients.map((c) => c.fullname)).toEqual([
       "Carlos 100% Bravo",
     ]);
   });
 
   it("sigue encontrando lo que tiene que encontrar", async () => {
-    const porPatente = await invocar<Global>("global:search", "AB123");
+    const porPatente = await buscar("AB123");
     expect(porPatente.cars.map((c) => c.licensePlate)).toEqual(["AB123CD"]);
 
-    const porModelo = await invocar<Global>("global:search", "GOL");
+    const porModelo = await buscar("GOL");
     expect(porModelo.cars.map((c) => c.model)).toEqual(["GOL"]);
 
-    const porNombre = await invocar<Global>("global:search", "Ana");
+    const porNombre = await buscar("Ana");
     expect(porNombre.clients.map((c) => c.fullname)).toEqual(["Ana Gómez"]);
 
-    const porTelefono = await invocar<Global>("global:search", "3515123456");
+    const porTelefono = await buscar("3515123456");
     expect(porTelefono.clients).toHaveLength(1);
   });
 
   it("un término de menos de dos caracteres o que no es texto no consulta nada", async () => {
-    expect((await invocar<Global>("global:search", "a")).cars).toHaveLength(0);
+    expect((await buscar("a")).cars).toHaveLength(0);
     // El renderer no debería mandar esto, pero un canal IPC recibe lo que le
     // manden y antes esto reventaba con "cannot read properties of undefined".
-    expect(
-      (await invocar<Global>("global:search", undefined)).cars
-    ).toHaveLength(0);
+    expect((await buscar(undefined)).cars).toHaveLength(0);
   });
 });
 
