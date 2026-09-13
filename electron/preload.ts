@@ -56,6 +56,13 @@ contextBridge.exposeInMainWorld("api", {
           }
     ) => await ipcRenderer.invoke("car:reassign-owner", licensePlate, payload),
   },
+  /** La papelera: lo borrado se puede recuperar. */
+  trash: {
+    list: async () => await ipcRenderer.invoke("trash:list"),
+    restore: async (id: string) =>
+      await ipcRenderer.invoke("trash:restore", id),
+    purge: async (id: string) => await ipcRenderer.invoke("trash:purge", id),
+  },
   clients: {
     create: async (dto: CreateClientDto) =>
       await ipcRenderer.invoke("client:create", dto),

@@ -33,6 +33,7 @@ import { AllowHomonymClients1700000013000 } from "./Migrations/AllowHomonymClien
 import { RoundPartPrices1700000014000 } from "./Migrations/RoundPartPrices1700000014000";
 import { AddDocumentDateIndex1700000015000 } from "./Migrations/AddDocumentDateIndex1700000015000";
 import { AddDocumentSnapshot1700000016000 } from "./Migrations/AddDocumentSnapshot1700000016000";
+import { CreateTrash1700000017000 } from "./Migrations/CreateTrash1700000017000";
 
 export const AppDataSource = new DataSource({
   type: "better-sqlite3",
@@ -64,6 +65,7 @@ export const AppDataSource = new DataSource({
     RoundPartPrices1700000014000,
     AddDocumentDateIndex1700000015000,
     AddDocumentSnapshot1700000016000,
+    CreateTrash1700000017000,
   ],
   subscribers: [],
 });

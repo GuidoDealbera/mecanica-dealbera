@@ -14,6 +14,7 @@ import {
   describeClientDuplicates,
   describeOwnerMismatch,
 } from "../clients.service";
+import { moveCarToTrash } from "../trash.service";
 
 // Columnas por las que se permite ordenar el listado de autos (mapa
 // campo-de-la-UI → columna calificada de la query, para no interpolar texto
@@ -333,11 +334,22 @@ handleIpc("car:delete", async (_, license: CreateCarDto["licensePlate"]) => {
     // forma irreversible en una acción que era "borrar un auto". Un cliente sin
     // vehículos es un estado válido (la pantalla de Clientes los lista) y para
     // darlo de baja de verdad está `client:delete`, que sí lo avisa.
+    // Antes de borrar, la copia. Es lo que permite deshacerlo: el vehículo se
+    // borra igual que siempre —con la cascada de sus trabajos y su
+    // recordatorio—, y lo que queda es una copia de esas filas en la papelera.
+    await moveCarToTrash(
+      qr.manager,
+      car.id,
+      `${car.licensePlate} — ${car.brand} ${car.model}`
+    );
     await qr.manager.remove(car);
 
     await qr.commitTransaction();
     invalidateDashboardStatsCache();
-    return { status: "success", message: "Vehículo eliminado correctamente" };
+    return {
+      status: "success",
+      message: "Vehículo eliminado. Se puede recuperar desde la papelera.",
+    };
   } catch (error) {
     await qr.rollbackTransaction();
     logError("car:delete", error);

@@ -24,6 +24,7 @@ import {
   UpdateClientBody,
 } from "./src/Types/apiTypes";
 import { Car, Client, DashboardStats, Jobs } from "./src/Types/types";
+import type { TrashItem } from "./electron/DataBase/trash.service";
 export {};
 
 interface SearchResult {
@@ -102,6 +103,11 @@ declare global {
             | { mode: "existing"; existingOwnerId: string }
             | { mode: "new"; newOwner: CreateClientDto }
         ) => Promise<APIResponse>;
+      };
+      trash: {
+        list: () => Promise<APIResponse<TrashItem[]>>;
+        restore: (id: string) => Promise<APIResponse>;
+        purge: (id: string) => Promise<APIResponse>;
       };
       clients: {
         create: (dto: CreateClientDto) => Promise<APIResponse<Client>>;

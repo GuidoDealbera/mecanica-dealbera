@@ -7,6 +7,7 @@ import "./DataBase/Endpoints/dashboard.endpoints";
 import "./DataBase/Endpoints/document.endpoints";
 import "./DataBase/Endpoints/service.endpoints";
 import "./DataBase/Endpoints/backup.endpoints";
+import "./DataBase/Endpoints/trash.endpoints";
 import {
   app,
   BrowserWindow,

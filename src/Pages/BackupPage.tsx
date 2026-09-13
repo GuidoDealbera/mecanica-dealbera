@@ -1,5 +1,5 @@
 import React from "react";
-import { Button } from "@heroui/react";
+import { Button, Chip, Spinner } from "@heroui/react";
 import {
   MdBackup,
   MdUploadFile,
@@ -10,6 +10,7 @@ import {
   MdBugReport,
   MdWarningAmber,
   MdDescription,
+  MdDeleteOutline,
 } from "react-icons/md";
 import CustomDialog from "../Components/CustomDialog";
 import DocumentHistory from "../Components/DocumentHistory";
@@ -18,6 +19,7 @@ import PageShell from "../Components/PageShell";
 import { useToasts } from "../Hooks/useToasts";
 import type { BackupEntry } from "../Types/apiTypes";
 import type { SequenceCheck } from "../Types/apiTypes";
+import type { TrashItem } from "../../electron/DataBase/trash.service";
 
 /** "sábado 6 de septiembre" — más legible que `taller_2026-09-06.db`. */
 const formatBackupDate = (iso: string): string => {
@@ -116,6 +118,134 @@ const RevisionDelCorrelativo: React.FC = () => {
         </p>
       ))}
     </div>
+  );
+};
+
+/**
+ * La papelera.
+ *
+ * Borrar un vehículo se llevaba sus trabajos, su historial de kilometraje y su
+ * recordatorio; borrar un cliente se llevaba además todos sus vehículos. Era
+ * irreversible salvo restaurando un respaldo entero, o sea eligiendo entre
+ * perder un dato y perder un día de trabajo.
+ */
+const Papelera: React.FC = () => {
+  const [items, setItems] = React.useState<TrashItem[]>([]);
+  const [cargando, setCargando] = React.useState(true);
+  const [trabajando, setTrabajando] = React.useState<string | null>(null);
+  const [aTirar, setATirar] = React.useState<TrashItem | null>(null);
+  const { showToast } = useToasts();
+
+  const cargar = React.useCallback(() => {
+    setCargando(true);
+    window.api.trash
+      .list()
+      .then((res) => setItems(res.result ?? []))
+      .catch(() => setItems([]))
+      .finally(() => setCargando(false));
+  }, []);
+
+  React.useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- consulta al proceso principal
+    cargar();
+  }, [cargar]);
+
+  const accion = async (
+    item: TrashItem,
+    fn: () => Promise<{ status: string; message: string }>
+  ) => {
+    setTrabajando(item.id);
+    try {
+      const res = await fn();
+      showToast(
+        res.message,
+        res.status === "success" ? "success" : "danger",
+        "Papelera"
+      );
+      if (res.status === "success") cargar();
+    } finally {
+      setTrabajando(null);
+    }
+  };
+
+  if (cargando) {
+    return (
+      <div className="flex justify-center py-4">
+        <Spinner size="sm" color="primary" />
+      </div>
+    );
+  }
+
+  if (items.length === 0) {
+    return (
+      <p className="text-foreground-400 text-sm py-2">
+        No hay nada borrado. Lo que borres va a aparecer acá.
+      </p>
+    );
+  }
+
+  return (
+    <>
+      <div className="flex flex-col gap-1.5 max-h-60 overflow-y-auto">
+        {items.map((item) => (
+          <div
+            key={item.id}
+            className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-content2 border border-divider px-3 py-2"
+          >
+            <MdDeleteOutline size={16} className="text-danger flex-shrink-0" />
+            <span className="font-medium text-sm truncate max-w-[220px]">
+              {item.label}
+            </span>
+            <Chip size="sm" variant="flat">
+              {item.kind === "car" ? "Vehículo" : "Cliente"}
+            </Chip>
+            {/* Qué arrastra: lo que se recupera no es sólo la fila. */}
+            <span className="text-xs text-foreground-400">
+              {item.kind === "client" && `${item.counts.cars} vehículo(s) · `}
+              {item.counts.jobs} trabajo(s)
+            </span>
+            <span className="text-xs text-foreground-400 ml-auto">
+              {formatBackupDate(item.deletedAt)}
+            </span>
+            <Button
+              size="sm"
+              variant="flat"
+              color="primary"
+              className="h-6 min-w-0 px-2"
+              isLoading={trabajando === item.id}
+              onPress={() =>
+                accion(item, () => window.api.trash.restore(item.id))
+              }
+            >
+              Recuperar
+            </Button>
+            <Button
+              size="sm"
+              variant="light"
+              color="danger"
+              className="h-6 min-w-0 px-2"
+              isDisabled={trabajando === item.id}
+              onPress={() => setATirar(item)}
+            >
+              Tirar
+            </Button>
+          </div>
+        ))}
+      </div>
+
+      {/* Tirar de la papelera sí es definitivo, así que se pregunta. */}
+      <CustomDialog
+        isOpen={aTirar !== null}
+        onClose={() => setATirar(null)}
+        onConfirm={() => {
+          const item = aTirar;
+          setATirar(null);
+          if (item) accion(item, () => window.api.trash.purge(item.id));
+        }}
+        title="Eliminar definitivamente"
+        content={`"${aTirar?.label ?? ""}" se va a borrar para siempre. Esto no se puede deshacer.`}
+      />
+    </>
   );
 };
 
@@ -378,6 +508,22 @@ const BackupPage: React.FC = () => {
             </Button>
           }
         />
+
+        <DataCard
+          accent="warning"
+          icon={<MdDeleteOutline size={24} />}
+          title="Papelera"
+          subtitle="Vehículos y clientes borrados"
+          description="Lo que se borra queda acá con sus trabajos y su historial, y se puede recuperar. Se conservan los últimos 50."
+          note={
+            <Note icon={<MdInfo size={16} className="text-warning" />}>
+              Recuperar un vehículo lo devuelve con todo lo que tenía. Tirarlo
+              de la papelera sí es definitivo.
+            </Note>
+          }
+        >
+          <Papelera />
+        </DataCard>
 
         <DataCard
           accent="primary"

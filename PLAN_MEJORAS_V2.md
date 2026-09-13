@@ -1957,7 +1957,7 @@ blanco en el presupuesto.
 
 ### H5 · 🟠 No hay forma de deshacer un borrado
 
-**[pendiente]** · todos los `delete`
+**[a testear]** · todos los `delete`
 
 Borrar un vehículo se lleva sus trabajos, su historial de kilometraje y su
 recordatorio. Borrar un cliente se lleva además **todos sus vehículos**. Es
@@ -1967,6 +1967,42 @@ desde entonces.
 Los clientes ya tienen `isActive` para la baja lógica; los vehículos no tienen
 equivalente. Un borrado lógico con papelera resolvería el caso real —"me equivoqué
 de auto"— sin obligar a elegir entre perder un dato y perder un día.
+
+**Resuelto con papelera, pero no con borrado lógico**, y el porqué se midió.
+
+El borrado lógico es lo natural: un `deletedAt` y filtrar. Contando qué habría
+que tocar aparecen **seis consultas agregadas sobre `job` que nunca pasan por
+`car`** —el contador de trabajos activos de la barra y cinco del dashboard—. Con
+un `deletedAt`, los trabajos de un vehículo borrado seguirían contando en el
+badge, en la torta de estados y en la facturación del mes. Y lo peor no son esas
+seis: es que la regla "acordate de excluir los borrados" no se ve desde la
+consulta, así que la próxima que alguien escriba va a estar mal y nadie se va a
+enterar.
+
+Así que el vehículo se borra **de verdad**, igual que antes, y lo que queda es
+una copia de sus filas en una tabla aparte. Ninguna consulta existente cambia, no
+hay invariante nueva que recordar, y restaurar es volver a insertar lo que había.
+Es el mismo criterio que el de **H1** con los documentos: guardar la copia de lo
+que hubo, no marcar lo que sigue estando.
+
+Detalles que importan:
+
+- Se guardan las **filas crudas**, no un objeto armado a mano: una columna nueva
+  entra sola en la copia en vez de olvidarse.
+- Restaurar es todo o nada, en una transacción. Media restauración deja un
+  vehículo sin sus trabajos y sin forma de saberlo.
+- Si la patente se volvió a usar, no se restaura y se explica: la patente es la
+  identidad del vehículo, y restaurar crearía dos.
+- El titular se reinserta sólo si no está. Borrar el auto no borra al cliente, y
+  el auto recuperado tiene que volver a ser de quien era.
+- La papelera se poda a los últimos 50: guarda copias enteras de vehículos con
+  sus trabajos, así que sin tope crece como crecía la carpeta de respaldos antes
+  de tener retención.
+- Tirar de la papelera sí es definitivo, y se pregunta.
+
+Verificado contra la aplicación real con una base de verdad: borrar deja el auto
+en la papelera con lo que arrastra, los contadores bajan de inmediato —que es lo
+que el borrado lógico habría roto—, y recuperarlo lo devuelve con su titular.
 
 ### H6 · 🟡 No hay búsqueda ni filtro en el historial de documentos
 

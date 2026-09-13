@@ -9,6 +9,7 @@ import { Car } from "../Entities/car.entity";
 import { Client } from "../Entities/client.entity";
 import { invalidateDashboardStatsCache } from "../dashboardCache";
 import { describeClientDuplicates } from "../clients.service";
+import { moveClientToTrash } from "../trash.service";
 
 // Columnas por las que se permite ordenar el listado de clientes.
 const CLIENT_SORT_COLUMNS: Record<string, string> = {
@@ -216,6 +217,11 @@ handleIpc("client:delete", async (_, id: string) => {
       await qr.rollbackTransaction();
       return { status: "failed", message: "Cliente no encontrado" };
     }
+    // La copia va antes de tocar nada, y del cliente **con todos sus
+    // vehículos**: borrar un cliente es la operación que más se lleva puesto de
+    // toda la aplicación.
+    await moveClientToTrash(qr.manager, client.id, client.fullname);
+
     if (client.cars && client.cars.length > 0) {
       for (const car of client.cars) {
         await qr.manager.remove(Car, car);
@@ -224,7 +230,10 @@ handleIpc("client:delete", async (_, id: string) => {
     await qr.manager.remove(Client, client);
     await qr.commitTransaction();
     invalidateDashboardStatsCache();
-    return { status: "success", message: "Cliente eliminado correctamente" };
+    return {
+      status: "success",
+      message: "Cliente eliminado. Se puede recuperar desde la papelera.",
+    };
   } catch (error) {
     await qr.rollbackTransaction();
     logError("client:delete", error);

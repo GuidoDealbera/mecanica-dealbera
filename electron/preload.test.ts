@@ -64,6 +64,7 @@ describe("superficie que el preload expone", () => {
       "global",
       "onDataChanged",
       "service",
+      "trash",
     ]);
   });
 });
