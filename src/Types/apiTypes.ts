@@ -340,12 +340,21 @@ export interface SequenceCheck {
   truncated: boolean;
 }
 
-/** Filtros del historial de documentos. Todos opcionales. */
-export interface DocumentQueryParams {
+/**
+ * Filtros del historial de documentos. Todos opcionales.
+ *
+ * Antes eran tipo, patente y un tope: con dos años de presupuestos el historial
+ * era una lista de cien y nada más. No había forma de encontrar el documento de
+ * un cliente por su nombre, ni de acotar por fecha, ni de pasar de página.
+ */
+export interface DocumentQueryParams extends Partial<PaginationParams> {
   type?: DocumentType;
   licensePlate?: string;
-  /** Cuántos traer (1-100, por defecto 20). */
-  limit?: number;
+  /** Busca en el nombre del titular y en el número formateado del documento. */
+  search?: string;
+  /** Rango de emisión, en `AAAA-MM-DD`. Los dos extremos son inclusivos. */
+  from?: string;
+  to?: string;
 }
 
 /** Documento ya emitido, con su número correlativo asignado. */

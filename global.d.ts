@@ -151,7 +151,7 @@ declare global {
         discard: (id: string) => Promise<APIResponse>;
         list: (
           filters?: DocumentQueryParams
-        ) => Promise<APIResponse<IssuedDocument[]>>;
+        ) => Promise<APIResponse<Paginated<IssuedDocument>>>;
         get: (
           id: string
         ) => Promise<

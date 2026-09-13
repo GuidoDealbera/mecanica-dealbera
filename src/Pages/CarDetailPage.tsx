@@ -310,7 +310,7 @@ const CarDetailPage: React.FC = () => {
           <Divider className="bg-content3" />
           <CardBody className="pt-3">
             <DocumentHistory
-              filters={{ licensePlate: licence, limit: 10 }}
+              filters={{ licensePlate: licence, pageSize: 10 }}
               emptyText="Todavía no se emitió ningún presupuesto ni factura de este vehículo."
             />
           </CardBody>

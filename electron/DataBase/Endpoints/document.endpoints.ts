@@ -2,8 +2,8 @@ import { dialog, shell } from "electron";
 import fs from "node:fs";
 import path from "node:path";
 import { handleIpc, handleIpcQuery } from "../../ipc";
-import { escapeLike } from "../../pagination";
-import { esIdentificador } from "../../validation";
+import { escapeLike, resolvePage } from "../../pagination";
+import { comoParametros, esIdentificador } from "../../validation";
 import { logError } from "../../logger";
 import { AppDataSource, getRepositories } from "../dataSource";
 import { Document } from "../Entities/document.entity";
@@ -12,6 +12,7 @@ import {
   formatDocumentNumber,
   type APIResponse,
   type DocumentQueryParams,
+  type Paginated,
   type DocumentSnapshot,
   type SequenceCheck,
   type IssueDocumentBody,
@@ -340,13 +341,19 @@ handleIpcQuery(
 handleIpcQuery(
   "document:list",
   "No se pudo cargar el historial de documentos",
-  async (_event, filters?: DocumentQueryParams): Promise<IssuedDocument[]> => {
+  async (
+    _event,
+    entrada?: DocumentQueryParams
+  ): Promise<Paginated<IssuedDocument>> => {
+    const filters = comoParametros<DocumentQueryParams>(entrada);
     const repo = getRepositories().documentRepository;
+    const { page, pageSize, skip, take } = resolvePage(filters);
+    const vacio = { items: [], total: 0, page, pageSize };
 
     // Un tipo inválido no se ignora: filtrar por "algo que no existe" tiene que
     // devolver vacío, no el historial completo.
     if (filters?.type !== undefined && !VALID_TYPES.includes(filters.type)) {
-      return [];
+      return vacio;
     }
 
     const qb = repo.createQueryBuilder("document");
@@ -372,14 +379,43 @@ handleIpcQuery(
       );
     }
 
+    if (filters?.search) {
+      // Por titular **y** por número formateado: son las dos formas en que el
+      // usuario tiene el dato cuando busca —el cliente lo menciona por teléfono
+      // o trae el papel en la mano—.
+      const termino = `%${escapeLike(filters.search.trim())}%`;
+      qb.andWhere(
+        "(document.clientName LIKE :termino ESCAPE :esc OR document.licensePlate LIKE :termino ESCAPE :esc)",
+        { termino, esc: "\\" }
+      );
+    }
+
+    // El rango es por día y los dos extremos entran: quien filtra "del 1 al 5"
+    // espera que el 5 esté. Por eso el tope va al final de ese día.
+    if (filters?.from) {
+      qb.andWhere("document.createdAt >= :desde", {
+        desde: `${filters.from} 00:00:00`,
+      });
+    }
+    if (filters?.to) {
+      qb.andWhere("document.createdAt <= :hasta", {
+        hasta: `${filters.to} 23:59:59.999`,
+      });
+    }
+
     // Orden por fecha y no por número: el correlativo es por tipo, así que al
     // mezclar presupuestos y facturas ordenar por número intercalaría series.
     // Se desempata por número, que dentro de un tipo es único.
-    const docs = await qb
+    //
+    // `offset/limit` y no `skip/take`: no hay ningún join a-muchos. Ver
+    // `resolvePage`.
+    const [docs, total] = await qb
       .orderBy("document.createdAt", "DESC")
       .addOrderBy("document.number", "DESC")
-      .take(Math.min(Math.max(Number(filters?.limit) || 20, 1), 100))
-      .getMany();
-    return docs.map(toPlainDocument);
+      .offset(skip)
+      .limit(take)
+      .getManyAndCount();
+
+    return { items: docs.map(toPlainDocument), total, page, pageSize };
   }
 );

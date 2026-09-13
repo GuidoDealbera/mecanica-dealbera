@@ -393,7 +393,7 @@ const BackupPage: React.FC = () => {
           }
         >
           <RevisionDelCorrelativo />
-          <DocumentHistory filters={{ limit: 15 }} showPlate />
+          <DocumentHistory filters={{ pageSize: 15 }} showPlate searchable />
         </DataCard>
       </div>
 

@@ -36,26 +36,30 @@ vi.mock("electron", () => ({
 let dir: string;
 let ds: DataSource;
 
-const listar = async (filtros?: unknown) => {
+const pagina = async (filtros?: unknown) => {
   const handler = stub.handlers.get("document:list");
   if (!handler) throw new Error("No se registró document:list");
   const res = (await handler({}, filtros)) as {
-    result: { formatted: string }[];
+    result: { items: { formatted: string }[]; total: number };
   };
   return res.result;
 };
+
+/** Sólo los documentos, que es lo que miran la mayoría de los casos. */
+const listar = async (filtros?: unknown) => (await pagina(filtros)).items;
 
 const emitir = (
   id: string,
   tipo: string,
   numero: number,
   fecha: string,
-  patente = "AB123CD"
+  patente = "AB123CD",
+  titular = "Ana Gómez"
 ) =>
   ds.query(
     `INSERT INTO document (id, type, number, licensePlate, clientName, total, createdAt)
-     VALUES (?, ?, ?, ?, 'Ana Gómez', 50000, ?)`,
-    [id, tipo, numero, patente, fecha]
+     VALUES (?, ?, ?, ?, ?, 50000, ?)`,
+    [id, tipo, numero, patente, titular, fecha]
   );
 
 beforeEach(async () => {
@@ -284,5 +288,111 @@ describe("revisar la numeración", () => {
 
     expect(r.budget.truncated).toBe(true);
     expect(r.budget.missing).toHaveLength(50);
+  });
+});
+
+describe("encontrar un documento entre dos años de historial", () => {
+  /**
+   * El historial aceptaba tipo, patente y un tope de cien. Sin búsqueda por
+   * titular, sin rango de fechas y sin paginado, con dos años de presupuestos
+   * era una lista de cien y nada más.
+   */
+  const cargar = async () => {
+    await emitir(
+      "d1",
+      "budget",
+      1,
+      "2026-01-10 09:00:00",
+      "AB123CD",
+      "Ana Gómez"
+    );
+    await emitir(
+      "d2",
+      "budget",
+      2,
+      "2026-03-15 09:00:00",
+      "XY456ZW",
+      "Carlos Bravo"
+    );
+    await emitir(
+      "d3",
+      "budget",
+      3,
+      "2026-06-20 09:00:00",
+      "AB123CD",
+      "Ana Gómez"
+    );
+    await emitir(
+      "d4",
+      "budget",
+      4,
+      "2026-09-05 09:00:00",
+      "ZZ999ZZ",
+      "Beatriz Sosa"
+    );
+  };
+
+  it("busca por titular", async () => {
+    await cargar();
+
+    const encontrados = await listar({ search: "carlos" });
+
+    // Sin distinguir mayúsculas: el usuario escribe como le sale.
+    expect(encontrados.map((d) => d.formatted)).toEqual(["PRE-000002"]);
+  });
+
+  it("busca también por patente, que es el otro dato que se tiene a mano", async () => {
+    await cargar();
+
+    expect((await listar({ search: "ZZ999" })).map((d) => d.formatted)).toEqual(
+      ["PRE-000004"]
+    );
+  });
+
+  it("acota por rango de fechas, con los dos extremos adentro", async () => {
+    await cargar();
+
+    const enRango = await listar({ from: "2026-03-15", to: "2026-06-20" });
+
+    // Quien filtra "del 15 al 20" espera que el 20 esté: el documento de ese
+    // día es de las 09:00 y el tope tiene que llegar al final del día.
+    expect(enRango.map((d) => d.formatted)).toEqual([
+      "PRE-000003",
+      "PRE-000002",
+    ]);
+  });
+
+  it("pagina, y el total es el de todos los que coinciden", async () => {
+    await cargar();
+
+    const primera = await pagina({ page: 1, pageSize: 2 });
+    const segunda = await pagina({ page: 2, pageSize: 2 });
+
+    expect(primera.total).toBe(4);
+    expect(primera.items.map((d) => d.formatted)).toEqual([
+      "PRE-000004",
+      "PRE-000003",
+    ]);
+    expect(segunda.items.map((d) => d.formatted)).toEqual([
+      "PRE-000002",
+      "PRE-000001",
+    ]);
+  });
+
+  it("los filtros se combinan", async () => {
+    await cargar();
+
+    const r = await pagina({ search: "Ana", from: "2026-05-01" });
+
+    expect(r.total).toBe(1);
+    expect(r.items[0].formatted).toBe("PRE-000003");
+  });
+
+  it("el término de búsqueda es texto, no comodines", async () => {
+    await cargar();
+
+    // Sin escapar, `%` devolvería el historial completo.
+    expect(await listar({ search: "%" })).toEqual([]);
+    expect(await listar({ search: "_" })).toEqual([]);
   });
 });

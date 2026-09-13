@@ -1970,11 +1970,28 @@ de auto"— sin obligar a elegir entre perder un dato y perder un día.
 
 ### H6 · 🟡 No hay búsqueda ni filtro en el historial de documentos
 
-**[pendiente]** · `src/Components/DocumentHistory.tsx`
+**[a testear]** · `src/Components/DocumentHistory.tsx`
 
 `document:list` acepta `type`, `licensePlate` y `limit` (tope 100). No hay
 búsqueda por nombre de cliente, ni rango de fechas, ni paginado. Con dos años de
 presupuestos, el historial es una lista de 100 y nada más.
+
+**Resuelto**: `document:list` pasó a devolver `Paginated`, como los otros
+listados, y acepta búsqueda y rango de fechas.
+
+La búsqueda mira el titular **y la patente**, que son las dos formas en que el
+usuario tiene el dato: o el cliente lo menciona por teléfono, o trae el papel en
+la mano. El término se escapa, o un `%` devolvería el historial completo.
+
+El rango incluye los dos extremos: quien filtra "del 15 al 20" espera que el 20
+esté, así que el tope va al final de ese día y no a su medianoche.
+
+Los filtros se muestran sólo donde sirven: en Gestión de datos, que es la
+pantalla que se usa para encontrar un documento. Dentro de la ficha de un
+vehículo el listado sigue siendo un bloque compacto.
+
+Detalle de la pantalla vacía: con filtros puestos dice "ningún documento
+coincide" y no "todavía no se emitió ninguno", que sería mentira.
 
 ### H7 · 🟡 Los intervalos de service por vehículo no se pueden configurar
 
