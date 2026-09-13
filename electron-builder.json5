@@ -30,7 +30,17 @@
     provider: "github",
     owner: "GuidoDealbera",
     repo: "mecanica-dealbera",
-    releaseType: "release",
+
+    // Borrador, y el flujo lo publica al final si quedo completo.
+    //
+    // Con "release" cada subida en paralelo intenta crear el release ya
+    // visible: al publicar la 2.1.0 las dos salieron juntas, una gano y la otra
+    // corto el build con un 422 de la API. Quedo un release marcado "Latest"
+    // con el blockmap suelto, sin instalador y sin `latest.yml` —o sea,
+    // invisible para el updater y perfecto a la vista—.
+    //
+    // Un borrador no lo ve nadie, asi que un subido a medias no engana a nadie.
+    releaseType: "draft",
   },
 
   directories: {

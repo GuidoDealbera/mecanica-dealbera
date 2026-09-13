@@ -217,16 +217,33 @@ updater.
 El flujo puede fallar **después** de subir el instalador y publicar el release.
 Queda un release que en GitHub se ve perfecto y del que **ninguna aplicación
 instalada se entera**, porque el updater lo primero que busca es `latest.yml`.
-Ya pasó con la 2.0.0. Volver a publicar lo arregla: electron-builder reemplaza
-los assets que ya existen.
+Pasó con la 2.0.0 y volvió a pasar con la 2.1.0.
 
-Revisar siempre, y en este orden:
+Lo que hay que revisar, y en este orden:
 
 1. Que el release tenga **tres** assets: `.exe`, `.exe.blockmap` y `latest.yml`.
 2. Que el `size` de `latest.yml` coincida con el del `.exe` publicado.
 3. Que el **sha512** coincida. Es el único que falla en silencio, y es
    perfectamente posible que no coincida si cada archivo quedó de un build
    distinto.
+
+Eso ya no se revisa a mano: lo hace `release.yml`, y de ahí salen tres reglas
+que **no hay que deshacer**, porque cada una tapa una forma distinta de romperlo.
+
+- **El release se arma en borrador y se publica al final**, cuando los tres
+  archivos están arriba y el sha512 dio bien. Un borrador no lo ve el updater,
+  así que un subido a medias no engaña a nadie: queda invisible y el próximo
+  intento lo reutiliza. Por eso `releaseType` es `"draft"`.
+- **El release se crea antes de llamar a electron-builder.** Las subidas del
+  instalador y del blockmap van **en paralelo** y cada una crea el release si no
+  existe: en la 2.1.0 las dos salieron juntas, una ganó y la otra murió con un
+  `422 Validation Failed` **después** de haber subido un archivo. Creándolo
+  antes, electron-builder sólo sube.
+- **El guard pregunta si el release está completo, no si existe.** Preguntar si
+  existía fue peor que no preguntar: con el release roto ya creado, el flujo se
+  negaba a repararlo porque "ya estaba publicado", y no había forma de
+  reintentar sin borrarlo a mano. Un release sin `latest.yml` no está publicado
+  para nadie.
 
 El nombre no es problema: el `.exe` local lleva acento y espacios
 (`Mecánica Dealbera-Windows-X-Setup.exe`) y `latest.yml` apunta al nombre

@@ -50,8 +50,15 @@ para publicar, con la versión de `package.json` subida.
    cartel de actualización, y un release mudo es lo que se estaba tratando de
    evitar.
 3. Merge a `main`.
-4. Revisar el release como dice CLAUDE.md: tres archivos, y que el `sha512` de
-   `latest.yml` coincida. Es el único que falla en silencio.
+
+El flujo hace el resto: arma el release **en borrador**, sube los tres archivos,
+comprueba que el `sha512` de `latest.yml` corresponda al `.exe`, y recién ahí lo
+publica. Si algo falla queda un borrador, que nadie ve y que el próximo intento
+reutiliza; el motivo de cada una de esas tres cosas está en CLAUDE.md, y las
+tres se aprendieron publicando mal la 2.0.0 y la 2.1.0.
+
+Para reintentar un release que quedó a medias **no hace falta borrar nada**:
+volver a pushear a `main` alcanza, porque el guard mira si está completo.
 
 ## Cómo se escribe acá
 
