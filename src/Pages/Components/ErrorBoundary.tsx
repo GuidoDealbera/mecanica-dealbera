@@ -6,6 +6,16 @@ import { reportarError } from "../../Utils/reportarError";
 interface ErrorBoundaryState {
   hasError: boolean;
   error: Error | null;
+  /**
+   * Identificador corto de este error, para que el usuario pueda dictarlo por
+   * teléfono y quien lo atiende lo encuentre en el log.
+   *
+   * El detalle técnico se mostraba sólo con `import.meta.env.DEV`: en producción
+   * el usuario veía "ocurrió un error inesperado" y nada más. Un stack trace no
+   * le sirve, pero un código sí, y es lo que convierte "se rompió" en algo que
+   * se puede buscar.
+   */
+  errorId: string | null;
 }
 
 interface ErrorBoundaryProps {
@@ -19,11 +29,14 @@ class ErrorBoundary extends React.Component<
 > {
   constructor(props: ErrorBoundaryProps) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = { hasError: false, error: null, errorId: null };
   }
 
   static getDerivedStateFromError(error: Error): ErrorBoundaryState {
-    return { hasError: true, error };
+    // Corto y en mayúsculas: se dicta por teléfono. Ocho caracteres alcanzan
+    // para encontrarlo en el log de un día.
+    const errorId = crypto.randomUUID().slice(0, 8).toUpperCase();
+    return { hasError: true, error, errorId };
   }
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
@@ -33,21 +46,27 @@ class ErrorBoundary extends React.Component<
     // llama y se le pide que mande los logs.
     reportarError("renderer:boundary", error, {
       componentStack: info.componentStack ?? undefined,
+      // El mismo código que se le muestra al usuario: es lo que permite
+      // encontrar **este** error entre todos los del archivo.
+      errorId: this.state.errorId ?? undefined,
     });
   }
 
   handleRetry = () => {
-    this.setState({ hasError: false, error: null });
+    this.setState({ hasError: false, error: null, errorId: null });
   };
 
   handleBack = () => {
     if (this.props.onBack) {
       this.props.onBack();
-      this.setState({ hasError: false, error: null });
+      this.setState({ hasError: false, error: null, errorId: null });
     } else {
       window.history.back();
       // Pequeño delay para que el historial navegue antes de limpiar el error
-      setTimeout(() => this.setState({ hasError: false, error: null }), 100);
+      setTimeout(
+        () => this.setState({ hasError: false, error: null, errorId: null }),
+        100
+      );
     }
   };
 
@@ -74,12 +93,16 @@ class ErrorBoundary extends React.Component<
               Ocurrió un error inesperado al renderizar esta sección. Podés
               intentar recargar o volver a la pantalla anterior.
             </p>
-            {/* Que quedó registrado importa decirlo: es lo que convierte el
-                "algo salió mal" en algo que se puede averiguar después. El
-                botón para abrir la carpeta está en Respaldos. */}
+            {/* El código es lo que convierte el "algo salió mal" en algo que
+                se puede averiguar: el usuario lo dicta por teléfono y quien lo
+                atiende lo busca en el log. Un stack trace no le sirve a él. */}
             <p className="text-foreground-500 text-xs mt-3 leading-relaxed">
-              El detalle quedó guardado en los registros de la aplicación
-              (Respaldos → Abrir carpeta de registros).
+              Si necesitás ayuda, pasá este código:{" "}
+              <span className="font-mono font-semibold text-foreground-300">
+                {this.state.errorId}
+              </span>
+              . El detalle quedó guardado en los registros de la aplicación
+              (Gestión de datos → Ver logs).
             </p>
           </div>
 

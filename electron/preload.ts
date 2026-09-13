@@ -169,39 +169,66 @@ contextBridge.exposeInMainWorld("api", {
       stack?: string;
       componentStack?: string;
       route?: string;
+      errorId?: string;
     }) => ipcRenderer.send("app:log-renderer-error", payload),
   },
 });
 
-/** Canales que el proceso principal usa para informar el estado de la actualización. */
-const UPDATER_CHANNELS = [
-  "update-available",
-  "update-not-available",
-  "update-progress",
-  "update-downloaded",
-  "update-error",
-] as const;
+/**
+ * Canales que el proceso principal usa para informar el estado de la
+ * actualización.
+ *
+ * Era un arreglo, para poder recorrerlo desde `removeAllListeners`. Ese martillo
+ * ya no está —cada suscripción devuelve su baja—, así que queda sólo el tipo:
+ * lo que hacía falta era acotar qué canal se puede escuchar, no enumerarlos en
+ * tiempo de ejecución.
+ */
+type CanalDeUpdater =
+  | "update-available"
+  | "update-not-available"
+  | "update-progress"
+  | "update-downloaded"
+  | "update-error";
+
+/**
+ * Suscribe un canal del updater y **devuelve su baja**.
+ *
+ * Antes los `onUpdate*` no devolvían nada y la limpieza era un
+ * `removeAllListeners()` que borraba **todos** los listeners de esos canales,
+ * fueran de quien fueran. Funcionaba porque el único consumidor era el `Header`;
+ * el día que otra pantalla escuchara uno de esos canales, desmontar el Header la
+ * dejaba sorda sin ningún error y sin forma de darse cuenta.
+ *
+ * El patrón correcto ya estaba en este mismo archivo: `onDataChanged` devuelve
+ * su propia función de baja.
+ *
+ * Y el callback se envuelve **siempre**. `onUpdateNotAvailable` y `onDownloaded`
+ * registraban el callback directo, así que recibían `(event, ...args)`: no
+ * molestaba porque no usan argumentos, pero filtraba el objeto del evento IPC al
+ * renderer, que es justo lo que el puente existe para no hacer.
+ */
+const suscribir = <T>(
+  canal: CanalDeUpdater,
+  cb: (data: T) => void
+): (() => void) => {
+  const handler = (_event: unknown, data: T) => cb(data);
+  ipcRenderer.on(canal, handler);
+  return () => {
+    ipcRenderer.removeListener(canal, handler);
+  };
+};
 
 contextBridge.exposeInMainWorld("updater", {
   onUpdateAvailable: (cb: (data: UpdateInfo) => void) =>
-    ipcRenderer.on("update-available", (_, data) => cb(data)),
+    suscribir("update-available", cb),
   onUpdateNotAvailable: (cb: () => void) =>
-    ipcRenderer.on("update-not-available", cb),
+    suscribir("update-not-available", cb),
   onProgress: (cb: (data: UpdateProgress) => void) =>
-    ipcRenderer.on("update-progress", (_, data) => cb(data)),
-  onDownloaded: (cb: () => void) => ipcRenderer.on("update-downloaded", cb),
+    suscribir("update-progress", cb),
+  onDownloaded: (cb: () => void) => suscribir("update-downloaded", cb),
   onError: (cb: (data: { message: string }) => void) =>
-    ipcRenderer.on("update-error", (_, data) => cb(data)),
+    suscribir("update-error", cb),
   startDownload: () => ipcRenderer.send("start-update-download"),
   installUpdate: () => ipcRenderer.send("install-update"),
   checkForUpdates: () => ipcRenderer.invoke("check-for-updates"),
-  // Los `on` de arriba acumulan listeners: sin una forma de darlos de baja, cada
-  // montaje del componente que los registra agrega un handler más y el mismo
-  // aviso se muestra repetido (en desarrollo pasa siempre, porque `StrictMode`
-  // ejecuta los efectos dos veces).
-  removeAllListeners: () => {
-    for (const channel of UPDATER_CHANNELS) {
-      ipcRenderer.removeAllListeners(channel);
-    }
-  },
 });

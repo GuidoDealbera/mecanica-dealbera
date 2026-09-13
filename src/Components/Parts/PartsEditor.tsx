@@ -1,7 +1,20 @@
 import React from "react";
 import { Button, Chip, Input, Tooltip } from "@heroui/react";
-import { MdAdd, MdDelete } from "react-icons/md";
-import { formatARS, formatThousands, parseNumber } from "../../Utils/utils";
+import { MdAdd, MdCheck, MdClose, MdDelete, MdEdit } from "react-icons/md";
+import {
+  formatARS,
+  formatThousands,
+  normalizeText,
+  parseNumber,
+} from "../../Utils/utils";
+
+/**
+ * Techo del precio de un repuesto.
+ *
+ * No hay repuesto de cien millones: un número así es un cero de más, y sin
+ * techo pasa derecho al total del presupuesto.
+ */
+const PRECIO_MAXIMO = 100_000_000;
 
 type Part = { name: string; price: number };
 
@@ -28,14 +41,41 @@ const PartsEditor: React.FC<PartsEditorProps> = ({
   );
   const [partNameError, setPartNameError] = React.useState("");
   const [partPriceError, setPartPriceError] = React.useState("");
+  /**
+   * Qué repuesto se está corrigiendo, o `null` si se está agregando uno nuevo.
+   *
+   * Antes sólo se podía agregar y borrar: corregir el precio de un repuesto
+   * obligaba a borrarlo y volver a cargarlo, con el nombre otra vez.
+   */
+  const [editando, setEditando] = React.useState<number | null>(null);
 
   const totalParts = parts.reduce((acc, p) => acc + p.price, 0);
 
+  const limpiar = () => {
+    setPartName("");
+    setPartPrice(undefined);
+    setPartNameError("");
+    setPartPriceError("");
+    setEditando(null);
+  };
+
   const handleAdd = () => {
     let hasError = false;
+    const nombre = partName.trim();
 
-    if (!partName.trim()) {
+    if (!nombre) {
       setPartNameError("Ingresá un nombre");
+      hasError = true;
+    } else if (
+      // Repetido: casi siempre es cargar dos veces lo mismo sin darse cuenta, y
+      // el documento saldría con el renglón duplicado. Se compara sin acentos ni
+      // mayúsculas, que es como lo ve el que lo lee.
+      parts.some(
+        (p, i) =>
+          i !== editando && normalizeText(p.name) === normalizeText(nombre)
+      )
+    ) {
+      setPartNameError("Ya agregaste un repuesto con ese nombre");
       hasError = true;
     } else {
       setPartNameError("");
@@ -44,18 +84,38 @@ const PartsEditor: React.FC<PartsEditorProps> = ({
     if (!partPrice || partPrice <= 0) {
       setPartPriceError("Ingresá un precio");
       hasError = true;
+    } else if (partPrice > PRECIO_MAXIMO) {
+      // Sin techo, un cero de más pasa derecho al total del presupuesto.
+      setPartPriceError("Ese precio parece un error de tipeo");
+      hasError = true;
     } else {
       setPartPriceError("");
     }
 
     if (hasError) return;
 
-    onChange([...parts, { name: partName.trim(), price: partPrice! }]);
-    setPartName("");
-    setPartPrice(undefined);
+    const repuesto = { name: nombre, price: partPrice! };
+    onChange(
+      editando === null
+        ? [...parts, repuesto]
+        : parts.map((p, i) => (i === editando ? repuesto : p))
+    );
+    limpiar();
+  };
+
+  const handleEdit = (index: number) => {
+    setEditando(index);
+    setPartName(parts[index].name);
+    setPartPrice(parts[index].price);
+    setPartNameError("");
+    setPartPriceError("");
   };
 
   const handleRemove = (index: number) => {
+    // Si se borra el que se estaba corrigiendo, el formulario vuelve a "agregar":
+    // si no, el índice quedaría apuntando a otro repuesto.
+    if (editando === index) limpiar();
+    else if (editando !== null && index < editando) setEditando(editando - 1);
     onChange(parts.filter((_, i) => i !== index));
   };
 
@@ -111,14 +171,34 @@ const PartsEditor: React.FC<PartsEditorProps> = ({
         />
         <Button
           isIconOnly
+          aria-label={
+            editando === null ? "Agregar repuesto" : "Guardar el repuesto"
+          }
           size={inputSize}
           color="primary"
           className="mt-1 shrink-0"
           onPress={handleAdd}
           isDisabled={isDisabled}
         >
-          <MdAdd size={compact ? 18 : 20} />
+          {editando === null ? (
+            <MdAdd size={compact ? 18 : 20} />
+          ) : (
+            <MdCheck size={compact ? 18 : 20} />
+          )}
         </Button>
+        {editando !== null && (
+          <Button
+            isIconOnly
+            aria-label="Cancelar la corrección"
+            size={inputSize}
+            variant="flat"
+            className="mt-1 shrink-0"
+            onPress={limpiar}
+            isDisabled={isDisabled}
+          >
+            <MdClose size={compact ? 18 : 20} />
+          </Button>
+        )}
       </div>
 
       {/* Lista de repuestos */}
@@ -162,6 +242,18 @@ const PartsEditor: React.FC<PartsEditorProps> = ({
                 >
                   {formatARS(part.price)}
                 </span>
+                <Tooltip color="primary" content="Corregir" showArrow>
+                  <Button
+                    isIconOnly
+                    aria-label={`Corregir ${part.name}`}
+                    size="sm"
+                    variant="flat"
+                    onPress={() => handleEdit(i)}
+                    isDisabled={isDisabled}
+                  >
+                    <MdEdit size={compact ? 15 : 16} />
+                  </Button>
+                </Tooltip>
                 <Tooltip
                   color="danger"
                   content="Eliminar repuesto"
@@ -170,6 +262,9 @@ const PartsEditor: React.FC<PartsEditorProps> = ({
                 >
                   <Button
                     isIconOnly
+                    // Con el nombre del repuesto: en una lista de cinco, "botón
+                    // eliminar" cinco veces no le sirve a nadie.
+                    aria-label={`Eliminar ${part.name}`}
                     size="sm"
                     variant="flat"
                     color="danger"

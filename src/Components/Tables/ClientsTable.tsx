@@ -115,6 +115,7 @@ const ClientTable: React.FC<ClientTableProps> = ({
                     <Button
                       onPress={() => onSortChange(column.key)}
                       isIconOnly
+                      aria-label={`Ordenar por ${column.label}`}
                       size="sm"
                       className="bg-transparent"
                     >
@@ -212,6 +213,7 @@ const ClientTable: React.FC<ClientTableProps> = ({
                     <Tooltip content="Ver detalle" color="primary" showArrow>
                       <Button
                         isIconOnly
+                        aria-label={`Ver detalle de ${client.fullname}`}
                         size="sm"
                         className="bg-transparent"
                         onPress={() => navigate(`/clients/${client.id}`)}
@@ -227,6 +229,9 @@ const ClientTable: React.FC<ClientTableProps> = ({
                       >
                         <Button
                           isIconOnly
+                          aria-label={`${
+                            client.isActive ? "Desactivar" : "Activar"
+                          } a ${client.fullname}`}
                           size="sm"
                           className="bg-transparent"
                           onPress={() =>
@@ -255,6 +260,7 @@ const ClientTable: React.FC<ClientTableProps> = ({
                       <Tooltip content="Eliminar" color="danger" showArrow>
                         <Button
                           isIconOnly
+                          aria-label={`Eliminar a ${client.fullname}`}
                           size="sm"
                           className="bg-transparent"
                           onPress={() => onDelete(client.id, client.fullname)}

@@ -51,6 +51,58 @@ describe("superficie que el preload expone", () => {
     expect([...expuesto.keys()].sort()).toEqual(["api", "updater"]);
   });
 
+  it("cada listener del updater devuelve su propia baja", () => {
+    // Antes no devolvían nada y la limpieza era un `removeAllListeners()` que
+    // borraba **todos** los listeners de esos canales, fueran de quien fueran.
+    // Funcionaba porque el único consumidor era el Header; el día que otra
+    // pantalla escuchara uno, desmontar el Header la dejaba sorda sin ningún
+    // error y sin forma de darse cuenta.
+    const updater = expuesto.get("updater") as Record<
+      string,
+      (cb: () => void) => unknown
+    >;
+
+    for (const nombre of [
+      "onUpdateAvailable",
+      "onUpdateNotAvailable",
+      "onProgress",
+      "onDownloaded",
+      "onError",
+    ]) {
+      expect(typeof updater[nombre](() => {}), nombre).toBe("function");
+    }
+
+    // Y el martillo ya no está: quien quiera limpiar tiene que usar su baja.
+    expect(updater.removeAllListeners).toBeUndefined();
+  });
+
+  it("los listeners del updater no filtran el evento IPC", async () => {
+    // `onUpdateNotAvailable` y `onDownloaded` registraban el callback directo,
+    // así que recibían `(event, ...args)`. No molestaba porque no usan
+    // argumentos, pero filtraba el objeto del evento al renderer, que es justo
+    // lo que el puente existe para no hacer.
+    const { ipcRenderer } = (await import("electron")) as unknown as {
+      ipcRenderer: { on: { mock: { calls: unknown[][] } } };
+    };
+    const updater = expuesto.get("updater") as Record<
+      string,
+      (cb: (data: unknown) => void) => unknown
+    >;
+
+    const recibido: unknown[] = [];
+    updater.onDownloaded((...args: unknown[]) => recibido.push(args));
+
+    // Se dispara el handler que quedó registrado, como haría el proceso
+    // principal: con un evento adelante y los datos atrás.
+    const [, handler] = ipcRenderer.on.mock.calls.at(-1) as [
+      string,
+      (evento: unknown, data: unknown) => void,
+    ];
+    handler({ sender: "el evento IPC" }, { version: "2.1.0" });
+
+    expect(recibido).toEqual([[{ version: "2.1.0" }]]);
+  });
+
   it("el objeto `api` sigue teniendo sus áreas", () => {
     // Si esto se rompe, el test de arriba podría estar pasando porque el
     // preload dejó de exponer nada.

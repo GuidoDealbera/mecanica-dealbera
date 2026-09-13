@@ -79,6 +79,7 @@ const FilterByLicence: React.FC<Props> = ({
             className="absolute top-8 -right-10"
             color={isValid ? "primary" : "danger"}
             isIconOnly
+            aria-label="Limpiar el filtro de patente"
             type="button"
             onPress={handleClear}
           >
