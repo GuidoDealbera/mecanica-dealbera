@@ -1,12 +1,14 @@
 import React from "react";
-import { Chip, Spinner } from "@heroui/react";
-import { MdDescription, MdReceiptLong } from "react-icons/md";
+import { Button, Chip, Spinner, Tooltip } from "@heroui/react";
+import { MdDescription, MdPrint, MdReceiptLong } from "react-icons/md";
 import {
   DocumentType,
   type DocumentQueryParams,
   type IssuedDocument,
 } from "../Types/apiTypes";
 import { formatARS } from "../Utils/utils";
+import { useBudgetPDF } from "../Hooks/useBudgetPdf";
+import { useToasts } from "../Hooks/useToasts";
 
 interface DocumentHistoryProps {
   /** Filtros del listado. Sin patente, trae el historial de todo el taller. */
@@ -54,6 +56,31 @@ const DocumentHistory: React.FC<DocumentHistoryProps> = ({
   showPlate = false,
 }) => {
   const [documents, setDocuments] = React.useState<IssuedDocument[]>([]);
+  const { reimprimir, isGenerating } = useBudgetPDF();
+  const { showToast } = useToasts();
+
+  const handleReimprimir = React.useCallback(
+    async (doc: IssuedDocument) => {
+      try {
+        const hecho = await reimprimir(doc.id);
+        // `null` es que el usuario canceló el guardado: no hay nada que avisar.
+        if (hecho) {
+          showToast(
+            `Documento ${doc.formatted} generado de nuevo`,
+            "success",
+            "Reimprimir"
+          );
+        }
+      } catch (err) {
+        showToast(
+          err instanceof Error ? err.message : "No se pudo reimprimir",
+          "danger",
+          "Reimprimir"
+        );
+      }
+    },
+    [reimprimir, showToast]
+  );
   const [loading, setLoading] = React.useState(true);
 
   // `filters` suele venir como objeto literal, que cambia de identidad en cada
@@ -131,6 +158,34 @@ const DocumentHistory: React.FC<DocumentHistoryProps> = ({
           <span className="text-sm font-semibold tabular-nums">
             {formatARS(doc.total)}
           </span>
+
+          {/* Reimprimir: el caso real es que el cliente pierda el papel. No
+              emite nada —no toma número nuevo ni toca la base—, vuelve a
+              dibujar la copia que se guardó al emitirlo. */}
+          <Tooltip
+            content={
+              doc.hasSnapshot
+                ? "Volver a generar el PDF"
+                : "Se emitió antes de que se guardara su contenido"
+            }
+            color={doc.hasSnapshot ? "primary" : "warning"}
+            showArrow
+          >
+            {/* El `span` es para que el tooltip siga apareciendo con el botón
+                deshabilitado, que es justo cuando hay algo que explicar. */}
+            <span>
+              <Button
+                isIconOnly
+                size="sm"
+                variant="light"
+                aria-label={`Reimprimir ${doc.formatted}`}
+                isDisabled={!doc.hasSnapshot || isGenerating}
+                onPress={() => handleReimprimir(doc)}
+              >
+                <MdPrint size={16} />
+              </Button>
+            </span>
+          </Tooltip>
         </div>
       ))}
     </div>

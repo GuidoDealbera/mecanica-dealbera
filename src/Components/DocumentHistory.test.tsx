@@ -31,6 +31,7 @@ const doc = (overrides: Partial<IssuedDocument> = {}): IssuedDocument => ({
   clientName: "Ana Gómez",
   total: 125000,
   createdAt: new Date(2026, 8, 6, 10, 30).toISOString(),
+  hasSnapshot: true,
   ...overrides,
 });
 
@@ -45,7 +46,10 @@ beforeEach(() => {
   Object.defineProperty(window, "api", {
     configurable: true,
     writable: true,
-    value: { documents: { list }, onDataChanged },
+    value: {
+      documents: { list, get: vi.fn(), savePdf: vi.fn() },
+      onDataChanged,
+    },
   });
 });
 

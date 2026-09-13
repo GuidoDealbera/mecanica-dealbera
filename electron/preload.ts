@@ -104,6 +104,8 @@ contextBridge.exposeInMainWorld("api", {
       await ipcRenderer.invoke("document:discard", id),
     list: async (filters?: DocumentQueryParams) =>
       await ipcRenderer.invoke("document:list", filters),
+    /** Un documento con la copia de lo que se imprimió, para reimprimirlo. */
+    get: async (id: string) => await ipcRenderer.invoke("document:get", id),
     /** Pregunta dónde guardar el PDF ya dibujado y lo escribe. */
     savePdf: async (payload: { defaultName: string; bytes: Uint8Array }) =>
       await ipcRenderer.invoke("document:save-pdf", payload),

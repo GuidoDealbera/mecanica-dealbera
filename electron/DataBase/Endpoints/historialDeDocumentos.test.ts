@@ -72,6 +72,56 @@ afterEach(async () => {
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
+const traer = async (id: string) => {
+  const handler = stub.handlers.get("document:get");
+  if (!handler) throw new Error("No se registró document:get");
+  const res = (await handler({}, id)) as {
+    result: { snapshot: unknown; formatted: string } | null;
+  };
+  return res.result;
+};
+
+describe("leer un documento para reimprimirlo", () => {
+  it("trae la copia de lo que se imprimió", async () => {
+    await ds.query(
+      `INSERT INTO document (id, type, number, licensePlate, clientName, total, snapshot, createdAt)
+       VALUES ('d1','budget',1,'AB123CD','Ana Gómez',50000, ?, '2026-01-01 09:00:00')`,
+      [JSON.stringify({ title: "Presupuesto", jobs: [{ id: "j1" }] })]
+    );
+
+    const doc = await traer("d1");
+
+    expect(doc?.formatted).toBe("PRE-000001");
+    expect(doc?.snapshot).toMatchObject({ title: "Presupuesto" });
+  });
+
+  it("el listado no arrastra las copias, sólo dice si las hay", async () => {
+    // Veinte documentos en el historial no tienen por qué traer veinte copias
+    // completas para decidir si mostrar un botón.
+    await emitir("d1", "budget", 1, "2026-01-01 09:00:00");
+    await ds.query(`UPDATE document SET snapshot = ? WHERE id = 'd1'`, [
+      JSON.stringify({ title: "Presupuesto", jobs: [] }),
+    ]);
+    await emitir("d2", "budget", 2, "2026-02-01 09:00:00");
+
+    const lista = (await listar()) as unknown as {
+      formatted: string;
+      hasSnapshot: boolean;
+      snapshot?: unknown;
+    }[];
+
+    expect(lista.map((d) => [d.formatted, d.hasSnapshot])).toEqual([
+      ["PRE-000002", false],
+      ["PRE-000001", true],
+    ]);
+    expect(lista[0]).not.toHaveProperty("snapshot");
+  });
+
+  it("un id que no existe se contesta con null, no revienta", async () => {
+    expect(await traer("id-que-no-existe")).toBeNull();
+  });
+});
+
 describe("el historial de documentos", () => {
   it("sale del más reciente al más viejo, mezclando tipos", async () => {
     await emitir("d1", "budget", 1, "2026-01-01 09:00:00");

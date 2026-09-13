@@ -14,6 +14,7 @@ import {
   DocumentType,
   IssueDocumentBody,
   IssuedDocument,
+  DocumentSnapshot,
   Paginated,
   ReminderQueryParams,
   SaveReminderBody,
@@ -150,6 +151,13 @@ declare global {
         list: (
           filters?: DocumentQueryParams
         ) => Promise<APIResponse<IssuedDocument[]>>;
+        get: (
+          id: string
+        ) => Promise<
+          APIResponse<
+            (IssuedDocument & { snapshot: DocumentSnapshot | null }) | null
+          >
+        >;
         savePdf: (payload: {
           defaultName: string;
           bytes: Uint8Array;

@@ -1,9 +1,13 @@
 import { useCallback, useState } from "react";
 import { Cars, Jobs } from "../Types/types";
-import { DocumentType, type IssuedDocument } from "../Types/apiTypes";
+import {
+  DocumentType,
+  type DocumentSnapshot,
+  type IssuedDocument,
+} from "../Types/apiTypes";
 import { computeTotals, eligibleJobsForDocument } from "../Utils/documentRules";
 import { reportarError } from "../Utils/reportarError";
-import type { VehicleSummary } from "../Utils/budgetPdf";
+import type { BudgetTotals, VehicleSummary } from "../Utils/budgetPdf";
 
 /** Título impreso según el tipo de documento. */
 export const DOCUMENT_TITLES: Record<DocumentType, string> = {
@@ -17,6 +21,59 @@ export interface BudgetOptions {
   /** Título impreso; por defecto, el que corresponde al tipo. */
   title?: string;
 }
+
+/**
+ * Copia de lo que se imprime, quedándose **sólo con lo que sale en el papel**.
+ *
+ * No se guardan las entidades enteras: nada de `kmHistory`, ni las notas
+ * internas del taller, ni los trabajos que no entraron al documento. Guardar de
+ * más ensuciaría para siempre una tabla que no se borra nunca, y guardar cosas
+ * que el documento no muestra invita a que alguien las lea creyendo que son
+ * parte del comprobante.
+ */
+const armarCopia = ({
+  title,
+  car,
+  jobs,
+  totals,
+  vehicles,
+  jobPlates,
+}: {
+  title: string;
+  car: Cars;
+  jobs: Jobs[];
+  totals: BudgetTotals;
+  vehicles?: VehicleSummary[];
+  jobPlates?: Record<string, string>;
+}): DocumentSnapshot => ({
+  title,
+  car: {
+    licensePlate: car.licensePlate,
+    brand: car.brand,
+    model: car.model,
+    year: car.year,
+    kilometers: car.kilometers,
+    owner: car.owner
+      ? {
+          fullname: car.owner.fullname,
+          phone: car.owner.phone,
+          address: car.owner.address ?? "",
+          city: car.owner.city ?? "",
+        }
+      : null,
+  },
+  jobs: jobs.map((job) => ({
+    id: job.id,
+    description: job.description,
+    price: job.price,
+    isThirdParty: job.isThirdParty,
+    clientNote: job.clientNote ?? undefined,
+    parts: job.parts ?? [],
+  })),
+  totals,
+  ...(vehicles ? { vehicles } : {}),
+  ...(jobPlates ? { jobPlates } : {}),
+});
 
 /**
  * Orquesta la emisión de un documento: pide el número correlativo a la DB,
@@ -102,6 +159,18 @@ export const useBudgetPDF = () => {
         // registro del documento (snapshot de lo que se entregó).
         const totals = computeTotals(filteredJobs);
 
+        // La copia de lo que se va a imprimir, para poder reimprimirlo. Se
+        // arma acá y no en el backend porque acá está lo que efectivamente se
+        // dibuja, ya filtrado: un comprobante es lo que dice el papel.
+        const snapshot = armarCopia({
+          title,
+          car,
+          jobs: filteredJobs,
+          totals,
+          vehicles,
+          jobPlates,
+        });
+
         // El número lo asigna la DB (transaccional, por tipo de documento), no
         // el frontend: así es correlativo y queda registrado qué se emitió.
         const issued = await window.api.documents.issue({
@@ -109,6 +178,7 @@ export const useBudgetPDF = () => {
           licensePlate: plateForRecord,
           clientName: car.owner?.fullname ?? "",
           total: totals.total,
+          snapshot,
         });
         if (issued.status !== "success") {
           throw new Error(issued.message);
@@ -179,6 +249,81 @@ export const useBudgetPDF = () => {
   );
 
   /**
+   * Vuelve a generar el PDF de un documento ya emitido.
+   *
+   * No emite nada: no toma un número nuevo, no toca la base y no descarta nada
+   * si falla. Dibuja de nuevo la copia guardada y pregunta dónde guardarla, que
+   * es lo que hace falta cuando el cliente pierde el papel.
+   *
+   * Devuelve `null` si el usuario cancela el guardado, igual que `emit`.
+   */
+  const reimprimir = useCallback(
+    async (id: string): Promise<IssuedDocument | null> => {
+      setIsGenerating(true);
+      setError(null);
+      try {
+        const res = await window.api.documents.get(id);
+        if (res.status !== "success" || !res.result) {
+          throw new Error(res.message || "No se encontró el documento");
+        }
+        const documento = res.result;
+        const copia = documento.snapshot;
+        if (!copia) {
+          // Los emitidos antes de que se guardara la copia. No se reconstruye
+          // desde los trabajos actuales: daría un papel distinto del que firmó
+          // el cliente, que es peor que no tener ninguno.
+          throw new Error(
+            "Este documento se emitió antes de que se guardara su contenido, " +
+              "así que no se puede reimprimir"
+          );
+        }
+
+        const [{ renderBudgetDocument }, { getPlateFontBase64 }] =
+          await Promise.all([
+            import("../Utils/budgetPdf"),
+            import("../Utils/plateFont"),
+          ]);
+
+        const doc = renderBudgetDocument({
+          car: copia.car as unknown as Cars,
+          jobs: copia.jobs as unknown as Jobs[],
+          totals: copia.totals,
+          docNumber: documento.formatted,
+          docType: documento.type,
+          title: copia.title,
+          plateFontBase64: getPlateFontBase64(),
+          vehicles: copia.vehicles,
+          jobPlates: copia.jobPlates,
+        });
+
+        const safeName = copia.title
+          .replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ ]/g, "_")
+          .replace(/\s+/g, "_");
+        const guardado = await window.api.documents.savePdf({
+          defaultName: `${documento.formatted}_${safeName}.pdf`,
+          bytes: new Uint8Array(doc.output("arraybuffer")),
+        });
+
+        if (guardado.status === "cancelled") return null;
+        if (guardado.status !== "success") {
+          throw new Error(guardado.message);
+        }
+        return documento;
+      } catch (err) {
+        const msg =
+          err instanceof Error
+            ? err.message
+            : "Error desconocido al reimprimir el documento";
+        setError(msg);
+        throw new Error(msg, { cause: err });
+      } finally {
+        setIsGenerating(false);
+      }
+    },
+    []
+  );
+
+  /**
    * Documento de un vehículo: el caso de siempre.
    */
   const generatePDF = useCallback(
@@ -240,5 +385,5 @@ export const useBudgetPDF = () => {
     [emit]
   );
 
-  return { generatePDF, generateClientPDF, isGenerating, error };
+  return { generatePDF, generateClientPDF, reimprimir, isGenerating, error };
 };

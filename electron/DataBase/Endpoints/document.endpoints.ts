@@ -11,11 +11,39 @@ import {
   formatDocumentNumber,
   type APIResponse,
   type DocumentQueryParams,
+  type DocumentSnapshot,
   type IssueDocumentBody,
   type IssuedDocument,
 } from "../../../src/Types/apiTypes";
 
 const VALID_TYPES = Object.values(DocumentType) as string[];
+
+/**
+ * Tope de lo que se acepta como copia impresa, en caracteres del JSON.
+ *
+ * No es desconfianza del renderer: es que esta tabla no se borra nunca y una
+ * copia por documento se acumula para siempre. Doscientos mil caracteres son
+ * holgados —un documento con cincuenta renglones y sus repuestos anda por los
+ * quince mil— y ponen un techo a lo que puede crecer la base por documento.
+ */
+const MAXIMO_DE_LA_COPIA = 200_000;
+
+/**
+ * Valida la copia de lo impreso que manda el renderer.
+ *
+ * Se comprueba la forma mínima —que tenga los renglones y los totales— y no
+ * cada campo: lo que se guarda es un reflejo de lo que se dibujó, y el que lo
+ * arma es el mismo módulo que lo dibuja. Lo que sí importa es que no entre
+ * cualquier cosa y que no entre algo enorme.
+ */
+const copiaValida = (valor: unknown): valor is DocumentSnapshot => {
+  if (!valor || typeof valor !== "object") return false;
+  const copia = valor as Partial<DocumentSnapshot>;
+  if (!Array.isArray(copia.jobs)) return false;
+  if (!copia.totals || typeof copia.totals.total !== "number") return false;
+  if (!copia.car || typeof copia.car.licensePlate !== "string") return false;
+  return JSON.stringify(valor).length <= MAXIMO_DE_LA_COPIA;
+};
 
 const toPlainDocument = (doc: Document): IssuedDocument => ({
   id: doc.id,
@@ -29,6 +57,7 @@ const toPlainDocument = (doc: Document): IssuedDocument => ({
     doc.createdAt instanceof Date
       ? doc.createdAt.toISOString()
       : new Date(doc.createdAt).toISOString(),
+  hasSnapshot: doc.snapshot != null,
 });
 
 /**
@@ -69,6 +98,16 @@ handleIpc(
       };
     }
 
+    // La copia de lo impreso es obligatoria: un documento sin ella es un número
+    // en el historial que no se puede volver a imprimir, que es exactamente el
+    // agujero que esta columna vino a tapar.
+    if (!copiaValida(body.snapshot)) {
+      return {
+        status: "failed",
+        message: "No se pudo registrar el contenido del documento",
+      };
+    }
+
     const qr = AppDataSource.createQueryRunner();
     await qr.connect();
     await qr.startTransaction();
@@ -87,6 +126,7 @@ handleIpc(
         licensePlate: body.licensePlate ?? "",
         clientName: body.clientName ?? "",
         total,
+        snapshot: body.snapshot,
       });
       const saved = await qr.manager.save(doc);
       await qr.commitTransaction();
@@ -213,6 +253,31 @@ handleIpc(
       message: "Documento guardado",
       result: { filePath },
     };
+  }
+);
+
+/**
+ * Un documento con su copia impresa, para volver a generar el PDF.
+ *
+ * Va aparte del listado a propósito: el historial trae veinte documentos y no
+ * tiene por qué arrastrar veinte copias completas. La copia se pide sólo cuando
+ * alguien aprieta reimprimir.
+ */
+handleIpcQuery(
+  "document:get",
+  "No se pudo leer el documento",
+  async (
+    _event,
+    id: unknown
+  ): Promise<
+    (IssuedDocument & { snapshot: DocumentSnapshot | null }) | null
+  > => {
+    if (!esIdentificador(id)) return null;
+    const doc = await getRepositories().documentRepository.findOne({
+      where: { id },
+    });
+    if (!doc) return null;
+    return { ...toPlainDocument(doc), snapshot: doc.snapshot };
   }
 );
 

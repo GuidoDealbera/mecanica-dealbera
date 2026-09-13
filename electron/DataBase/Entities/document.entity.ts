@@ -7,6 +7,7 @@ import {
   PrimaryGeneratedColumn,
 } from "typeorm";
 import { DocumentType } from "../../../src/Types/apiTypes";
+import type { DocumentSnapshot } from "../../../src/Types/apiTypes";
 
 /**
  * Documento emitido (presupuesto o factura). Existe para llevar la numeración
@@ -42,6 +43,18 @@ export class Document {
 
   @Column("integer", { default: 0 })
   total!: number;
+
+  /**
+   * Copia de lo que se imprimió: los renglones, los totales y los datos del
+   * vehículo y del titular tal como salieron en el papel.
+   *
+   * Sin esto el historial decía que se emitió un documento y no había forma de
+   * volver a generarlo. Es `nullable` porque los documentos emitidos antes de
+   * que esta columna existiera no lo tienen y no hay de dónde sacarlo: se
+   * distinguen en la pantalla en vez de inventarles uno.
+   */
+  @Column("simple-json", { nullable: true })
+  snapshot!: DocumentSnapshot | null;
 
   @CreateDateColumn({ type: "datetime" })
   createdAt!: Date;

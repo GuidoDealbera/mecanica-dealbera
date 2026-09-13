@@ -1840,7 +1840,7 @@ decisiones que todavía no se tomaron.
 
 ### H1 · 🟠 Una factura emitida no se puede volver a imprimir
 
-**[pendiente]** · `electron/DataBase/Entities/document.entity.ts`
+**[a testear]** · `electron/DataBase/Entities/document.entity.ts`
 
 `Document` guarda tipo, número, patente, nombre del titular y total. **No guarda
 los renglones**: ni los trabajos, ni los repuestos, ni las observaciones.
@@ -1853,6 +1853,36 @@ lado.
 
 Para un documento que es un comprobante, guardar el snapshot completo de lo que se
 imprimió no es una mejora: es la razón de existir de la tabla.
+
+**Resuelto.** El documento guarda la copia de lo que se imprimió y el historial
+tiene un botón para volver a generarlo. Reimprimir **no emite nada**: no toma un
+número nuevo ni toca la base, sólo vuelve a dibujar lo guardado y pregunta dónde
+ponerlo.
+
+Se guarda **sólo lo que sale en el papel**: los renglones con sus repuestos, los
+totales, el vehículo y el titular. Nada de `kmHistory`, ni las notas internas del
+taller, ni los trabajos que no entraron. Guardar de más ensucia para siempre una
+tabla que no se borra nunca, y guardar cosas que el documento no muestra invita a
+que alguien las lea creyendo que son parte del comprobante.
+
+Dos decisiones que conviene dejar escritas:
+
+- **Emitir sin la copia se rechaza.** Un documento sin ella es un número en el
+  historial que no se puede reimprimir, o sea el agujero que esto vino a tapar.
+- **Los documentos viejos no se reconstruyen.** La columna es `nullable` y se
+  queda así: armarles una copia desde los trabajos de hoy daría un papel distinto
+  del que firmó el cliente, que es peor que no tener ninguno. El historial los
+  distingue y el botón explica por qué está deshabilitado.
+
+La copia tiene tope de tamaño, por la misma razón: la tabla no se borra nunca y
+una copia por documento se acumula para siempre.
+
+El listado no arrastra las copias —veinte documentos serían veinte copias
+completas para decidir si mostrar un botón—: trae un `hasSnapshot` y la copia se
+pide sólo al reimprimir.
+
+Verificado contra la aplicación real: emitir guarda la copia entera, releerla
+devuelve el renglón, el total y el titular, y emitir sin copia se rechaza.
 
 ### H2 · 🟠 Un documento consolidado no aparece en el historial de ningún vehículo
 

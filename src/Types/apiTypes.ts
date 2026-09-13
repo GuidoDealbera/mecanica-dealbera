@@ -250,11 +250,71 @@ export const formatDocumentNumber = (
   `${DOCUMENT_PREFIX[type]}-${String(number).padStart(DOCUMENT_NUMBER_PAD, "0")}`;
 
 /** Datos que se guardan al emitir un documento (snapshot del momento). */
+/**
+ * Copia de lo que se imprimió, para poder volver a imprimirlo.
+ *
+ * La tabla `document` guardaba tipo, número, patente, titular y total, pero no
+ * los renglones. O sea que el historial decía que se emitió `FAC-000007` por
+ * $89.000 y **no había forma de reproducir ese PDF**: si el cliente lo perdía, o
+ * si mientras tanto se editaba o borraba el trabajo, lo que decía el documento
+ * ya no existía en ningún lado. Para algo que es un comprobante, eso no es una
+ * mejora que falta: es la razón de ser de la tabla.
+ *
+ * Se guarda **sólo lo que el documento imprime**, no las entidades enteras: sin
+ * `kmHistory`, sin las notas internas del taller y sin los trabajos que no
+ * entraron. Un comprobante es lo que dice el papel.
+ */
+export interface DocumentSnapshot {
+  /** Título impreso (varía según el tipo). */
+  title: string;
+  car: {
+    licensePlate: string;
+    brand: string;
+    model: string;
+    year: number;
+    kilometers: number;
+    owner: {
+      fullname: string;
+      phone: string;
+      address: string;
+      city: string;
+    } | null;
+  };
+  jobs: {
+    id: string;
+    description: string;
+    price: number;
+    isThirdParty: boolean;
+    clientNote?: string;
+    parts: { name: string; price: number }[];
+  }[];
+  /** Mismos campos que `BudgetTotals`, que es lo que el documento imprime. */
+  totals: {
+    laborTotal: number;
+    partsGrandTotal: number;
+    thirdPartyTotal: number;
+    ownTotal: number;
+    total: number;
+  };
+  /** Sólo en el consolidado de un cliente con varios vehículos. */
+  vehicles?: {
+    licensePlate: string;
+    brand: string;
+    model: string;
+    year: number;
+    kilometers: number;
+  }[];
+  /** Patente de cada trabajo, en el consolidado. */
+  jobPlates?: Record<string, string>;
+}
+
 export interface IssueDocumentBody {
   type: DocumentType;
   licensePlate: string;
   clientName: string;
   total: number;
+  /** Ver `DocumentSnapshot`. Es lo que permite reimprimir. */
+  snapshot: DocumentSnapshot;
 }
 
 /** Filtros del historial de documentos. Todos opcionales. */
@@ -277,6 +337,14 @@ export interface IssuedDocument {
   clientName: string;
   total: number;
   createdAt: string;
+  /**
+   * Si se guardó la copia de lo impreso, o sea si se puede reimprimir.
+   *
+   * Va como booleano y no como la copia entera: el historial trae veinte
+   * documentos y no tiene por qué arrastrar veinte copias completas para
+   * decidir si mostrar un botón.
+   */
+  hasSnapshot: boolean;
 }
 
 /**
