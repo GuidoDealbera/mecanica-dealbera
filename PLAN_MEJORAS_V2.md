@@ -2393,7 +2393,7 @@ puso mucho trabajo que hoy nadie verifica.
 
 ### K1 · 🟠 La carpeta de salida del instalador es una ruta absoluta de una máquina
 
-**[pendiente]** · `electron-builder.json5`
+**[a testear]** · `electron-builder.json5`
 
 ```json5
 directories: {
@@ -2409,18 +2409,28 @@ flujo de publicación funciona **sólo porque la pisa** con
 Corresponde `output: "release"` (relativo, ignorado por git) y que quien quiera
 otra carpeta la pase por parámetro.
 
+**Resuelto** asi, y comprobado armando el instalador: sale en `release/`, que
+ahora esta en `.gitignore`.
+
 ### K2 · 🟡 `package.json` no declara autor ni licencia
 
-**[pendiente]** · `package.json`
+**[a testear]** · `package.json`
 
 Faltan `author` y `license`. No es cosmético: electron-builder **avisa durante el
 build** (`author is missed in the package.json`) y usa ese campo para el nombre
 del publicador en las propiedades del ejecutable de Windows —que es lo que ve el
 usuario cuando SmartScreen le pregunta si confía—.
 
+**Resuelto**, y se ve en el ejecutable armado: `CompanyName` dice ahora
+`Guido Dealbera`, que es el nombre que aparece en las propiedades del archivo. El
+aviso del build desaparecio.
+
+`license: UNLICENSED` y `private: true`: es software de un taller, no un paquete
+para publicar en npm, y conviene que el `package.json` lo diga.
+
 ### K3 · 🟡 Se empaqueta para macOS y Linux sin que nadie lo haya probado
 
-**[pendiente]** · `electron-builder.json5`
+**[a testear]** · `electron-builder.json5`
 
 Hay objetivos `mac` (dmg) y `linux` (AppImage) configurados. Pero el código asume
 Windows en varios lados —`app.getPath("documents")` para los respaldos, el traslado
@@ -2429,39 +2439,72 @@ desde `Documentos`, `signtool`— y no hay ninguna prueba en esas plataformas.
 Un artefacto que se puede construir y nunca se probó es peor que no tenerlo: da a
 entender que está soportado. O se prueba, o se saca hasta que se decida.
 
+**Se sacaron.** No hay con que probarlos, y el codigo asume Windows en varios
+lados. Queda el comentario en el lugar donde estaban, diciendo que el trabajo de
+soportar otra plataforma no es volver a agregar esas diez lineas sino revisar
+esas suposiciones.
+
 ### K4 · 🟡 El ícono de Windows es un PNG
 
-**[pendiente]** · `electron-builder.json5`
+**[a testear]** · `electron-builder.json5`
 
 `icon: "public/logo-grande.png"`. electron-builder lo convierte, pero un `.ico`
 real con varias resoluciones (16, 32, 48, 256) se ve mejor en la barra de tareas y
 en el explorador, que es donde el usuario lo mira todos los días.
 
+**Resuelto**: `build/icon.ico` con las cuatro resoluciones, generado una vez
+desde el PNG de 512 y versionado.
+
+La herramienta que lo genero (`png-to-ico`) **no quedo como dependencia**: se usa
+cuando cambia el logo, que no es algo que pase en cada build. Detalle del camino:
+pasandole la ruta como arreglo la libreria no redimensiona y mete el PNG de 512
+declarado como 256 —un `.ico` mal formado que igual parece funcionar—; hay que
+pasarle la ruta suelta.
+
 ### K5 · 🟡 No hay forma de saber qué cambió entre versiones
 
-**[pendiente]**
+**[a testear]**
 
 No hay `CHANGELOG.md`, y los releases de GitHub se publican sin notas. La
 aplicación **muestra `info.releaseNotes`** en el modal de actualización —el código
 está escrito— y hoy recibe siempre vacío. El usuario ve "hay una versión nueva" sin
 una palabra sobre qué trae.
 
+**Resuelto** de punta a punta, no sólo escribiendo el archivo: hay `CHANGELOG.md`,
+un script que extrae **la seccion de la version que se publica** —no el changelog
+entero, o el cartel repetiria lo de todas las versiones— y el flujo de
+publicacion lo corre antes de compilar.
+
+Si falta la seccion de esa version, **el flujo corta**. Publicar sin notas es lo
+que se estaba tratando de arreglar, y en silencio no se arregla nunca.
+
+Comprobado en el `latest.yml` del instalador armado: las notas estan adentro.
+
 ### K6 · ⚪ `.gitignore` no cubre la carpeta de salida del build
 
-**[pendiente]** · `.gitignore`
+**[a testear]** · `.gitignore`
 
 Ignora `dist`, `dist-electron` y `data`, pero no `release/` —que es adonde escribe
 el flujo de publicación— ni `coverage/`. Hoy no molesta porque el build local
 escribe en `Downloads` (**K1**); al arreglar K1, empieza a molestar.
 
+**Resuelto**, mas `build/release-notes.md`, que se genera al publicar.
+
 ### K7 · ⚪ No hay plantilla de reporte ni guía de contribución
 
-**[pendiente]** · `.github/`
+**[a testear]** · `.github/`
 
 Para un proyecto de una persona es opinable. Pero como el propio `CLAUDE.md` dice,
 "cada regla costó una sesión de depuración": un `CONTRIBUTING.md` corto que apunte
 a `CLAUDE.md` y al plan evita que la próxima persona —o la próxima sesión— tenga
 que redescubrirlas.
+
+**Resuelto**, corto y apuntando a los dos. Lo unico propio son las tres cosas que
+esta revision dejo como forma de trabajo: que un test que no se comprobo que
+falle no es un test, que se mide antes de optimizar, y como estan las ramas.
+
+No hay plantillas de issue: para un repositorio de una persona serian formularios
+que nadie completa.
 
 ---
 

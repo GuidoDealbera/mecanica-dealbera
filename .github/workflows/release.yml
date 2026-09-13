@@ -81,6 +81,13 @@ jobs:
         if: steps.publicada.outputs.existe == 'no'
         run: npm ci --legacy-peer-deps
 
+      # Antes de compilar: si falta la sección del CHANGELOG, esto corta el
+      # flujo. Publicar sin notas es lo que se estaba tratando de arreglar, y en
+      # silencio no se arregla nunca.
+      - name: Preparar las notas de la versión
+        if: steps.publicada.outputs.existe == 'no'
+        run: node scripts/notas-de-version.mjs
+
       - name: Build & Publish
         if: steps.publicada.outputs.existe == 'no'
         run: npm run release -- --config.directories.output=release
