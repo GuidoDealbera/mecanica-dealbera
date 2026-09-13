@@ -1573,7 +1573,7 @@ Un helper, tres criterios.
 
 ### F6 · 🟡 El proyecto detecta "modo desarrollo" con `NODE_ENV` en vez de `app.isPackaged`
 
-**[pendiente]** · `electron/main.ts`, `electron/DataBase/dataSource.ts`
+**[a testear]** · `electron/main.ts`, `electron/DataBase/dataSource.ts`
 
 `process.env.NODE_ENV === "development"` decide cosas serias: **dónde vive la base
 de datos**, dónde van los respaldos, si se hace el respaldo diario y si se
@@ -1585,6 +1585,14 @@ Hoy funciona porque Vite la define, pero es una variable de entorno heredada: un
 **abra la base real del usuario y escriba respaldos en sus Documentos**.
 
 `app.isPackaged` es la comprobación que no depende del entorno.
+
+**Resuelto** en los seis lugares: dónde vive la base, dónde van los respaldos,
+el respaldo diario, la notificación de arranque, el auto-updater y la
+comprobación manual de actualizaciones.
+
+El log de SQL quedó atado además a que no haya `MECANICA_DATA_DIR`: esa variable
+la ponen los tests y los scripts, y ahí volcar cada consulta a la salida sólo
+tapa lo que se está mirando.
 
 ### F7 · 🟡 `Car` obliga a pasar un objeto al constructor y las demás entidades no
 
