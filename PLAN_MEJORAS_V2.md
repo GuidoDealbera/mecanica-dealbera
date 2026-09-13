@@ -2227,7 +2227,7 @@ que lo permite (los módulos de dominio reciben el `EntityManager` por parámetr
 
 ### J1 · 🟡 Ninguna prueba sobre los endpoints IPC
 
-**[pendiente]** · `electron/DataBase/Endpoints/*`
+**[a testear]** · `electron/DataBase/Endpoints/*`
 
 Prioridad por riesgo: `car:create` (transacción + titular + recordatorio),
 `car:add-job` y `car:update-job` (transacción + cierre de service),
@@ -2237,9 +2237,18 @@ Prioridad por riesgo: `car:create` (transacción + titular + recordatorio),
 Se pueden ejercitar contra una base SQLite en memoria o contra una copia, como ya
 hace `dashboardStats.test.ts`.
 
+**Resuelto, y en su mayor parte antes de llegar a este sprint**: cada arreglo de
+los sprints A a I trajo los suyos. Los ocho archivos de endpoints pasaron de
+**cero** archivos de prueba a **quince**, y `electron/DataBase` mide 70 % de
+lineas.
+
+Lo que faltaba y se agrego aca es el contrato de **salida** —que todos los
+canales contesten el mismo envelope, recorriendo la lista registrada— y las
+costuras entre endpoints, que es J5.
+
 ### J2 · 🟡 Ninguna prueba sobre las migraciones
 
-**[pendiente]** · `electron/DataBase/Migrations/*`
+**[a testear]** · `electron/DataBase/Migrations/*`
 
 Son 11 migraciones que **reescriben datos del usuario**, y ninguna tiene prueba.
 `SimplifyServiceType` colapsa recordatorios y borra una columna;
@@ -2251,27 +2260,56 @@ El patrón razonable: armar la base en el esquema anterior, insertar los casos
 raros, correr la migración y verificar el resultado. Es lo que se hizo a mano
 contra la base real; hay que dejarlo escrito.
 
+**Resuelto** para las que reescriben datos: `SimplifyServiceType` (en D1),
+`AllowHomonymClients` (D5), `RoundPartPrices` (D6), `AddDocumentDateIndex` (G5) y
+ahora `NormalizeJobDates`, que era la que tenia la trampa documentada.
+
+Y ahi hubo una leccion. El primer caso que escribi para el `strftime` **pasaba
+igual con el filtro sacado**: la fecha rota que habia elegido ni siquiera entraba
+en el `WHERE`, asi que no probaba nada. La fecha tiene que parecerse a las que la
+migracion busca —con `T` y con `Z`— y fallar recien al interpretarse. Con un mes
+99 el caso pasa con el filtro y **revienta con `NOT NULL constraint failed` sin
+el**, que es lo que se queria fijar.
+
+Es el mismo criterio de siempre: un test que no se comprobo que falle no es un
+test, es una expectativa.
+
 ### J3 · 🟡 Ninguna prueba sobre el store ni los thunks
 
-**[pendiente]** · `src/Store/*`
+**[a testear]** · `src/Store/*`
 
 El contrato "los thunks **resuelven** con `status: failed`" está documentado en
 `CLAUDE.md` como algo que ya se pagó una vez —una pantalla mostró "guardado con
 éxito" sin haber guardado—. Justamente ese contrato no tiene ninguna prueba que lo
 sostenga.
 
+**Resuelto**: hay casos para las dos mitades de la distincion —un rechazo de
+negocio **resuelve**, un fallo de transporte **rechaza**— y para lo que se sigue
+de eso: que `unwrap()` no alcance para saber si salio bien, que es exactamente el
+error que se cometio una vez.
+
 ### J4 · 🟡 Los hooks de consulta no tienen prueba
 
-**[pendiente]** · `src/Hooks/*`
+**[a testear]** · `src/Hooks/*`
 
 `useCarQueries` (273 renglones, con los `catch (error: any)` de **A10**),
 `useBudgetPdf` (el flujo de emisión, con **E4**) y `useFormGuard` (con el bug
 **A8**) son los tres que más lo justifican: cada uno tiene un bug de este plan que
 una prueba habría atrapado.
 
+**Los tres tienen prueba.** `useFormGuard` desde A8, `useBudgetPdf` desde E4, y
+`useCarQueries` ahora: que un rechazo del backend llegue al usuario con **el
+mensaje del backend**, y que un error que no es un `Error` no deje el cartel rojo
+en blanco, que es lo que hacia A10.
+
+De paso: al escribir esto sobrescribi sin querer el archivo de `useFormGuard`, que
+ya tenia seis casos mejores que los mios. Se recupero del historial. Lo unico que
+quedo del intento es una correccion al comentario, que todavia afirmaba el
+sintoma de A8 que despues se comprobo falso.
+
 ### J5 · 🟡 No hay ninguna prueba de extremo a extremo
 
-**[pendiente]**
+**[a testear]**
 
 Se evaluó y se descartó en su momento (ver la nota del 2026-08-16 en el plan v1) y
 la decisión sigue siendo razonable. Pero conviene revisarla ahora que hay **28
@@ -2279,22 +2317,75 @@ tareas marcadas "a testear" que nadie ejercitó**: un puñado de recorridos
 completos —cargar un auto, cargar un trabajo, emitir un presupuesto, cerrar un
 service— cubriría más que cualquier prueba unitaria nueva.
 
+**Hecho el recorrido, sin traer un framework de extremo a extremo**, y conviene
+ser preciso sobre que es y que no.
+
+`recorridoCompleto.test.ts` recorre el dia entero por los **canales IPC** contra
+una base SQLite real: entra el auto, se le carga un service, se emite el
+presupuesto, se cierra el trabajo, se borra el vehiculo y se lo recupera. No hay
+ventana ni clics, asi que no cubre la interfaz.
+
+Lo que agrega sobre los tests de cada endpoint son las **costuras**: que el alta
+meta al auto en el circuito, que cerrar el service programe el proximo y sea otro
+recordatorio, que borrar se lleve el trabajo pero **no** al titular ni al
+documento emitido. Ninguna prueba de un endpoint solo ve eso.
+
+Para la interfaz, lo que se hizo en cada sprint fue manejar la aplicacion real
+por CDP con una copia de la base del usuario. Queda anotado como lo que es: una
+comprobacion manual reproducible, no una prueba automatizada.
+
 ### J6 · ⚪ No se mide la cobertura
 
-**[pendiente]** · `vitest.config.ts`
+**[a testear]** · `vitest.config.ts`
 
 No hay `coverage` configurado, así que la tabla de arriba la armé contando
 archivos a mano. Con `@vitest/coverage-v8` y un umbral mínimo, la conversación
 sobre qué falta probar deja de ser una opinión.
 
+**Resuelto**, con `npm run test:coverage`. Y la tabla de arriba quedo vieja:
+
+| Capa                | Lineas |
+| ------------------- | ------ |
+| `src/Utils`         | 97 %   |
+| `electron/DataBase` | 70 %   |
+| `src/Hooks`         | 43 %   |
+| `src/Components`    | 34 %   |
+| `src/Store`         | 22 %   |
+| `src/Pages`         | 10 %   |
+| **Total**           | 48 %   |
+
+Los umbrales estan puestos **apenas por debajo de lo medido**, como trinquete y
+no como meta: no dicen "esto alcanza" —no alcanza— sino "de aca no se baja". Un
+numero aspiracional que falla todos los dias se termina bajando o apagando; uno
+que solo falla cuando la cobertura retrocede avisa de algo real.
+
+Se excluyen los tipos, las entidades y el andamiaje de los tests: medir archivos
+sin codigo solo infla el numero.
+
 ### J7 · ⚪ Los tests no cubren los caminos de error del backend
 
-**[pendiente]**
+**[a testear]**
 
 Ni un test comprueba qué pasa cuando la base está bloqueada, cuando el disco está
 lleno, cuando una transacción falla a mitad o cuando el IPC rechaza. Son
 exactamente los caminos donde el manejo de errores importa, y donde el plan v1
 puso mucho trabajo que hoy nadie verifica.
+
+**Resuelto**, tres de los cuatro, repartidos entre los sprints:
+
+- **Disco**: el CSV y el PDF a una carpeta que no existe (E5, E3), y exportar la
+  base con la escritura rota, que ademas comprueba que el respaldo anterior siga
+  ahi (E7).
+- **IPC que rechaza**: el thunk rechaza con el motivo, y el hook no deja el
+  cartel en blanco (J3, J4).
+- **Transaccion a mitad**: dos casos nuevos que esconden la tabla de
+  recordatorios para que el alta y el cierre de service fallen **despues** de
+  haber escrito lo demas. El alta no deja ni el vehiculo ni el titular, y el
+  trabajo no queda cerrado. Es la atomicidad que `CLAUDE.md` afirma —"cerrar un
+  service y guardar el trabajo son un solo hecho"— y que nadie estaba
+  verificando.
+- **Base bloqueada**: no se cubre. Es de un solo proceso con una sola conexion, y
+  simularlo pediria mas andamiaje del que el caso justifica.
 
 ---
 
