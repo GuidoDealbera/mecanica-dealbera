@@ -184,10 +184,9 @@ handleIpc("client:toggle-active", async (_, id: string) => {
   }
 
   const repo = getRepositories().clientRepository;
-  const client = await repo.findOne({
-    where: { id },
-    relations: { cars: true },
-  });
+  // Sin los autos: esta operación toca un booleano del cliente y no los mira.
+  // Quien llama tampoco: la pantalla usa el `status` y recarga el listado.
+  const client = await repo.findOne({ where: { id } });
   if (!client) {
     return {
       status: "failed",
@@ -244,7 +243,11 @@ handleIpc("client:update", async (_, payload: UpdateClientDto) => {
 
   const repo = getRepositories().clientRepository;
 
+  // Con los autos desde el principio: hace falta devolverlos, y antes eso se
+  // resolvía con un `findOne` **extra después de guardar**. Es la misma
+  // consulta corrida de lugar, no una consulta más.
   const updateClient = await repo.findOne({
+    relations: { cars: true },
     where: {
       id,
     },
@@ -273,17 +276,11 @@ handleIpc("client:update", async (_, payload: UpdateClientDto) => {
 
   const saved = await repo.save(updateClient);
   invalidateDashboardStatsCache();
-  const withCars = await repo.findOne({
-    where: {
-      id: saved.id,
-    },
-    relations: { cars: true },
-  });
   return {
     status: "success",
     message: aviso
       ? `Cliente actualizado correctamente. ${aviso}`
       : "Cliente actualizado correctamente",
-    result: withCars,
+    result: saved,
   };
 });

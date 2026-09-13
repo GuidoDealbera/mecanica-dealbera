@@ -19,6 +19,10 @@ import { DocumentType } from "../../../src/Types/apiTypes";
  */
 @Entity({ name: "document" })
 @Index("IDX_document_type_number", ["type", "number"], { unique: true })
+// El orden del historial (`createdAt DESC, number DESC`). Se crea en la
+// migración `AddDocumentDateIndex`; se declara acá para que la entidad y el
+// esquema no se separen, con el mismo nombre que la migración.
+@Index("IDX_document_created", ["createdAt", "number"])
 export class Document {
   @PrimaryGeneratedColumn("uuid")
   id!: string;

@@ -1640,9 +1640,9 @@ sin que nadie lo note.
 Con la base de hoy (3 vehículos) nada de esto se nota. Todos son casos que
 aparecen al crecer, y algunos crecen rápido.
 
-### G1 · 🟠 La ficha de un vehículo trae **todos** sus trabajos, siempre
+### G1 · ⚪ La ficha de un vehículo trae **todos** sus trabajos, siempre
 
-**[pendiente]** · `electron/DataBase/Endpoints/car.crud.endpoints.ts` →
+**[medido, no se cambia]** · `electron/DataBase/Endpoints/car.crud.endpoints.ts` →
 `car:get-by-license`
 
 `relations: { owner: true, jobs: true }` sin límite. Cada trabajo viaja completo
@@ -1655,9 +1655,44 @@ historia hace que abrir su ficha sea la operación más pesada de la aplicación
 Corresponde paginar del lado del servidor, como ya se hace en los otros tres
 listados.
 
+**Medido, y no se cambia.** Baja de 🟠 a ⚪.
+
+Un vehículo con historia inventada, con notas y repuestos realistas en cada
+trabajo:
+
+| trabajos | consulta | ficha completa | sólo el auto | sin notas | sin notas ni repuestos |
+| -------- | -------- | -------------- | ------------ | --------- | ---------------------- |
+| 200      | 7 ms     | 124 kB         | 10 kB        | 72 kB     | 46 kB                  |
+| 1000     | —        | 583 kB         | 10 kB        | 362 kB    | 234 kB                 |
+
+Siete milisegundos y 124 kB no son "la operación más pesada de la aplicación".
+Y la consulta ya está indexada: `IDX_job_car` sobre `job(carId)` existe desde
+`NormalizeJobs`, así que lo que se mide es hidratar y serializar, no recorrer.
+
+Para que la ficha de **un** vehículo llegue a 200 trabajos hacen falta décadas
+de un auto que vuelve todos los meses. Mil es directamente irreal.
+
+Contra eso, lo que cuesta el arreglo: los trabajos de la ficha no alimentan sólo
+la tabla de 5 filas. Alimentan también los tres contadores, la línea de tiempo
+—que hoy muestra **todo** el historial— y el modal de emisión, que necesita los
+trabajos elegibles para armar el documento. Paginar del lado del servidor
+obliga a partir eso en tres consultas más y a tocar seis archivos de la pantalla
+más compleja de la aplicación, incluida la emisión de facturas.
+
+Queda anotado cómo se haría el día que haga falta: `car:get-by-license` sin
+`jobs` y con los tres contadores resueltos en SQL; un `car:jobs` paginado con
+filtro y orden para la tabla; una consulta liviana para la línea de tiempo
+—`id`, descripción, estado y fecha, que es lo único que pinta— y otra de
+trabajos elegibles para el documento, que en la práctica son unos pocos.
+
+Y si algo va a doler antes que el IPC en esa pantalla, es la línea de tiempo:
+pinta un nodo por trabajo **y** uno por actualización de kilometraje, sin tope.
+Con 200 trabajos son 400 nodos en el DOM. Acotarla es un cambio de producto, no
+de rendimiento, así que no se hace por cuenta propia.
+
 ### G2 · 🟡 Listar recordatorios escribe en la base
 
-**[pendiente]** · `electron/DataBase/serviceReminders.service.ts` →
+**[a testear]** · `electron/DataBase/serviceReminders.service.ts` →
 `reactivateExpiredSnoozes`
 
 Se llama al principio de `service:list`, de `service:by-car` y de
@@ -1670,18 +1705,45 @@ páginas y ensucia el archivo. Y son dos sentencias que podrían ser una.
 
 Mejor: correrlo una vez al arrancar y después en un intervalo, no en cada lectura.
 
+**Resuelto así**, y las dos sentencias pasaron a ser una: los dos casos —plazo
+vencido y postergado sin fecha— son la misma condición con un `OR`.
+
+El barrido corre al arrancar, **antes** de contar y de abrir la ventana —el badge
+y la notificación tienen que ver lo que venció mientras la aplicación estaba
+cerrada—, y después cada hora. Una hora es holgado porque postergar se mide en
+días: el desfase máximo es irrelevante frente a lo que se está representando.
+
+Los tests cubren las dos mitades, y la segunda es la que importa: con un
+postergado vencido a mano, listar, contar y abrir la ficha de un vehículo dejan
+la base **byte por byte igual**. Antes cualquiera de las tres lo reactivaba de
+paso.
+
 ### G3 · 🟡 `getServiceSettings` consulta la base varias veces por request
 
-**[pendiente]** · `electron/DataBase/serviceReminders.service.ts`
+**[a testear]** · `electron/DataBase/serviceReminders.service.ts`
 
 Cada llamada hace un `find` sobre `app_setting`. En `service:list` se llama una vez
 directamente y otra vez por cada `evaluate()`; en `service:snooze` y compañía, otra
 vez más. Es configuración que cambia una vez al año: se cachea en memoria y se
 invalida al guardarla.
 
-### G4 · 🟡 `service:list` carga el historial de kilometraje completo de cada vehículo
+**Resuelto así**, invalidando en los dos lugares donde puede cambiar: al
+guardarla y al **reemplazar la base entera**. El segundo no estaba en la tarea y
+es el que muerde: importar un respaldo trae otra configuración en el archivo, y
+sin invalidar la aplicación seguiría evaluando los vencimientos con la del
+archivo anterior.
 
-**[pendiente]** · `electron/DataBase/Endpoints/service.endpoints.ts` → `toView`
+Lo cacheado se devuelve congelado. Lo comparten todos los que lo piden, así que
+un descuido que lo modifique se llevaría puesta la configuración de todo el
+proceso hasta el reinicio: es la clase de error que aparece meses después y no
+se puede reproducir.
+
+Que esté cacheada se prueba por su consecuencia observable: se cambia el valor
+por SQL, por detrás, y la función sigue devolviendo el anterior.
+
+### G4 · ⚪ `service:list` carga el historial de kilometraje completo de cada vehículo
+
+**[medido, no se cambia]** · `electron/DataBase/Endpoints/service.endpoints.ts` → `toView`
 
 `toView` calcula `estimateKmPerDay(reminder.car?.kmHistory)` para no mandar el
 historial por IPC —bien pensado— pero el `innerJoinAndSelect("reminder.car")`
@@ -1691,18 +1753,49 @@ con cada actualización de kilometraje.
 Se resuelve seleccionando las columnas que hacen falta en vez de la entidad
 completa, como ya hace `client:get-all` con `addSelect(["cars.id", "cars.licensePlate"])`.
 
+**Medido, y no se cambia.** Baja de 🟡 a ⚪.
+
+El detalle que la tarea pasa por alto es que `kmHistory` **sí hace falta**:
+`estimateKmPerDay` lo necesita para encontrar el primero y el último registro.
+No es una columna que sobre, es una que se usa y no se manda.
+
+Y la página son ocho filas, no la tabla entera. Con 300 vehículos de 200
+registros de kilometraje cada uno, la misma consulta con y sin la columna:
+
+| consulta      | por página |
+| ------------- | ---------- |
+| sin kmHistory | 0,22 ms    |
+| con kmHistory | 0,40 ms    |
+
+Dieciocho centésimas de milisegundo, contra perder la estimación de kilómetros
+por día o inventar una forma de calcularla en SQL sobre un JSON.
+
+(`service:list` completo da 2,62 ms con esos mismos 300 vehículos.)
+
 ### G5 · 🟡 `document:list` ordena por una columna sin índice
 
-**[pendiente]** · `electron/DataBase/Entities/document.entity.ts`
+**[a testear]** · `electron/DataBase/Entities/document.entity.ts`
 
 El único índice es el único compuesto `(type, number)`. El listado ordena por
 `createdAt DESC, number DESC`, así que hace un recorrido completo más un ordenado
 en memoria. Hoy son pocos documentos; crecen uno por presupuesto emitido y no se
 borran nunca por diseño.
 
+**Resuelto**: índice `(createdAt, number)`, con `number` adentro para que el
+desempate también salga del índice. Medido con 20 000 documentos, el listado
+pasa de **2,1 ms a 0,46 ms**.
+
+Son milisegundos, sí. Lo que lo hace valer la pena es que la tabla sólo crece
+—es lo que significa un correlativo— y que el arreglo es un `CREATE INDEX` sin
+tocar una línea de código.
+
+El test no se conforma con que el índice exista: mira el `EXPLAIN QUERY PLAN` y
+comprueba que la consulta lo **usa** y que ya no hay ordenado en memoria. Un
+índice que el planificador no elige no compra nada.
+
 ### G6 · ⚪ Consultas que traen relaciones que no se usan
 
-**[pendiente]** · `electron/DataBase/Endpoints/client.endpoints.ts`
+**[a testear]** · `electron/DataBase/Endpoints/client.endpoints.ts`
 
 - `client:toggle-active` carga `relations: { cars: true }` y no toca los autos.
 - `client:update` hace un `findOne` extra **después** de guardar sólo para
@@ -1710,9 +1803,21 @@ borran nunca por diseño.
 - `client:find-by-name` trae `cars.jobs` completos para mostrar **un número** por
   vehículo; alcanzaría con un conteo.
 
+**Los dos primeros, resueltos.** `client:toggle-active` deja de cargar los autos
+—toca un booleano y no los mira, y quien llama tampoco: usa el `status` y
+recarga el listado—. `client:update` carga los autos en el `findOne` que ya
+hacía y devuelve lo guardado: la misma consulta corrida de lugar, no una más.
+
+**El tercero no**, porque la premisa no se sostiene. La ficha del cliente no
+muestra "un número por vehículo": con esos trabajos calcula el resumen de
+actividad —trabajos activos, facturado, fecha del último—, arma la línea de
+tiempo cruzada de todos sus vehículos y alimenta el documento consolidado, que
+necesita los elegibles para que el usuario elija. Es el mismo caso que **G1**, y
+la misma conclusión.
+
 ### G7 · ⚪ El respaldo diario retrasa la apertura de la ventana
 
-**[pendiente]** · `electron/main.ts` → `createWindow`
+**[a testear]** · `electron/main.ts` → `createWindow`
 
 El orden del arranque es: base → respaldo diario (`VACUUM INTO` de toda la base) →
 conteo de recordatorios → recién ahí se crea la ventana. Con la base chica no se
@@ -1720,6 +1825,11 @@ nota; con una base grande, el usuario mira la pantalla de carga mientras se copi
 un archivo que no necesita para empezar a trabajar.
 
 El respaldo es best-effort por diseño: puede correr después de mostrar la ventana.
+
+**Resuelto**, y con un detalle que no era obvio: no alcanzaba con dejar de
+esperarlo antes de crear la ventana. SQLite serializa, así que las primeras
+consultas del renderer se habrían puesto en la cola detrás del `VACUUM`. El
+respaldo arranca en `ready-to-show`, o sea con la ventana ya a la vista.
 
 ---
 
