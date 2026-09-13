@@ -22,6 +22,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import log from "electron-log/main";
 import { logError, logInfo, logWarn } from "./logger";
+import { normalizarErrorDeRenderer } from "./rendererErrorLog";
 import { handleIpc } from "./ipc";
 import {
   AppDataSource,
@@ -129,6 +130,26 @@ let hayCambiosSinGuardar = false;
 
 ipcMain.on("app:unsaved-changes", (_event, dirty: unknown) => {
   hayCambiosSinGuardar = dirty === true;
+});
+
+/**
+ * Registra en el archivo de log un error que ocurrió **en la interfaz**.
+ *
+ * Los del proceso principal ya iban al archivo; los del renderer no iban a
+ * ningún lado. El `ErrorBoundary` hacía `console.error`, que termina en las
+ * herramientas de desarrollo —que en producción nadie abre—, y los errores
+ * sueltos (un manejador de evento, una promesa sin `catch`) ni eso.
+ *
+ * El agujero se notaba justo cuando importaba: al usuario le revienta una
+ * pantalla, llama, se le pide que mande los logs —hay un botón para abrir la
+ * carpeta— y ahí no está el único error que hacía falta ver.
+ *
+ * Es `on` y no `handle` a propósito: registrar no puede bloquear ni fallar
+ * hacia una pantalla que ya está rota.
+ */
+ipcMain.on("app:log-renderer-error", (_event, payload: unknown) => {
+  const { scope, error, context } = normalizarErrorDeRenderer(payload);
+  logError(scope, error, context);
 });
 
 // Cada vez que una mutación invalida la caché del dashboard se le avisa al

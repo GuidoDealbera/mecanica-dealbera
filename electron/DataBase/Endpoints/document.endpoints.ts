@@ -1,3 +1,6 @@
+import { dialog, shell } from "electron";
+import fs from "node:fs";
+import path from "node:path";
 import { handleIpc } from "../../ipc";
 import { esIdentificador } from "../../validation";
 import { logError } from "../../logger";
@@ -139,6 +142,76 @@ handleIpc(
       status: "success",
       message: "Documento descartado",
       result: undefined,
+    };
+  }
+);
+
+/**
+ * Guarda el PDF ya dibujado, preguntando dónde.
+ *
+ * Antes esto lo hacía `doc.save()` de jsPDF, que es la descarga del navegador:
+ * el archivo caía en la carpeta de descargas del sistema sin diálogo, sin
+ * poder elegir dónde y —lo que importa— **sin devolver si funcionó**.
+ *
+ * Las dos cosas estaban mal. Era incoherente con el resto de la aplicación
+ * —exportar la base y exportar el CSV preguntan y avisan— justo en la
+ * operación más importante. Y como no informaba el resultado, un fallo al
+ * escribir no disparaba el descarte del documento, así que el número quedaba
+ * quemado sin que existiera ningún PDF.
+ *
+ * Se escribe a un temporal y se renombra al final, como todo lo que este
+ * proyecto escribe en disco: un corte no puede dejar un archivo con nombre de
+ * documento emitido y contenido a medias.
+ */
+handleIpc(
+  "document:save-pdf",
+  async (
+    _event,
+    payload: unknown
+  ): Promise<APIResponse<{ filePath: string }>> => {
+    const datos = (payload ?? {}) as { defaultName?: unknown; bytes?: unknown };
+    const nombre =
+      typeof datos.defaultName === "string" && datos.defaultName.trim()
+        ? datos.defaultName
+        : "documento.pdf";
+    const bytes = datos.bytes;
+    if (!(bytes instanceof Uint8Array) || bytes.byteLength === 0) {
+      return { status: "failed", message: "El PDF llegó vacío" };
+    }
+
+    const { filePath } = await dialog.showSaveDialog({
+      title: "Guardar documento",
+      defaultPath: nombre,
+      filters: [{ name: "Documento PDF", extensions: ["pdf"] }],
+    });
+
+    if (!filePath) {
+      return { status: "cancelled", message: "Emisión cancelada" };
+    }
+
+    const parcial = `${filePath}.parcial`;
+    try {
+      fs.writeFileSync(parcial, bytes);
+      fs.renameSync(parcial, filePath);
+    } catch (error) {
+      // Un temporal a medias no se deja tirado.
+      try {
+        fs.rmSync(parcial, { force: true });
+      } catch {
+        /* si tampoco se puede borrar, no hay más que hacer */
+      }
+      logError("document:save-pdf", error, { filePath });
+      return {
+        status: "failed",
+        message: `No se pudo guardar el documento en ${path.dirname(filePath)}`,
+      };
+    }
+
+    shell.showItemInFolder(filePath);
+    return {
+      status: "success",
+      message: "Documento guardado",
+      result: { filePath },
     };
   }
 );

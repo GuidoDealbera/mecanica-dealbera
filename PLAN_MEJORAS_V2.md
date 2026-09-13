@@ -1082,13 +1082,16 @@ autocompletar llevaban `textValue={client.key}`, y al pasar la clave a ser el
 
 La decisión de qué titular quedó elegido salió del componente a
 `src/Utils/ownerSelection.ts`, que es donde el proyecto pone las reglas
-testeables. Vale aclarar el límite: eso cubre la regla, **no** el widget. Se
-intentó ejercitar el autocompletar contra la aplicación real por CDP y no se
-pudo —el desplegable de HeroUI no responde a eventos sintéticos, y el teclado
-por CDP no llega—; se comprobó que el código anterior se comporta igual bajo el
-mismo arnés, así que es una limitación de la herramienta y no del cambio. Lo que
-sí se ejercitó en la aplicación real es la ficha del cliente por `id`, entrando
-por la dirección y con un clic desde el listado.
+testeables. Lo que sí se ejercitó en la aplicación real es la ficha del cliente
+por `id`, entrando por la dirección y con un clic desde el listado.
+
+**Corrección posterior, hecha en el Sprint E.** Acá decía que el autocompletar
+no era testeable —no se lo pudo manejar por CDP— y que como el código anterior
+se comportaba igual bajo el mismo arnés, era una limitación de la herramienta.
+Las dos cosas estaban mal. `@testing-library/react` ya estaba en el proyecto, y
+al escribir el test que faltaba apareció el motivo real de que el widget no
+respondiera: **el campo no se podía tipear**, ni antes ni después. El código
+anterior se comportaba igual porque tenía el mismo bug. Ver E9.
 
 **Después, quitar la unicidad.** La migración `AllowHomonymClients` reconstruye
 la tabla `client` sin los `UNIQUE` de `fullname` ni de `phone` —el teléfono
@@ -1184,7 +1187,7 @@ Qué pasa cuando algo sale mal, y si queda rastro.
 
 ### E1 · 🔴 Un error de la interfaz no deja **ningún** rastro en los logs
 
-**[pendiente]** · `src/Pages/Components/ErrorBoundary.tsx`
+**[a testear]** · `src/Pages/Components/ErrorBoundary.tsx`
 
 Cuando una pantalla revienta, el `ErrorBoundary` la reemplaza por "Algo salió mal"
 y hace `console.error`. Nada más.
@@ -1201,9 +1204,34 @@ error que importaba es el único que no se registró.
 Hay que mandarlo al proceso principal por IPC y registrarlo con `logError`, como
 todo lo demás.
 
+**Resuelto.** Hay un canal `app:log-renderer-error` y un único camino de la
+interfaz al archivo, `reportarError`. Es `send` y no `invoke` a propósito:
+registrar no puede bloquear ni fallar hacia una pantalla que ya está rota, y por
+lo mismo `reportarError` no lanza nunca —se lo llama siempre encima de un error
+que ya ocurrió, y romper ahí lo taparía con otro peor y sin traza—.
+
+Se aprovechó para cubrir lo que el `ErrorBoundary` **no** ve, que tenía el mismo
+problema y ni siquiera un cartel: un error en un manejador de evento, en un
+`setTimeout` o una promesa sin `catch`. React no los atrapa porque no ocurren
+durante el renderizado. Van por `window.onerror` y `unhandledrejection`.
+
+Lo que se guarda es nombre, mensaje, traza, ruta y traza de componentes, todo
+acotado: el archivo de log rota, y una traza de React sin límite se lleva por
+delante los errores anteriores, que son los que dan contexto. Se rearma un
+`Error` de verdad en el proceso principal en vez de pasar el objeto plano,
+porque `serializeError` sólo sabe sacarle `name`/`message`/`stack` a un `Error`
+—con un objeto cualquiera escribiría `"[object Object]"` y se perdería la traza,
+que es lo único por lo que este canal existe—.
+
+Verificado contra la aplicación real, disparando los tres caminos: los tres
+quedan en `main.log` con su scope, su ruta y su traza completa.
+
+Y el cartel ahora dice que el detalle quedó registrado. Sin eso el usuario no
+tiene motivo para ir a buscar los logs, que es el paso que cierra el circuito.
+
 ### E2 · 🟠 Si falla cargar la configuración de service, la pantalla ofrece guardar valores inventados
 
-**[pendiente]** · `src/Pages/ServiceAlertsPage.tsx`
+**[a testear]** · `src/Pages/ServiceAlertsPage.tsx`
 
 ```ts
 } catch {
@@ -1219,9 +1247,23 @@ configuración real con los defaults** sin haberse enterado de nada.
 Un fallo al leer configuración no puede ser silencioso si esa misma pantalla
 permite escribirla.
 
+**Resuelto.** El punto es que "todavía no llegó" y "no se pudo leer" eran el
+mismo estado, porque los dos se ven como los valores por defecto. Ahora se
+distinguen: si la lectura falla, el panel no muestra los campos —mostrarlos es
+ofrecer guardarlos— sino el motivo y un botón de reintentar, porque el fallo
+puede ser momentáneo y quedarse encerrado hasta reiniciar sería peor.
+
+El error además se avisa con un toast y queda en el log (E1), aclarando que la
+pantalla está evaluando los vencimientos con los valores por defecto: eso
+cambia qué recordatorios se ven como vencidos, y el usuario tiene que saberlo.
+
+Los tres casos son de componente, con Testing Library. Vale anotarlo porque en
+D5 di por no testeable un formulario por no haber podido manejarlo por CDP, y la
+herramienta para eso ya estaba en el proyecto.
+
 ### E3 · 🟠 El PDF se descarga sin preguntar y sin confirmar que se guardó
 
-**[pendiente]** · `src/Hooks/useBudgetPdf.ts`
+**[a testear]** · `src/Hooks/useBudgetPdf.ts`
 
 La emisión termina en `doc.save(...)`, que es la descarga de jsPDF: el archivo cae
 en la carpeta de descargas del sistema sin diálogo, sin elegir dónde y **sin
@@ -1235,9 +1277,20 @@ Dos cosas mal:
 - Como `doc.save()` no informa el resultado, **un fallo al escribir no dispara el
   descarte del documento**. Ver E4.
 
+**Resuelto.** El PDF ya dibujado se manda al proceso principal, que pregunta
+dónde con `dialog.showSaveDialog`, escribe a un temporal, renombra al final y
+muestra el archivo en su carpeta —el mismo patrón que la exportación de la base
+y la del CSV—. Y devuelve un `APIResponse`, así que las tres salidas se
+distinguen: guardado, cancelado y fallido.
+
+Esa distinción es la que hacía falta. Cancelar deja de ser indistinguible de un
+error —no aparece ningún cartel rojo por algo que el usuario hizo a propósito— y
+un fallo al escribir deja de ser indistinguible del éxito, que es de lo que
+dependía E4.
+
 ### E4 · 🟠 El número de documento se puede quemar sin que salga ningún PDF
 
-**[pendiente]** · `src/Hooks/useBudgetPdf.ts`,
+**[a testear]** · `src/Hooks/useBudgetPdf.ts`,
 `electron/DataBase/Endpoints/document.endpoints.ts`
 
 La secuencia es: pedir el número (se **commitea** en la base) → dibujar el PDF →
@@ -1257,9 +1310,33 @@ Resultado: un hueco en el correlativo, que es justo lo que toda esta maquinaria
 existe para evitar. Lo correcto es al revés: **generar el PDF primero y tomar el
 número al confirmar que se guardó**.
 
+**Resuelto, pero sin invertir el orden**, y conviene dejar escrito por qué.
+
+El número va impreso **adentro** del PDF y en el nombre del archivo, así que
+"dibujar primero" obliga a adivinar cuál va a ser antes de reservarlo. Y ahí el
+riesgo cambia de lado: si el registro no llega a guardarse, ese número se le
+vuelve a dar al documento siguiente y quedan **dos documentos con el mismo
+número en la calle**. En una factura eso es peor que un hueco. Un hueco es una
+molestia de auditoría; un duplicado es un problema con un cliente.
+
+Así que el número se sigue tomando primero, y lo que se arregló son los caminos
+por los que no se devolvía:
+
+- `doc.save()` no informaba fallos → ahora lo escribe el proceso principal y
+  devuelve el resultado (E3), así que un error de escritura descarta el número.
+- Cancelar el diálogo → descarta en el acto, que además es cuando el descarte
+  funciona seguro: no se emitió nada después, así que sigue siendo el último de
+  su tipo.
+- El descarte se tragaba su propio error con un `catch {}` → ahora queda
+  registrado (E1). Si el correlativo tiene un hueco, se puede averiguar por qué.
+
+Queda un caso que ningún orden evita: que la aplicación se cierre entre el
+commit del número y la escritura del archivo. Es una ventana de milisegundos, y
+la alternativa la cambiaría por la posibilidad de un número repetido.
+
 ### E5 · 🟠 `data:export-csv` revienta hacia el renderer en vez de devolver el error
 
-**[pendiente]** · `electron/DataBase/Endpoints/backup.endpoints.ts`
+**[a testear]** · `electron/DataBase/Endpoints/backup.endpoints.ts`
 
 `fs.writeFileSync(filePath, csv, "utf8")` no está en un `try`. Un disco lleno, una
 carpeta sin permisos o un pendrive desconectado lanzan, `handleIpc` relanza y el
@@ -1268,9 +1345,14 @@ renderer recibe una promesa rechazada con el mensaje crudo de Node.
 Todos los demás flujos de respaldo devuelven `{ status: "failed", message }` con
 un texto entendible. Éste no.
 
+**Resuelto**: la escritura va en un `try` y devuelve el motivo nombrando la
+carpeta, sin el texto de Node. De paso se escribe a un temporal y se renombra al
+final, como el resto: exportar encima de un CSV anterior no puede dejarlo a
+medio escribir.
+
 ### E6 · 🟡 Los archivos `_pre_import_*.db` se acumulan sin límite
 
-**[pendiente]** · `electron/DataBase/Endpoints/backup.endpoints.ts`
+**[a testear]** · `electron/DataBase/Endpoints/backup.endpoints.ts`
 
 Cada importación o restauración guarda la base anterior al lado, con nombre
 `taller_pre_import_<marca>.db`, y **nunca se borra ninguna**. Las copias previas a
@@ -1280,9 +1362,13 @@ diarios también (por niveles). Éstas no.
 No es grave, pero es la misma decisión tomada tres veces con tres resultados
 distintos, y con el tiempo llena la carpeta de datos con copias enteras de la base.
 
+**Resuelto**: se conservan las tres últimas, igual que `pruneSnapshots`. Se
+podan al terminar bien el reemplazo y no antes, porque hasta ese momento la
+copia recién apartada es la única red que hay.
+
 ### E7 · 🟡 `backup:export` borra el archivo de destino antes de saber si puede escribirlo
 
-**[pendiente]** · `electron/DataBase/Endpoints/backup.endpoints.ts`
+**[a testear]** · `electron/DataBase/Endpoints/backup.endpoints.ts`
 
 ```ts
 fs.rmSync(filePath, { force: true });
@@ -1299,9 +1385,17 @@ nuevo.
 Lo correcto es el patrón que el propio proyecto ya usa en `createPreMigrationSnapshot`:
 escribir a `<destino>.parcial` y renombrar al final.
 
+**Resuelto**, con eso mismo: el archivo que había sólo desaparece cuando hay uno
+nuevo y completo para reemplazarlo.
+
+Comprobado en las dos direcciones. Con el arreglo, un fallo al escribir deja el
+respaldo anterior intacto; con el código anterior el mismo caso **dice que la
+exportación tuvo éxito** habiendo borrado el respaldo viejo, que es lo peor de
+los dos mundos.
+
 ### E8 · 🟡 El reemplazo de base no limpia los archivos laterales de SQLite
 
-**[pendiente]** · `electron/DataBase/Endpoints/backup.endpoints.ts`,
+**[a testear]** · `electron/DataBase/Endpoints/backup.endpoints.ts`,
 `electron/DataBase/migrationSafety.ts` → `restoreSnapshot`
 
 Las dos funciones hacen `fs.copyFileSync` sobre el `.db` sin borrar antes un
@@ -1313,6 +1407,47 @@ Comprobé que hoy el riesgo es bajo: la base corre en `journal_mode = delete`
 una suposición no escrita en ningún lado: alcanza con que alguien active WAL para
 buscar rendimiento y esto pase de improbable a corrupción. Borrar los laterales
 antes de copiar cuesta dos renglones.
+
+**Resuelto** con `removeSidecarFiles`, en los tres lugares que dejan un `.db`
+distinto en la ruta de la base: el reemplazo, la vuelta atrás del reemplazo y
+`restoreSnapshot`. La suposición sobre `journal_mode` queda escrita ahí, que era
+media tarea.
+
+### E9 · 🔴 El campo del titular del alta de vehículos no se podía tipear
+
+**[a testear]** · `src/Components/Forms/AddCarForm.tsx`
+
+No estaba en el plan: apareció al escribir el test que en D5 se había dado por
+imposible.
+
+El `Autocomplete` del titular recibía `{...field}` de react-hook-form, que
+incluye `value` y `onChange`. Pero un `Autocomplete` de HeroUI no se controla
+con esos: usa `inputValue` y `onInputChange`. El `onChange` del spread bajaba al
+input de adentro y **reemplazaba al de react-aria**, que es el que abre la lista
+y avisa lo que se escribió. Resultado: react-aria nunca se enteraba del tipeo,
+así que no buscaba ni abría el desplegable, y como el valor visible lo manda
+react-aria, en el siguiente render el campo volvía a quedar vacío.
+
+Está así desde el primer commit, y es la pantalla de dar de alta un vehículo,
+que es el uso diario de la aplicación.
+
+Medido cuatro veces, dos entornos por dos versiones del código:
+
+| entorno         | sin el arreglo       | con el arreglo               |
+| --------------- | -------------------- | ---------------------------- |
+| aplicación real | el campo queda vacío | queda "Ana", con su lista    |
+| jsdom           | vacío, 0 búsquedas   | "Ana", busca y abre la lista |
+
+La salvedad honesta: se lo manejó con `execCommand("insertText")` y con
+`userEvent`, no con una tecla física. No hay mecanismo por el que una tecla real
+tome otro camino —termina en el mismo evento `input` y en el mismo `onChange` de
+React—, pero conviene confirmarlo escribiendo en el campo una vez.
+
+**Resuelto** pasando `inputValue`, `name` y `onBlur` en vez del spread, con
+cuatro casos de componente que fallan sin el arreglo: que elegir de la lista
+rellene los datos, que el campo muestre el nombre y no el uuid, que dos
+homónimos se distingan, y que editar el nombre después de elegir vuelva a dejar
+el titular en blanco.
 
 ---
 

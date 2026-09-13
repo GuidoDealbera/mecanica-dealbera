@@ -142,6 +142,10 @@ declare global {
         ) => Promise<APIResponse<IssuedDocument>>;
         discard: (id: string) => Promise<APIResponse>;
         list: (filters?: DocumentQueryParams) => Promise<IssuedDocument[]>;
+        savePdf: (payload: {
+          defaultName: string;
+          bytes: Uint8Array;
+        }) => Promise<APIResponse<{ filePath: string }>>;
       };
       /** Suscribe al aviso de "los datos cambiaron". Devuelve la baja. */
       onDataChanged: (callback: () => void) => () => void;
@@ -158,6 +162,14 @@ declare global {
         openLogsFolder: () => Promise<void>;
         openExternal: (url: string) => Promise<APIResponse>;
         setUnsavedChanges: (dirty: boolean) => void;
+        logError: (payload: {
+          scope: string;
+          name?: string;
+          message: string;
+          stack?: string;
+          componentStack?: string;
+          route?: string;
+        }) => void;
       };
     };
     updater: UpdaterAPI;

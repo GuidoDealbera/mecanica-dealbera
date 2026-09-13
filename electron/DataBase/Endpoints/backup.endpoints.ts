@@ -1,6 +1,7 @@
 import { dialog, shell } from "electron";
 import { handleIpc } from "../../ipc";
 import fs from "node:fs";
+import path from "node:path";
 import { logError, logInfo } from "../../logger";
 import {
   AppDataSource,
@@ -12,7 +13,7 @@ import {
 import { invalidateDashboardStatsCache } from "../dashboardCache";
 import { listBackups } from "../backups";
 import { toCsv } from "../csv";
-import { checkDatabaseHealth } from "../migrationSafety";
+import { checkDatabaseHealth, removeSidecarFiles } from "../migrationSafety";
 import type { APIResponse, BackupEntry } from "../../../src/Types/apiTypes";
 
 handleIpc("data:export-csv", async () => {
@@ -96,7 +97,32 @@ handleIpc("data:export-csv", async () => {
 
   if (!filePath) return { status: "cancelled", message: "Operación cancelada" };
 
-  fs.writeFileSync(filePath, csv, "utf8");
+  // La escritura va en un `try`: un disco lleno, una carpeta sin permisos o un
+  // pendrive que se desconectó lanzan, y `handleIpc` relanza, así que al
+  // renderer le llegaba una promesa rechazada con el mensaje crudo de Node
+  // ("EACCES: permission denied, open 'E:\...'"). Todos los demás flujos de
+  // respaldo devuelven un motivo entendible; éste era el único que no.
+  //
+  // Y a un temporal que se renombra al final, como el resto: exportar encima de
+  // un CSV anterior no puede dejarlo a medio escribir si el pendrive se va en
+  // el medio.
+  const parcial = `${filePath}.parcial`;
+  try {
+    fs.writeFileSync(parcial, csv, "utf8");
+    fs.renameSync(parcial, filePath);
+  } catch (error) {
+    try {
+      fs.rmSync(parcial, { force: true });
+    } catch {
+      /* si tampoco se puede borrar el temporal, no hay más que hacer */
+    }
+    logError("data:export-csv", error, { filePath });
+    return {
+      status: "failed",
+      message: `No se pudo escribir el archivo en ${path.dirname(filePath)}`,
+    };
+  }
+
   shell.showItemInFolder(filePath);
 
   return {
@@ -142,6 +168,45 @@ handleIpc("backup:list", (): APIResponse<BackupEntry[]> => {
  * No hace falta una copia previa a esa migración: la red es la base que se
  * acaba de apartar, y el archivo de origen sigue donde estaba.
  */
+/** Prefijo de la copia que se aparta antes de reemplazar la base. */
+const PREFIJO_PREVIA = "_pre_import_";
+
+/** Cuántas copias previas al reemplazo se conservan. */
+const PREVIAS_A_CONSERVAR = 3;
+
+/**
+ * Borra las copias previas al reemplazo más viejas y devuelve las que eliminó.
+ *
+ * Cada importación o restauración guardaba la base anterior al lado y **no se
+ * borraba ninguna nunca**. Las copias previas a migraciones sí tienen retención
+ * (`pruneSnapshots`, las últimas 3) y los respaldos diarios también, por
+ * niveles: era la misma decisión tomada tres veces con tres resultados. Con el
+ * tiempo la carpeta de datos se llena de copias enteras de la base.
+ *
+ * El nombre lleva `Date.now()`, que ordenado como texto queda cronológico
+ * mientras tenga la misma cantidad de dígitos —hasta el año 2286—.
+ */
+export const prunePreImportCopies = (
+  dbPath: string,
+  keep = PREVIAS_A_CONSERVAR
+): string[] => {
+  const dir = path.dirname(dbPath);
+  const base = path.basename(dbPath, ".db");
+  if (!fs.existsSync(dir)) return [];
+
+  const copias = fs
+    .readdirSync(dir)
+    .filter(
+      (f) => f.startsWith(`${base}${PREFIJO_PREVIA}`) && f.endsWith(".db")
+    )
+    .sort()
+    .map((f) => path.join(dir, f));
+
+  const sobran = copias.slice(0, Math.max(0, copias.length - keep));
+  for (const file of sobran) fs.rmSync(file, { force: true });
+  return sobran;
+};
+
 const replaceDatabaseWith = async (sourcePath: string, scope: string) => {
   const destPath = getDBPath();
   let previousPath: string | null = null;
@@ -152,10 +217,17 @@ const replaceDatabaseWith = async (sourcePath: string, scope: string) => {
     }
 
     if (fs.existsSync(destPath)) {
-      previousPath = destPath.replace(".db", `_pre_import_${Date.now()}.db`);
+      previousPath = destPath.replace(
+        ".db",
+        `${PREFIJO_PREVIA}${Date.now()}.db`
+      );
       fs.copyFileSync(destPath, previousPath);
     }
 
+    // Los laterales que haya son de la base que se está reemplazando: un
+    // `-journal` o un `-wal` viejo no le corresponde al archivo entrante, y
+    // SQLite lo aplicaría igual.
+    removeSidecarFiles(destPath);
     fs.copyFileSync(sourcePath, destPath);
     await AppDataSource.initialize();
 
@@ -173,6 +245,13 @@ const replaceDatabaseWith = async (sourcePath: string, scope: string) => {
     // Un respaldo puede ser de una versión anterior. Si falla, el `catch` de
     // abajo vuelve a la base que se apartó recién.
     const migradas = await applyPendingMigrations();
+
+    const borradas = prunePreImportCopies(destPath);
+    if (borradas.length > 0) {
+      logInfo(scope, "Copias previas al reemplazo eliminadas", {
+        count: borradas.length,
+      });
+    }
 
     invalidateDashboardStatsCache();
     logInfo(scope, "Base de datos reemplazada", {
@@ -198,6 +277,7 @@ const replaceDatabaseWith = async (sourcePath: string, scope: string) => {
     }
     if (previousPath && fs.existsSync(previousPath)) {
       try {
+        removeSidecarFiles(destPath);
         fs.copyFileSync(previousPath, destPath);
         logInfo(scope, "Base restaurada desde la copia previa al reemplazo");
       } catch (restoreError) {
@@ -250,12 +330,28 @@ handleIpc("backup:export", async () => {
   // `VACUUM INTO` y no `copyFileSync`: copiar el archivo a secas puede
   // capturarlo a mitad de una escritura. Esta es la copia que el usuario se
   // lleva en un pendrive pensando que tiene sus datos a salvo, así que tiene que
-  // ser consistente sí o sí. `VACUUM INTO` falla si el destino ya existe, y el
-  // diálogo de guardado ya confirmó el reemplazo.
+  // ser consistente sí o sí.
+  //
+  // `VACUUM INTO` falla si el destino ya existe, así que antes se borraba el
+  // destino y recién después se escribía. Eso deja un hueco: si el `VACUUM`
+  // falla —el pendrive se desconectó a mitad—, **el respaldo anterior ya no
+  // está** y el nuevo tampoco. El usuario se queda sin ninguno de los dos, y
+  // justo en la operación que hace para no quedarse sin datos.
+  //
+  // Se escribe a un temporal y se renombra al final, que es el patrón que el
+  // propio proyecto ya usa en `createPreMigrationSnapshot`. El archivo que
+  // había sólo desaparece cuando hay uno nuevo y completo para reemplazarlo.
+  const parcial = `${filePath}.parcial`;
   try {
-    fs.rmSync(filePath, { force: true });
-    await AppDataSource.query("VACUUM INTO ?", [filePath]);
+    fs.rmSync(parcial, { force: true });
+    await AppDataSource.query("VACUUM INTO ?", [parcial]);
+    fs.renameSync(parcial, filePath);
   } catch (error) {
+    try {
+      fs.rmSync(parcial, { force: true });
+    } catch {
+      /* si tampoco se puede borrar el temporal, no hay más que hacer */
+    }
     logError("backup:export", error, { filePath });
     return {
       status: "failed",

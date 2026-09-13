@@ -191,7 +191,17 @@ const AddCarForm: React.FC<AddCarFormProps> = ({
               render={({ field, fieldState: { error } }) =>
                 !initialValues && !isEditing ? (
                   <Autocomplete
-                    {...field}
+                    // Sin `{...field}`. El spread de react-hook-form le pone
+                    // `value` y `onChange` al Autocomplete, y HeroUI los baja
+                    // al input de adentro: ese `onChange` reemplaza al de
+                    // react-aria, que es el que abre la lista y dispara
+                    // `onInputChange`. El campo quedaba sin poder tipearse —lo
+                    // escrito se borraba en el siguiente render, porque el
+                    // valor lo manda react-aria y nunca se enteraba—.
+                    // El equivalente correcto es `inputValue`.
+                    name={field.name}
+                    onBlur={field.onBlur}
+                    inputValue={field.value ?? ""}
                     label="Nombre completo"
                     allowsCustomValue
                     onSelectionChange={(key) => {

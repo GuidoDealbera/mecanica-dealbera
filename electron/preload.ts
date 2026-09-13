@@ -104,6 +104,9 @@ contextBridge.exposeInMainWorld("api", {
       await ipcRenderer.invoke("document:discard", id),
     list: async (filters?: DocumentQueryParams) =>
       await ipcRenderer.invoke("document:list", filters),
+    /** Pregunta dónde guardar el PDF ya dibujado y lo escribe. */
+    savePdf: async (payload: { defaultName: string; bytes: Uint8Array }) =>
+      await ipcRenderer.invoke("document:save-pdf", payload),
   },
   /**
    * Aviso de "los datos cambiaron", que emite el proceso principal cada vez que
@@ -142,6 +145,19 @@ contextBridge.exposeInMainWorld("api", {
      */
     setUnsavedChanges: (dirty: boolean) =>
       ipcRenderer.send("app:unsaved-changes", dirty),
+    /**
+     * Manda al archivo de log un error de la interfaz. Sin esto no llegaba
+     * ninguno: `console.error` del renderer va a las herramientas de
+     * desarrollo, no al archivo que el usuario puede mandar.
+     */
+    logError: (payload: {
+      scope: string;
+      name?: string;
+      message: string;
+      stack?: string;
+      componentStack?: string;
+      route?: string;
+    }) => ipcRenderer.send("app:log-renderer-error", payload),
   },
 });
 

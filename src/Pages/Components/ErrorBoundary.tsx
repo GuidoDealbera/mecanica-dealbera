@@ -1,6 +1,7 @@
 import React from "react";
 import { Button } from "@heroui/react";
 import { MdErrorOutline, MdRefresh, MdArrowBack } from "react-icons/md";
+import { reportarError } from "../../Utils/reportarError";
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -26,8 +27,13 @@ class ErrorBoundary extends React.Component<
   }
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
-    // En producción se podría enviar a un servicio de logging (Sentry, etc.)
-    console.error("[ErrorBoundary]", error, info.componentStack);
+    // Al archivo de log, no a la consola. `console.error` va a las herramientas
+    // de desarrollo, que en producción nadie abre: el error que reventó la
+    // pantalla era el único que no quedaba registrado, justo cuando el usuario
+    // llama y se le pide que mande los logs.
+    reportarError("renderer:boundary", error, {
+      componentStack: info.componentStack ?? undefined,
+    });
   }
 
   handleRetry = () => {
@@ -67,6 +73,13 @@ class ErrorBoundary extends React.Component<
             <p className="text-foreground-400 text-sm leading-relaxed">
               Ocurrió un error inesperado al renderizar esta sección. Podés
               intentar recargar o volver a la pantalla anterior.
+            </p>
+            {/* Que quedó registrado importa decirlo: es lo que convierte el
+                "algo salió mal" en algo que se puede averiguar después. El
+                botón para abrir la carpeta está en Respaldos. */}
+            <p className="text-foreground-500 text-xs mt-3 leading-relaxed">
+              El detalle quedó guardado en los registros de la aplicación
+              (Respaldos → Abrir carpeta de registros).
             </p>
           </div>
 

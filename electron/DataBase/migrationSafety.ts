@@ -190,6 +190,31 @@ export const checkDatabaseHealth = async (
 };
 
 /**
+ * Archivos que SQLite deja al lado de la base: el journal del modo por defecto
+ * y los dos del modo WAL.
+ */
+const LATERALES = ["-journal", "-wal", "-shm"];
+
+/**
+ * Borra los archivos laterales de una base.
+ *
+ * Va antes de dejar un `.db` distinto en esa ruta. Un `-journal` o un `-wal`
+ * que quedó del archivo anterior **no le corresponde** al nuevo, y SQLite lo
+ * aplicaría igual: no hay forma de que se dé cuenta.
+ *
+ * Hoy el riesgo es bajo y está medido: la base corre en `journal_mode = delete`
+ * —comprobado en ejecución—, así que no hay un `-wal` permanente dando vueltas.
+ * Pero eso es una suposición que no estaba escrita en ningún lado, y alcanza
+ * con que alguien active WAL buscando rendimiento para que pase de improbable a
+ * corrupción. Cuesta dos renglones.
+ */
+export const removeSidecarFiles = (dbPath: string): void => {
+  for (const sufijo of LATERALES) {
+    fs.rmSync(`${dbPath}${sufijo}`, { force: true });
+  }
+};
+
+/**
  * Vuelve la base al contenido de una copia previa.
  *
  * Quien llama tiene que haber cerrado el `DataSource` antes: se está
@@ -212,6 +237,8 @@ export const restoreSnapshot = (
     fs.renameSync(dbPath, brokenCopyPath);
   }
 
+  // Los laterales que hubiera quedado son de la base que se acaba de apartar.
+  removeSidecarFiles(dbPath);
   fs.copyFileSync(snapshotPath, dbPath);
   return { brokenCopyPath };
 };
