@@ -4,8 +4,8 @@ Reglas que se aprendieron rompiendo cosas. Están acá porque ninguna es evident
 leyendo el código: cada una costó una sesión de depuración.
 
 El plan de trabajo vivo está en [PLAN_MEJORAS.md](PLAN_MEJORAS.md), y la
-revisión completa del proyecto —84 tareas, con los bugs primero— en
-[PLAN_MEJORAS_V2.md](PLAN_MEJORAS_V2.md).
+revisión completa del proyecto —con los bugs primero, y cuántas tareas son en
+su tabla de resumen— en [PLAN_MEJORAS_V2.md](PLAN_MEJORAS_V2.md).
 
 ## Cómo se verifica
 
@@ -82,6 +82,11 @@ criterio, y no hay excepciones:
   in property ... of a where condition", que es lo que ve el usuario.
 - **Los parámetros de un listado** pasan por `comoParametros`. Con una cadena en
   vez de un objeto, `params.search.trim()` falla.
+- **Un campo de una edición** se puede omitir pero no mandar en `null`:
+  `@OmitibleNoNulo(mensaje)`. `@IsOptional()` saltea la validación con `null`
+  igual que con `undefined`, y el `null` llegaba hasta un `save` contra una
+  columna `NOT NULL`. Sólo va donde `null` significa algo, como los intervalos
+  de service ("usar los generales").
 
 Lo que fija esto es
 [`contratoDeEntrada.test.ts`](electron/DataBase/Endpoints/contratoDeEntrada.test.ts):
@@ -141,6 +146,31 @@ Al escribir una migración que reescribe datos, filtrar por el resultado de la
 conversión: `strftime` devuelve NULL ante un texto que no entiende, y sin ese
 filtro se vacía una columna `NOT NULL`.
 
+Y **una migración no puede fallar por los datos**: si falla, la aplicación no
+abre hasta la versión siguiente. Lo que no encaje se aparta —a la papelera, como
+hace TightenJobColumns con un trabajo sin vehículo—; no se borra ni se aborta.
+
+### La papelera guarda filas, y las filas también se migran
+
+Restaurar es reinsertar las filas tal como estaban al borrarlas. Una migración
+que restrinja una columna de `job`, `car`, `client` o `service_reminder` tiene
+que corregir también las copias de `deleted_item`: si no, lo borrado antes deja
+de poder restaurarse. El `DEFAULT` no salva el caso, porque SQLite no lo aplica
+ante un `NULL` explícito.
+
+### Las entidades describen la base, y un test lo comprueba
+
+`esquemaDeLasEntidades.test.ts` compara la base que arman las migraciones con la
+que arma TypeORM desde las entidades: columnas, nulos, defaults, FK con sus
+acciones e índices. Al escribir una migración, la entidad tiene que decir lo
+mismo, incluidos el nombre de la FK (`@JoinColumn({ foreignKeyConstraintName })`)
+y los índices.
+
+Y la FK va en **un solo renglón** en el SQL de la migración. TypeORM saca su
+nombre con una expresión regular que espera `) REFERENCES` seguido: si no lo
+encuentra, `migration:generate` propone reconstruir la tabla para
+"renombrarla".
+
 ### Dónde viven los datos
 
 - Base viva: `userData` (`%APPDATA%/mecanica-dealbera`). Fuera de la vista y del
@@ -170,6 +200,17 @@ Por lo mismo, `min-h-0` en los hijos flex que tengan que poder achicarse.
 
 Y ojo con el borde superior: un hijo pegado al borde de un contenedor que
 recorta **pierde su sombra**. Por eso el cuerpo de `PageShell` lleva `pt-1`.
+
+### HeroUI habla en inglés si no se le dice otra cosa
+
+`HeroUIProvider` fija `locale = "en-US"` por defecto y le gana al idioma de
+Windows. `Providers.tsx` lo pone en `es-AR`, y con eso sale en castellano todo lo
+que traduce react-aria.
+
+Lo que HeroUI escribe a mano no pasa por el `locale`. La cruz de los modales dice
+"Close", y por eso **todo modal que la muestre lleva
+`closeButton={<CerrarModal />}`**; lo revisa `botonesConNombre.test.ts`. El botón
+de cerrar de los avisos no tiene arreglo en HeroUI 2.
 
 ### `PageShell` es el contenedor estándar
 

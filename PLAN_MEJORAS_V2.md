@@ -36,14 +36,19 @@ están en los sprints de más abajo, que son de calidad y no de corrección.
 | B — Validación que existe y no corre | 7      | 3   | 3   | 1   | 0   |
 | C — Seguridad y endurecimiento       | 7      | 1   | 0   | 5   | 1   |
 | D — Integridad de datos              | 6      | 2   | 3   | 1   | 0   |
-| E — Errores no atajados              | 8      | 1   | 4   | 3   | 0   |
+| E — Errores no atajados              | 9      | 2   | 4   | 3   | 0   |
 | F — Consistencia del contrato        | 9      | 0   | 3   | 4   | 2   |
 | G — Rendimiento                      | 7      | 0   | 1   | 4   | 2   |
 | H — Huecos de producto               | 8      | 0   | 5   | 2   | 1   |
 | I — Interfaz y accesibilidad         | 6      | 0   | 2   | 2   | 2   |
 | J — Tests                            | 7      | 0   | 0   | 5   | 2   |
 | K — Empaquetado y mantenimiento      | 7      | 0   | 1   | 4   | 2   |
-| **Total**                            | **85** | 14  | 26  | 32  | 13  |
+| L — Lo que quedó suelto              | 5      | 0   | 1   | 2   | 2   |
+| **Total**                            | **91** | 15  | 27  | 34  | 15  |
+
+Las severidades son las de cuando se anotó cada tarea. Varias cambiaron al
+investigarlas —A8, G1 y G4 bajaron—, y cada una lo dice en su texto. E9 se
+agregó durante el Sprint E y la tabla no lo contaba hasta el Sprint L.
 
 ---
 
@@ -965,7 +970,7 @@ una sola forma.
 
 Queda anotado como deuda aparte que "sin repuestos" tenga **dos
 representaciones** —`null` y `[]`—: es lo que obliga al `?? []` en cada uso, y se
-arregla con un `NOT NULL DEFAULT '[]'` y su migración.
+arregla con un `NOT NULL DEFAULT '[]'` y su migración. **Resuelto en L2.**
 
 ### D3 · 🟠 `countDueReminders` usa `COUNT(columna)`, contra la regla del propio proyecto
 
@@ -2116,7 +2121,8 @@ es justo ahí donde se cuela el que falta.
 Comprobado en la aplicación real: de 20 botones de sólo ícono en la pantalla de
 autos, el único sin nombre es un botón interno de HeroUI que está oculto y no es
 enfocable. Queda pendiente que ese widget rotula su propio botón en inglés
-("Show suggestions"), que es de la librería y no de este código.
+("Show suggestions"), que es de la librería y no de este código. **Resuelto en
+L4**, y no era de la librería: era el `locale` que HeroUI fija por defecto.
 
 ### I2 · 🟠 El documento se declara en inglés
 
@@ -2505,6 +2511,143 @@ falle no es un test, que se mide antes de optimizar, y como estan las ramas.
 
 No hay plantillas de issue: para un repositorio de una persona serian formularios
 que nadie completa.
+
+---
+
+## Sprint L — Lo que quedó suelto
+
+Cerrados los sprints A a K, quedaban dos pendientes anotados de pasada —la
+doble forma de "sin repuestos" en D2 y el botón en inglés en I1—. Resolverlos
+destapó tres cosas que ninguna tarea tenía anotadas.
+
+### L1 · 🟡 Las entidades describían una base distinta de la que arman las migraciones
+
+**[a testear]** · `electron/DataBase/Entities/*.entity.ts`
+
+Con `synchronize: false`, las entidades y las migraciones se escriben a mano, y
+**nada comprobaba que dijeran lo mismo**. Al compararlas había cinco
+diferencias. Dos no eran de forma:
+
+- `car.owner` es `ON DELETE SET NULL` en la base desde InitialSchema, y la
+  entidad describía una FK `NO ACTION`. El comentario de la propia entidad decía
+  `SET NULL`; el decorador, no. Un `migration:generate` lo habría "corregido" y
+  borrar un cliente habría empezado a fallar.
+- `job.carId` admitía `NULL` en la base aunque la entidad dijera
+  `nullable: false` desde que existe la tabla.
+
+Las otras tres —el nombre de las tres FK, los dos índices de `client` que
+repuso AllowHomonymClients y el default de `job.status`— se resolvieron
+declarando en la entidad lo que la base ya tenía.
+
+**Resuelto.** `esquemaDeLasEntidades.test.ts` arma una base con las migraciones
+y otra con `synchronize` desde las entidades —el esquema que TypeORM cree que
+hay— y compara columnas, tipos, nulos, defaults, claves foráneas con sus
+acciones e índices, tal como los informa SQLite. `job.carId` se endureció en la
+misma migración que L2.
+
+Lo primero que se probó fue `createSchemaBuilder().log()`, que es lo que usa
+`migration:generate`, y **no sirve**: aun con las entidades corregidas propone
+reconstruir `job`, `car` y `service_reminder`. TypeORM saca el nombre de cada FK
+del SQL de la tabla con una expresión regular que espera `) REFERENCES`
+seguido, y las migraciones viejas lo escribieron en dos renglones. Reconstruir
+`car` —de la que cuelga todo— por un salto de línea no valía la pena. La
+migración nueva escribe la FK en un renglón.
+
+### L2 · 🟡 "Sin repuestos" tenía dos representaciones
+
+**[a testear]** · `electron/DataBase/Migrations/TightenJobColumns1700000018000.ts`
+
+Es la deuda que D2 dejó anotada: `job.parts` podía ser `NULL` o `'[]'`, y por
+eso había un `?? []` en doce lugares. En las bases que se revisaron no había
+ni un `NULL` —`NormalizeJobs` siempre escribió la lista—, y quedaba **una sola
+vía** para escribirlo: un `car:update-job` con `parts: null`, que el DTO dejaba
+pasar (ver L3).
+
+**Resuelto** con la migración `TightenJobColumns`, que reconstruye `job` con
+`parts NOT NULL DEFAULT '[]'` y `carId NOT NULL` (L1), y dos cuidados que no se
+ven a primera vista:
+
+- **La papelera guarda filas, y las filas también se migran.** Restaurar es
+  reinsertar las filas tal como estaban. Un trabajo borrado con `parts` en
+  `NULL` ya no entraría, y el `DEFAULT` no ayuda: SQLite sólo lo aplica cuando
+  la columna no se nombra, no ante un `NULL` explícito. Las copias se corrigen
+  igual que la tabla. Vale para cualquier migración futura que restrinja una
+  columna de las tablas que guarda la papelera.
+- **Una migración no puede fallar por los datos**, porque si falla la
+  aplicación no abre hasta la versión siguiente. Un trabajo sin vehículo —no
+  debería existir ninguno— no la hace fallar ni se borra: va a la papelera, se
+  ve ahí y se puede eliminar. Restaurarlo lo rechaza con un motivo claro, porque
+  no hay a qué vehículo devolverlo.
+
+Después, el tipo del renderer dejó de admitir `null` y los doce `?? []` se
+fueron. De paso se cerró una entrada que no pasaba por la base: la copia que
+guarda cada documento para reimprimirlo se validaba sin mirar los renglones, y
+una con un renglón sin repuestos rompía el PDF recién al reimprimir.
+
+Cubierto por `trabajosSinNulos.test.ts` (9 casos). Se comprobó que cada parte
+de la migración tiene un caso que falla si se la saca.
+
+### L3 · 🟠 Un `null` en una edición llegaba hasta la base
+
+**[a testear]** · `electron/DataBase/Types/*.dto.ts`, `electron/validation.ts`
+
+Los DTO de edición marcan todo con `@IsOptional()`, y class-validator saltea esa
+validación con `undefined` **y también con `null`**. El `null` pasaba y chocaba
+contra una columna `NOT NULL` al guardar:
+
+- `client:update` (cuatro campos) y `car:update` (marca, modelo, año) **no
+  atajan el error**: al renderer le llegaba "NOT NULL constraint failed:
+  client.fullname".
+- `car:update-job` lo atajaba con un "Error al actualizar el trabajo" genérico
+  en los seis campos.
+- Con el kilometraje en `null`, la respuesta era "no se pueden bajar los
+  kilómetros": `null < 90000` da `true`.
+
+`contratoDeEntrada.test.ts` no lo veía porque llama con identificadores que no
+existen, y así nunca llega al guardado.
+
+**Resuelto** con `@OmitibleNoNulo(mensaje)`: el campo se puede omitir, pero si
+viene no puede ser `null`, y el mensaje dice cuál. Los intervalos de service
+siguen con `@IsOptional()`, porque ahí `null` quiere decir "usar los generales".
+Cubierto por `edicionConNulos.test.ts`, sobre un vehículo, un trabajo y un
+cliente de verdad.
+
+### L4 · ⚪ HeroUI anunciaba sus controles en inglés
+
+**[a testear]** · `src/Store/Providers.tsx`, `src/Components/CerrarModal.tsx`
+
+I1 cerró con un pendiente: el autocompletar rotulaba su botón "Show
+suggestions", y se lo atribuyó a la librería. No era del todo así:
+**`HeroUIProvider` fija `locale = "en-US"` por defecto**, y eso le gana al idioma
+de Windows —en esta máquina, `es-MX`—. Todo lo que traduce react-aria salía en
+inglés por eso.
+
+**Resuelto** con `locale="es-AR"`. Lo que HeroUI escribe a mano no pasa por el
+`locale`, y en esta aplicación se veía en la cruz de los modales, rotulada
+"Close". HeroUI tampoco deja cambiarla: clona el botón que se le pase y le pisa
+las props. Pero clona **lo que se le dé**, y un componente propio recibe esas
+props y puede pisar la etiqueta a su vez. `CerrarModal` hace eso, con el mismo
+ícono. Lo usan los siete modales que muestran la cruz, y un test que lee los
+archivos cuida que un modal nuevo no se olvide.
+
+Queda en inglés **el botón de cerrar de los avisos** ("closeButton"): en HeroUI 2
+no hay forma de llegar a él desde afuera. Se resuelve solo con la migración a
+HeroUI 3 (tarea 42 del plan v1), o no se resuelve.
+
+### L5 · ⚪ Restos de sesiones anteriores
+
+**[a testear]**
+
+- **Un test de diagnóstico sin versionar** (`src/Components/Forms/_dbg.test.tsx`)
+  que falla a propósito para volcar el estado del autocompletar, de cuando se
+  depuró E9. Como no estaba en git el CI nunca lo vio, pero **`npm run verify`
+  fallaba en local**. Se sacó del proyecto.
+- **Los totales de tareas no coincidían**: 84 en `CLAUDE.md`, 85 en la tabla de
+  arriba y en las notas de la 2.1.0, y 86 contando los encabezados. E9 no
+  estaba en la tabla. `CLAUDE.md` ya no lleva el número: la tabla es la única
+  que lo dice.
+- Un comentario de `vitest.config.ts` hablaba de "las once migraciones", que ya
+  son dieciocho. Quedó sin número.
 
 ---
 
