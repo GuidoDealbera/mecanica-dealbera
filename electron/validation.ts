@@ -1,6 +1,37 @@
 import "reflect-metadata";
 import { ClassConstructor, plainToInstance } from "class-transformer";
-import { validate, ValidationError } from "class-validator";
+import {
+  IsDefined,
+  validate,
+  ValidateIf,
+  ValidationError,
+} from "class-validator";
+
+/**
+ * Un campo de una edición que se puede **omitir**, pero no mandar en `null`.
+ *
+ * Es lo que necesitan casi todos los campos de los DTO de edición, y no lo que
+ * hace `@IsOptional()`: ése saltea la validación con `undefined` **y también
+ * con `null`**, así que el `null` llegaba hasta el `save` y chocaba contra una
+ * columna `NOT NULL`. `client:update` no ataja ese error, y al renderer le
+ * llegaba el mensaje crudo de SQLite.
+ *
+ * Donde `null` sí significa algo —los intervalos de service, que con `null`
+ * vuelven a los generales— lo que corresponde sigue siendo `@IsOptional()`.
+ *
+ * El mensaje del `null` es el que se muestra: class-validator corre `IsDefined`
+ * antes que el resto de las reglas del campo, y `validateDto` devuelve el
+ * primer mensaje. Sin él saldría el de `@IsString()`, que está en inglés.
+ */
+export const OmitibleNoNulo =
+  (mensajeSiEsNulo: string): PropertyDecorator =>
+  (objetivo, propiedad) => {
+    ValidateIf((_, valor) => valor !== undefined)(
+      objetivo,
+      propiedad as string
+    );
+    IsDefined({ message: mensajeSiEsNulo })(objetivo, propiedad as string);
+  };
 
 export type ValidationResult<T> =
   { ok: true; dto: T } | { ok: false; message: string; errors: string[] };

@@ -6,6 +6,7 @@ import {
   IsString,
 } from "class-validator";
 import { Transform } from "class-transformer";
+import { OmitibleNoNulo } from "../../validation";
 
 // Normaliza "" (string vacío que envía el form) a undefined, para que
 // @IsOptional lo trate como ausente y no dispare @IsEmail sobre un vacío.
@@ -36,27 +37,30 @@ export class CreateClientDto {
   email?: string;
 }
 
+// Se aplica sólo lo que viene, pero omitir un campo no es mandarlo en `null`:
+// con `@IsOptional()` el `null` pasaba y el `save` reventaba contra la base con
+// el mensaje crudo de SQLite. Ver `OmitibleNoNulo`.
 export class UpdateClientDto {
   @IsString()
   @IsNotEmpty({ message: "El id del cliente es requerido" })
   id!: string;
 
-  @IsOptional()
+  @OmitibleNoNulo("El nombre completo no puede estar vacío")
   @IsString()
   @IsNotEmpty({ message: "El nombre completo no puede estar vacío" })
   fullname?: string;
 
-  @IsOptional()
+  @OmitibleNoNulo("El número de teléfono no puede estar vacío")
   @IsString()
   @IsPhoneNumber("AR", { message: "Inserte un número de teléfono válido" })
   phone?: string;
 
-  @IsOptional()
+  @OmitibleNoNulo("La dirección no puede estar vacía")
   @IsString()
   @IsNotEmpty({ message: "La dirección no puede estar vacía" })
   address?: string;
 
-  @IsOptional()
+  @OmitibleNoNulo("La localidad no puede estar vacía")
   @IsString()
   @IsNotEmpty({ message: "La localidad no puede estar vacía" })
   city?: string;

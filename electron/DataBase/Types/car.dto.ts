@@ -13,6 +13,7 @@ import {
   ValidateNested,
 } from "class-validator";
 import { Transform, Type } from "class-transformer";
+import { OmitibleNoNulo } from "../../validation";
 import { CreateClientDto } from "./client.dto";
 import type { CarBrand } from "../Types/enums";
 import { CarsBrands } from "../Types/enums";
@@ -170,20 +171,21 @@ export class CreateJobDto {
  * las rutas de la aplicación, los recordatorios y el registro de documentos ya
  * emitidos. Cambiarla es otra operación, no una corrección de tipeo.
  *
- * Todos los campos son opcionales: se aplica sólo lo que viene.
+ * Todos los campos se pueden omitir: se aplica sólo lo que viene. Pero omitir
+ * no es mandar `null` —ver `OmitibleNoNulo`—, salvo en los intervalos.
  */
 export class UpdateCarDto {
-  @IsOptional()
+  @OmitibleNoNulo("La marca no puede quedar vacía")
   @IsEnum(CarsBrands, { message: "La marca no es válida" })
   brand?: CarBrand;
 
-  @IsOptional()
+  @OmitibleNoNulo("El modelo no puede quedar vacío")
   @IsString()
   @Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
   @IsNotEmpty({ message: "El modelo no puede quedar vacío" })
   model?: string;
 
-  @IsOptional()
+  @OmitibleNoNulo("El año no puede quedar vacío")
   @IsInt({ message: "El año tiene que ser un número entero" })
   // El piso es el del automóvil, no una fecha redonda: por debajo de eso es un
   // error de tipeo, no un vehículo. El techo lo comprueba el endpoint, que es
@@ -191,7 +193,9 @@ export class UpdateCarDto {
   @Min(1886, { message: "El año no parece un año" })
   year?: number;
 
-  @IsOptional()
+  // Con `@IsOptional()` el `null` llegaba al endpoint, y ahí `null < km`
+  // daba `true`: la respuesta era "no se pueden bajar los kilómetros".
+  @OmitibleNoNulo("El kilometraje no puede quedar vacío")
   @IsInt({ message: "El kilometraje tiene que ser un número entero" })
   @Min(0, { message: "Los kilómetros no pueden ser negativos" })
   kilometers?: number;
@@ -228,15 +232,16 @@ export class UpdateCarDto {
 }
 
 /**
- * Edición de un trabajo. Todos los campos son opcionales: se aplica sólo lo que
- * viene, para poder cambiar el estado sin tener que remandar el resto.
+ * Edición de un trabajo. Todos los campos se pueden omitir: se aplica sólo lo
+ * que viene, para poder cambiar el estado sin tener que remandar el resto.
+ * Omitir no es mandar `null`: ver `OmitibleNoNulo`.
  *
  * Estaba escrita entera y el endpoint la usaba **sólo como tipo de
  * TypeScript**: los decoradores no corrían nunca, así que editar un trabajo era
  * la puerta de atrás para meter lo mismo que el alta rechazaba.
  */
 export class UpdateJobDto {
-  @IsOptional()
+  @OmitibleNoNulo("El estado del trabajo no puede quedar vacío")
   @IsEnum(JobStatus, { message: "El estado del trabajo no es válido" })
   status?: JobStatus;
 
@@ -252,7 +257,7 @@ export class UpdateJobDto {
    * `""` pero no `"   "`, y una descripción de puros espacios sale como un
    * renglón en blanco en el documento.
    */
-  @IsOptional()
+  @OmitibleNoNulo("La descripción del trabajo no puede estar vacía")
   @IsString()
   @Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
   @IsNotEmpty({ message: "La descripción del trabajo no puede estar vacía" })
@@ -263,18 +268,21 @@ export class UpdateJobDto {
    * detalle: el documento separa el total propio del de terceros, así que
    * marcarlo mal cambia lo que dice el papel.
    */
-  @IsOptional()
+  @OmitibleNoNulo("Falta indicar si el trabajo lo hizo un tercero")
   @IsBoolean()
   isThirdParty?: boolean;
 
-  @IsOptional()
+  @OmitibleNoNulo("El precio del trabajo no puede quedar vacío")
   @IsInt({ message: "El precio del trabajo tiene que ser un número entero" })
   @Min(0, { message: "El precio del trabajo no puede ser negativo" })
   price?: number;
 
   // Mismas reglas que en el alta: sin `@ValidateNested` los ítems del arreglo
   // no se miran, y de ahí sale el total que se imprime en el documento.
-  @IsOptional()
+  //
+  // El `null` era la única vía por la que todavía se guardaba "sin repuestos"
+  // como `NULL` en vez de lista vacía. Ver TightenJobColumns.
+  @OmitibleNoNulo("Sin repuestos es una lista vacía, no un valor nulo")
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => JobPartDto)
@@ -288,7 +296,7 @@ export class UpdateJobDto {
   @IsString()
   clientNote?: string;
 
-  @IsOptional()
+  @OmitibleNoNulo("Falta indicar si el trabajo es un service")
   @IsBoolean()
   isService?: boolean;
 }
