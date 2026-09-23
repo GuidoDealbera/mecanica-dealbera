@@ -30,21 +30,22 @@ están en los sprints de más abajo, que son de calidad y no de corrección.
 
 ## Resumen
 
-| Sprint                               | Tareas | 🔴  | 🟠  | 🟡  | ⚪  |
-| ------------------------------------ | ------ | --- | --- | --- | --- |
-| A — Bugs confirmados                 | 13     | 7   | 4   | 1   | 1   |
-| B — Validación que existe y no corre | 7      | 3   | 3   | 1   | 0   |
-| C — Seguridad y endurecimiento       | 7      | 1   | 0   | 5   | 1   |
-| D — Integridad de datos              | 6      | 2   | 3   | 1   | 0   |
-| E — Errores no atajados              | 9      | 2   | 4   | 3   | 0   |
-| F — Consistencia del contrato        | 9      | 0   | 3   | 4   | 2   |
-| G — Rendimiento                      | 7      | 0   | 1   | 4   | 2   |
-| H — Huecos de producto               | 8      | 0   | 5   | 2   | 1   |
-| I — Interfaz y accesibilidad         | 6      | 0   | 2   | 2   | 2   |
-| J — Tests                            | 7      | 0   | 0   | 5   | 2   |
-| K — Empaquetado y mantenimiento      | 7      | 0   | 1   | 4   | 2   |
-| L — Lo que quedó suelto              | 5      | 0   | 1   | 2   | 2   |
-| **Total**                            | **91** | 15  | 27  | 34  | 15  |
+| Sprint                               | Tareas  | 🔴  | 🟠  | 🟡  | ⚪  |
+| ------------------------------------ | ------- | --- | --- | --- | --- |
+| A — Bugs confirmados                 | 13      | 7   | 4   | 1   | 1   |
+| B — Validación que existe y no corre | 7       | 3   | 3   | 1   | 0   |
+| C — Seguridad y endurecimiento       | 7       | 1   | 0   | 5   | 1   |
+| D — Integridad de datos              | 6       | 2   | 3   | 1   | 0   |
+| E — Errores no atajados              | 9       | 2   | 4   | 3   | 0   |
+| F — Consistencia del contrato        | 9       | 0   | 3   | 4   | 2   |
+| G — Rendimiento                      | 7       | 0   | 1   | 4   | 2   |
+| H — Huecos de producto               | 8       | 0   | 5   | 2   | 1   |
+| I — Interfaz y accesibilidad         | 6       | 0   | 2   | 2   | 2   |
+| J — Tests                            | 7       | 0   | 0   | 5   | 2   |
+| K — Empaquetado y mantenimiento      | 7       | 0   | 1   | 4   | 2   |
+| L — Lo que quedó suelto              | 5       | 0   | 1   | 2   | 2   |
+| M — Revisión para la entrega         | 45      | 5   | 21  | 14  | 5   |
+| **Total**                            | **136** | 20  | 48  | 48  | 20  |
 
 Las severidades son las de cuando se anotó cada tarea. Varias cambiaron al
 investigarlas —A8, G1 y G4 bajaron—, y cada una lo dice en su texto. E9 se
@@ -2648,6 +2649,237 @@ HeroUI 3 (tarea 42 del plan v1), o no se resuelve.
   que lo dice.
 - Un comentario de `vitest.config.ts` hablaba de "las once migraciones", que ya
   son dieciocho. Quedó sin número.
+
+---
+
+## Sprint M — Revisión para la entrega
+
+**[pendiente]** · Anotado el 23/09/2026, sin empezar.
+
+Cerrado el Sprint L, se revisó todo el proyecto otra vez con un criterio
+distinto: **que quede listo para entregar al taller**. Cinco revisiones en
+paralelo: proceso principal y datos, reglas de negocio, pantallas, estado y PDF,
+y empaquetado y documentación.
+
+Las marcadas **(verificado)** se comprobaron contra el código al anotarlas. Las
+demás salen de la revisión, casi todas reproducidas con scripts por quien las
+encontró, pero **hay que confirmarlas antes de tocarlas**.
+
+### Decisiones pendientes del usuario
+
+No se implementa nada de esto hasta hablarlo ("luego continuamos"):
+
+- **D-1 · Datos del taller en los documentos.** El PDF sólo imprime "MECÁNICA
+  DEALBERA / Servicio técnico automotriz" (`budgetPdf.ts:146,151,483`): sin
+  dirección, teléfono, CUIT ni logo. El usuario de la cabecera está fijo
+  ("Horacio Dealbera · Mecánico", `Header.tsx:389-394`). Propuesta: una pantalla
+  de Ajustes que guarde todo en `app_setting`.
+- **D-2 · "Factura de Trabajos".** No es una factura fiscal: no tiene CUIT,
+  CAE ni punto de venta. Propuesta: "Comprobante de trabajos" más la leyenda
+  "Documento no válido como factura", conservando la numeración FAC-.
+- **D-3 · Funciones nuevas.** No facturar dos veces el mismo trabajo, enviar por
+  WhatsApp, registrar cobros (seña y saldo), orden de ingreso del vehículo. Más
+  abajo en la lista: catálogo de trabajos, turnos, ARCA, respaldo fuera de la PC.
+- **D-4 · El escudo de Racing** de la pantalla de carga
+  (`electron/splash.html:125-130`).
+- **D-5 · Criterios de negocio.** Si "Ingresos" y "Facturado" suman repuestos (hoy
+  no, y cada pantalla usa un criterio distinto). Si los autos de un cliente
+  inactivo siguen en los recordatorios. Si hay que admitir una marca fuera de la
+  lista (un Agrale no se puede cargar). Si un recordatorio que vuelve de
+  postergado debería contar como "sin avisar".
+
+### 🔴 Rompen datos o dejan información falsa
+
+- **M1 · El TOTAL puede quedar fuera de la hoja (verificado).**
+  - Dónde: `budgetPdf.ts:412-470`. Los totales se dibujan después de la tabla sin
+    ningún control de salto de página.
+  - Con 12 trabajos, "TOTAL" cae debajo del pie; con 13 a 16, afuera de la hoja
+    A4, y también desaparece la validez.
+  - Arreglo: medir el alto que necesitan los totales, hacer `addPage` si no
+    entran, y agregar un test para 1 a 30 trabajos.
+- **M2 · La reimpresión sale con la fecha del día y sin estados (verificado).**
+  - Dónde: `budgetPdf.ts:123` usa `new Date()`, y `armarCopia`
+    (`useBudgetPdf.ts:65-72`) no guarda `status`.
+  - Arreglo: pasar `issuedAt` al render y guardar `status` en la copia; en las
+    copias viejas, no dibujar el chip. Sacar los `as unknown as`.
+- **M3 · La facturación del mes se muda al mes en que se edita un trabajo
+  viejo (verificado).**
+  - Dónde: `dashboardStats.service.ts:203-215` agrupa por `job.updatedAt`, que
+    cambia con cualquier edición.
+  - Arreglo: una columna que se escriba al cambiar de estado (`statusChangedAt`),
+    con una migración que la complete con `updatedAt`. Tiene que corregir también
+    las copias de la papelera.
+- **M4 · Un repuesto tipeado y no agregado con "+" se pierde al guardar.**
+  - Dónde: `PartsEditor.tsx:38-41,97-103` y `AddJobForm.tsx:289-297`. El trabajo
+    queda sin el renglón y el documento sale con el total más bajo.
+  - Arreglo: agregarlo solo al enviar, o frenar con un aviso. Lo mismo en el
+    modal de edición.
+- **M5 · Restaurar promete que se puede deshacer, y la copia no aparece
+  (verificado).**
+  - Dónde: `backup.endpoints.ts:221-227` guarda la copia previa en `userData` y
+    la poda a 3 por cantidad. `BackupPage.tsx:555` dice "se puede deshacer".
+  - Arreglo: sacar la copia con `VACUUM INTO` a `Documentos/backups` con origen
+    "antes de restaurar", que aparezca en la lista y se pode por antigüedad.
+
+### 🟠 Comportamiento que el usuario va a notar
+
+- **M6 · El respaldo diario sólo corre al abrir la aplicación, y si falla nadie
+  se entera (verificado).** `main.ts:550-552`. Arreglo: llamar a
+  `createDailyBackup`, que ya es idempotente, también cada hora, y mostrar en
+  Gestión de datos cuándo fue el último y si falló.
+- **M7 · "Vence hoy" aparece el día anterior, y "venció hace 1 día" el mismo día
+  (verificado).** `daysBetween` (`src/Utils/serviceReminders.ts:24`) hace
+  `floor` sobre instantes, y la bandeja y la ficha usan cortes distintos.
+  Arreglo: contar días de calendario, con un único corte compartido.
+- **M8 · Reabrir y volver a cerrar un service quema el recordatorio
+  siguiente.** Además, marcar como service un trabajo que ya estaba cerrado no
+  programa nada (`car.jobs.endpoints.ts:165,180`). Arreglo: disparar en la
+  transición a "service cerrado" y registrar qué recordatorio cerró cada trabajo.
+- **M9 · Cambiar el intervalo del vehículo, o el general, no mueve el próximo
+  service** (`car.crud.endpoints.ts:262-265`). Arreglo: recalcularlo salvo que se
+  haya ajustado a mano, o al menos decirlo en la pantalla.
+- **M10 · Editar un cliente o un vehículo puede dejar la ficha en "no
+  encontrado" o sin trabajos (verificado).**
+  - `clientSlice.ts:87-90` aplica una respuesta fallida.
+  - `car:update` devuelve el vehículo sin `jobs` (`carSlice.ts:111-116`).
+  - Si falla el titular, el vehículo queda guardado y el formulario se resetea.
+  - Arreglo: aplicar sólo en caso de éxito y fusionar lo que llega.
+- **M11 · Datos que no se pueden corregir ni borrar.**
+  - El correo del cliente: `""` pasa a `undefined` y se ignora
+    (`client.dto.ts:13-14`, verificado).
+  - El nombre del cliente: no hay campo en ninguna pantalla.
+  - La observación para el cliente: falta en el modal de edición, que además
+    muestra la descripción dos veces (`Jobs.tsx:189-192`).
+  - La nota de un recordatorio (`EditReminderModal.tsx:92`).
+- **M12 · Un kilometraje mal tipeado queda para siempre.** No se puede bajar, y
+  nada pide confirmar un salto grande. Arreglo: confirmar los saltos y permitir
+  corregir el último registro como una operación explícita.
+- **M13 · Los modales de edición se cierran con un clic afuera o con Esc, y
+  descartan lo cargado.** Pasa en `CarDetailPage`, `Jobs`, `ReassingOwnerModal`
+  y `EditReminderModal`.
+- **M14 · Los formularios rechazan casos válidos y no dicen por qué.**
+  - La descripción exige 10 caracteres ("Service" no entra).
+  - El precio tiene que ser mayor que 0, cuando la garantía se factura en 0.
+  - La patente no acepta espacios ni guiones.
+  - El año llega sólo hasta el actual (un modelo 2027 no entra).
+  - El kilometraje no lleva asterisco.
+  - El botón queda deshabilitado sin decir qué falta.
+- **M15 · Avisos con el color equivocado.**
+  - `deleteOneCar` muestra un fallo en verde (`useCarQueries.ts:162`).
+  - Refrescar el dashboard dice "éxito" aunque falle.
+  - Cancelar una exportación sale en rojo.
+  - El aviso de cliente duplicado de D5 nunca se ve al editar: el texto está fijo
+    en `useClientQueries.ts:89-95` (verificado).
+- **M16 · Los diálogos de borrado dicen "irreversible".** No lo es: va a la
+  papelera. Además tienen los colores al revés ("Cancelar" en rojo), y el de
+  vehículos no se bloquea mientras borra.
+- **M17 · Recuperar un vehículo cuyo titular se borró después falla con "No se
+  pudo recuperar".** La FK rechaza el `ownerId`. Arreglo: "primero recuperá a X",
+  o restaurarlo sin titular y decirlo.
+- **M18 · "Autos" y "Clientes" no navegan desde una ficha**
+  (`Header.tsx:246-252`, por el `startsWith`).
+- **M19 · El buscador del historial de documentos pierde el foco en cada
+  pausa.** La tecla siguiente puede disparar un atajo ("n" → nuevo vehículo)
+  (`DocumentHistory.tsx:150-156`).
+- **M20 · La búsqueda global promete "↵ Navegar" y no responde al teclado**
+  (`GlobalSearch.tsx`).
+- **M21 · Contraste insuficiente.** En modo claro, los números del dashboard
+  (`text-${color}-400`). En oscuro, "Sin comenzar" en la ficha. También la ayuda
+  de atajos, el código de error, los íconos de la barra y otros. `HomePage` arma
+  la clase dinámicamente: hay que usar un mapa literal.
+- **M22 · "Instalar y reiniciar" no respeta un formulario sin guardar
+  (verificado).** `main.ts:718-720`: el instalador cierra la aplicación aunque se
+  elija "volver al formulario".
+- **M23 · El aviso de actualización interrumpe (verificado).**
+  - Se reabre cada hora.
+  - Sin internet, muestra un error rojo cada hora.
+  - Una descarga fallida lo deja trabado en "Descargando N%" (`Header.tsx`,
+    `UpdateModal.tsx`).
+- **M24 · Las notas de versión nunca se muestran (verificado).** `main.ts` las
+  manda, pero `UpdateInfo` no las declara y el modal no las pinta. K5 quedó a
+  medias.
+- **M25 · Los cuadros de error del arranque quedan debajo de la pantalla de
+  carga,** que es `alwaysOnTop` (`main.ts:394`). Arreglo: cerrarla antes de
+  cualquier cuadro. Falta verlo en la aplicación empaquetada.
+- **M26 · Si la base no abre, la aplicación no puede actualizarse sola ni ofrecer
+  un respaldo (verificado).** `setupAutoUpdater` corre después de
+  `createWindow`. Además, el cuadro de `dataSource.ts:440-447` sale mal
+  formateado.
+
+### 🟡 Deuda real
+
+- **M27 · Importar acepta cualquier base SQLite y la "migra" a un taller vacío,
+  informando éxito.** En el primer arranque además se saca una "copia previa" de
+  una base vacía, y arrancar exige poder escribir en Documentos. Arreglo:
+  comprobar que el archivo sea de esta aplicación y no copiar una base recién
+  creada.
+- **M28 · El reemplazo de la base se hace con `copyFileSync`, sin temporal**
+  (`backup.endpoints.ts:233,286`, `migrationSafety.ts:242`). Contradice
+  `CLAUDE.md`, y además copia el atributo de sólo lectura.
+- **M29 · Las fechas se guardan en UTC y se agrupan como locales.** El mes del
+  dashboard y el filtro por fechas del historial fallan de 21 a 24 h. El
+  comentario de `dashboardStats.service.ts:63-75` dice lo contrario.
+- **M30 · Los canales de escritura relanzan cualquier error de la base
+  (verificado).** `handleIpc` (`ipc.ts`) relanza, y una quincena de canales no
+  atajan nada. Arreglo: que haga lo mismo que `handleIpcQuery`.
+- **M31 · El test de contrato no ve todos los canales (verificado).** Importa 8
+  módulos a mano y le falta la papelera. Arreglo: un `import.meta.glob` que
+  compartan `main.ts` y el test.
+- **M32 · Huecos de validación.** `service:save` no tiene DTO. El año del alta no
+  tiene límites, aunque la edición sí. El techo de los precios está sólo en la
+  interfaz.
+- **M33 · `global.d.ts` no pasa por el chequeo de tipos (`skipLibCheck`), y usa
+  `UpdateCarBody` sin importarlo (verificado).**
+- **M34 · La CSP de producción no se aplica.** Por `file://` no se entrega como
+  cabecera. Además, la pantalla de carga pide una tipografía a Google en cada
+  arranque. Arreglo: un `<meta>` en el build y la fuente local.
+- **M35 · Estados vacíos que mienten cuando falló la carga o hay un filtro:**
+  listados, papelera, historial, bandeja y próximo service. `getCars` no tiene
+  `catch`, y `useClientQueries` todavía hace `return error`.
+- **M36 · "Atrás" vuelve al formulario vacío después de guardar** (`push` en vez
+  de `replace`), y los listados pierden la página y los filtros al volver.
+- **M37 · "Service hecho" y "Descartar" actúan con un clic, sin confirmación.**
+- **M38 · No hay "Acerca de" ni versión visible.** Propuesta: la versión, las
+  carpetas de datos y de respaldos, los logs y "Copiar diagnóstico".
+- **M39 · No hay una guía para el taller, y el `README` es el de la plantilla de
+  Vite.**
+- **M40 · El paquete arrastra unos 240 MB de dependencias que el proceso
+  principal no usa.** Hay que mover las del renderer a `devDependencies` y probar
+  el paquete armado.
+
+### ⚪ Pulido
+
+- **M41 · Documentos.**
+  - Sin terceros, los subtotales no muestran la mano de obra.
+  - La reimpresión propone un nombre de archivo sin la patente.
+  - No se puede buscar un documento por su número.
+- **M42 · Gestión de datos.**
+  - Las fechas de respaldos y de la papelera no tienen año ni hora.
+  - Después de restaurar dice "reiniciá la app".
+  - Llegan mensajes técnicos crudos.
+  - Los nombres de archivo usan la fecha UTC.
+  - Queda algún `.parcial` sin borrar.
+  - La tarjeta del historial está en un tercio del ancho.
+- **M43 · Textos.**
+  - Tratamiento mezclado (usted, tú y vos).
+  - Errores: "La localidad es requerido", "click", "ó".
+  - Plurales armados a mano.
+  - El mensaje de WhatsApp al cliente.
+  - Mayúsculas a la inglesa.
+  - Terminología: Dueño/Titular, Ciudad/Localidad, Email/Correo.
+- **M44 · Restos.**
+  - `vite.svg` y los SVG de la plantilla.
+  - `DetailCar.tsx`, `NewLicencePlate.tsx` y `OldLicencePlate.tsx`, que no se
+    usan.
+  - `MAIN_DIST` y el comentario de la plantilla en `main.ts`.
+  - `ts-node`, `cross-env` y `dayjs`, que sobran.
+  - Comentarios desactualizados.
+- **M45 · Detalles.**
+  - Órdenes sin desempate por columna única: clientes, `client:search` y
+    `global:search`.
+  - El CSV rotula "Último service" algo que no lo es.
+  - La notificación de arranque no abre los recordatorios.
+  - Al guardar intervalos salen dos avisos, y la tarjeta parpadea.
 
 ---
 
