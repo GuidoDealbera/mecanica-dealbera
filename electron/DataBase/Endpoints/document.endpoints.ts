@@ -38,11 +38,16 @@ const MAXIMO_DE_LA_COPIA = 200_000;
  * cada campo: lo que se guarda es un reflejo de lo que se dibujó, y el que lo
  * arma es el mismo módulo que lo dibuja. Lo que sí importa es que no entre
  * cualquier cosa y que no entre algo enorme.
+ *
+ * De cada renglón se mira la lista de repuestos, porque es lo que se recorre
+ * al reimprimir: una copia sin ella se guardaba igual y rompía el PDF recién
+ * cuando alguien lo necesitaba.
  */
 const copiaValida = (valor: unknown): valor is DocumentSnapshot => {
   if (!valor || typeof valor !== "object") return false;
   const copia = valor as Partial<DocumentSnapshot>;
   if (!Array.isArray(copia.jobs)) return false;
+  if (!copia.jobs.every((job) => Array.isArray(job?.parts))) return false;
   if (!copia.totals || typeof copia.totals.total !== "number") return false;
   if (!copia.car || typeof copia.car.licensePlate !== "string") return false;
   return JSON.stringify(valor).length <= MAXIMO_DE_LA_COPIA;

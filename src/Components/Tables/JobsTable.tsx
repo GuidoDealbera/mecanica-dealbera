@@ -370,14 +370,14 @@ const JobsTable: React.FC<JobsProps> = ({
                   </Chip>
                 </TableCell>
                 <TableCell className="text-center">
-                  {(job.parts?.length ?? 0) > 0 ? (
+                  {job.parts.length > 0 ? (
                     <Chip
                       color="primary"
                       variant="flat"
                       className="text-primary"
                     >
-                      {job.parts!.length}{" "}
-                      {job.parts!.length === 1 ? "repuesto" : "repuestos"}
+                      {job.parts.length}{" "}
+                      {job.parts.length === 1 ? "repuesto" : "repuestos"}
                     </Chip>
                   ) : (
                     <span className="text-foreground-400">---</span>

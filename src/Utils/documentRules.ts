@@ -25,7 +25,7 @@ export interface BudgetTotals {
 export const computeTotals = (jobs: Jobs[]): BudgetTotals => {
   const laborTotal = jobs.reduce((acc, j) => acc + (j.price ?? 0), 0);
   const partsGrandTotal = jobs.reduce(
-    (acc, j) => acc + (j.parts ?? []).reduce((s, p) => s + p.price, 0),
+    (acc, j) => acc + j.parts.reduce((s, p) => s + p.price, 0),
     0
   );
   const thirdPartyTotal = jobs

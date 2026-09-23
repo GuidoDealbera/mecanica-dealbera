@@ -166,6 +166,19 @@ describe("document:issue", () => {
     expect(await cuantosDocumentos()).toBe(0);
   });
 
+  it("rechaza una copia con un renglón sin su lista de repuestos", async () => {
+    // Al reimprimir, el PDF suma `parts` de cada renglón: una copia que la
+    // traiga en `null` se guardaba igual y rompía la reimpresión, que es el
+    // único momento en que alguien la mira.
+    for (const parts of [null, undefined, "ninguno"]) {
+      const rota = copia();
+      (rota.jobs[0] as Record<string, unknown>).parts = parts;
+      const res = await invocar("document:issue", emitir({ snapshot: rota }));
+      expect(res.status, String(parts)).toBe("failed");
+    }
+    expect(await cuantosDocumentos()).toBe(0);
+  });
+
   it("rechaza una copia descomunal en vez de guardarla para siempre", async () => {
     // La tabla no se borra nunca, así que una copia por documento se acumula.
     const enorme = copia();

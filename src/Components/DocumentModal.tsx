@@ -221,7 +221,7 @@ const DocumentModal: React.FC<DocumentModalProps> = ({
                 classNames={{ wrapper: "gap-2" }}
               >
                 {eligible.map((job) => {
-                  const partsTotal = (job.parts ?? []).reduce(
+                  const partsTotal = job.parts.reduce(
                     (acc, p) => acc + p.price,
                     0
                   );

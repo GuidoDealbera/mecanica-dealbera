@@ -189,10 +189,10 @@ const ClientHistory: React.FC<ClientHistoryProps> = ({ cars }) => {
                         Terceros
                       </Chip>
                     )}
-                    {(ev.job.parts?.length ?? 0) > 0 && (
+                    {ev.job.parts.length > 0 && (
                       <span>
-                        {ev.job.parts!.length}{" "}
-                        {ev.job.parts!.length === 1 ? "repuesto" : "repuestos"}
+                        {ev.job.parts.length}{" "}
+                        {ev.job.parts.length === 1 ? "repuesto" : "repuestos"}
                       </span>
                     )}
                   </div>

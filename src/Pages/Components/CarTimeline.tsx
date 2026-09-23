@@ -89,10 +89,10 @@ const CarTimeline: React.FC<CarTimelineProps> = ({ car }) => {
                     Terceros
                   </Chip>
                 )}
-                {(ev.job.parts?.length ?? 0) > 0 && (
+                {ev.job.parts.length > 0 && (
                   <span>
-                    {ev.job.parts!.length}{" "}
-                    {ev.job.parts!.length === 1 ? "repuesto" : "repuestos"}
+                    {ev.job.parts.length}{" "}
+                    {ev.job.parts.length === 1 ? "repuesto" : "repuestos"}
                   </span>
                 )}
               </div>

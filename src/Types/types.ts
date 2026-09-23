@@ -65,12 +65,13 @@ export interface Jobs {
   isThirdParty: boolean;
   status: JobStatus;
   /**
-   * Puede venir en `null`: la columna lo permite y los trabajos anteriores a
-   * que existieran los repuestos no tienen ninguno. El tipo decía que siempre
-   * era un arreglo, y sin embargo **cada uso ya se defendía con `?? []`** —eso
-   * era la señal de que el tipo no describía la realidad—.
+   * Siempre una lista: "sin repuestos" es la lista vacía.
+   *
+   * Hasta la migración TightenJobColumns también podía ser `null`, y cada uso
+   * se defendía con `?? []`. Ahora la base no lo admite, así que la defensa
+   * sobra: si alguna vez vuelve a hacer falta, el problema está en otro lado.
    */
-  parts: { name: string; price: number }[] | null;
+  parts: { name: string; price: number }[];
   notes?: string;
   /** Observación para el cliente: **sí** se imprime en el documento. */
   clientNote?: string;

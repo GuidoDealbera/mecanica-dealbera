@@ -52,7 +52,7 @@ const Jobs: React.FC<JobsProps> = ({ jobs, isLoading, license }) => {
     setEditingJob(job);
     setEditStatus(job.status);
     setEditPrice(job.price);
-    setEditParts(job.parts ?? []);
+    setEditParts(job.parts);
     setEditNotes(job.notes ?? "");
     setEditIsService(job.isService ?? false);
     setEditDescription(job.description ?? "");
@@ -77,7 +77,7 @@ const Jobs: React.FC<JobsProps> = ({ jobs, isLoading, license }) => {
     if (!editingJob || !license) return;
 
     const partsChanged =
-      JSON.stringify(editParts) !== JSON.stringify(editingJob.parts ?? []);
+      JSON.stringify(editParts) !== JSON.stringify(editingJob.parts);
     const notesChanged = editNotes !== (editingJob.notes ?? "");
     const isServiceChanged = editIsService !== (editingJob.isService ?? false);
     const descriptionChanged =
@@ -125,7 +125,7 @@ const Jobs: React.FC<JobsProps> = ({ jobs, isLoading, license }) => {
     ? editIsThirdParty !== (editingJob.isThirdParty ?? false)
     : false;
   const partsChanged = editingJob
-    ? JSON.stringify(editParts) !== JSON.stringify(editingJob.parts ?? [])
+    ? JSON.stringify(editParts) !== JSON.stringify(editingJob.parts)
     : false;
   const notesChanged = editingJob
     ? editNotes !== (editingJob.notes ?? "")

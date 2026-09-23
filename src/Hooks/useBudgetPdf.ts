@@ -68,7 +68,7 @@ const armarCopia = ({
     price: job.price,
     isThirdParty: job.isThirdParty,
     clientNote: job.clientNote ?? undefined,
-    parts: job.parts ?? [],
+    parts: job.parts,
   })),
   totals,
   ...(vehicles ? { vehicles } : {}),

@@ -22,7 +22,7 @@ function toPlainJob(job: Job) {
     description: job.description,
     isThirdParty: job.isThirdParty,
     status: job.status,
-    parts: job.parts ?? [],
+    parts: job.parts,
     notes: job.notes ?? "",
     clientNote: job.clientNote ?? "",
     isService: job.isService ?? false,

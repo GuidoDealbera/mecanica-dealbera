@@ -327,10 +327,7 @@ export const renderBudgetDocument = ({
           : ["Descripción", "Estado", "Terceros", "Repuestos", "Mano de obra"],
       ],
       body: jobs.map((job) => {
-        const partsTotal = (job.parts ?? []).reduce(
-          (acc, p) => acc + p.price,
-          0
-        );
+        const partsTotal = job.parts.reduce((acc, p) => acc + p.price, 0);
         // La observación para el cliente va debajo de la descripción, en la
         // misma celda: como fila aparte rompería la grilla de la tabla y el
         // cálculo de totales por columna.
