@@ -18,6 +18,7 @@ import {
 } from "recharts";
 import { KmRecord } from "../../Types/types";
 import { useChartTheme } from "../../Theme/useChartTheme";
+import CerrarModal from "../../Components/CerrarModal";
 
 interface KmHistoryModalProps {
   isOpen: boolean;
@@ -57,6 +58,7 @@ const KmHistoryModal: React.FC<KmHistoryModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
+      closeButton={<CerrarModal />}
       size="2xl"
       placement="center"
       backdrop="blur"

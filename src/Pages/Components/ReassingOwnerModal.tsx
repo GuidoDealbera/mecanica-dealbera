@@ -17,6 +17,7 @@ import { useToasts } from "../../Hooks/useToasts";
 import { useDebounce } from "../../Hooks/useDebounce";
 import { Clients } from "../../Types/types";
 import { handleCapitalizedChange } from "../../Utils/utils";
+import CerrarModal from "../../Components/CerrarModal";
 
 interface NewOwnerForm {
   fullname: string;
@@ -200,6 +201,7 @@ const ReassignOwnerModal: React.FC<ReassignOwnerModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
+      closeButton={<CerrarModal />}
       size="lg"
       className="bg-content1 text-foreground"
       placement="center"

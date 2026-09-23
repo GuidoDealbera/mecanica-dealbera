@@ -7,6 +7,7 @@ import {
   ModalHeader,
 } from "@heroui/react";
 import { MdKeyboard } from "react-icons/md";
+import CerrarModal from "./CerrarModal";
 
 interface ShortcutsModalProps {
   isOpen: boolean;
@@ -52,6 +53,7 @@ const ShortcutsModal: React.FC<ShortcutsModalProps> = ({ isOpen, onClose }) => {
     <Modal
       isOpen={isOpen}
       onClose={onClose}
+      closeButton={<CerrarModal />}
       placement="center"
       backdrop="blur"
       size="md"

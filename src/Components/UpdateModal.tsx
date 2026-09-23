@@ -9,6 +9,7 @@ import {
 } from "@heroui/react";
 import React from "react";
 import { MdSystemUpdate, MdDownload, MdInstallDesktop } from "react-icons/md";
+import CerrarModal from "./CerrarModal";
 
 interface UpdateModalProps {
   updateVersion: string;
@@ -31,6 +32,7 @@ const UpdateModal: React.FC<UpdateModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
+      closeButton={<CerrarModal />}
       // No permitir cerrar mientras se está descargando
       isDismissable={!isDownloading}
       hideCloseButton={isDownloading}

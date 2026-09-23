@@ -15,6 +15,7 @@ import type {
   SaveReminderBody,
   ServiceReminderView,
 } from "../Types/apiTypes";
+import CerrarModal from "./CerrarModal";
 
 interface EditReminderModalProps {
   isOpen: boolean;
@@ -102,7 +103,13 @@ const EditReminderModal: React.FC<EditReminderModalProps> = ({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} placement="center" backdrop="blur">
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      closeButton={<CerrarModal />}
+      placement="center"
+      backdrop="blur"
+    >
       <ModalContent>
         <ModalHeader className="flex flex-col gap-1">
           <span className="text-xl font-bold">Editar próximo service</span>

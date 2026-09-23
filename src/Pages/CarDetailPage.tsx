@@ -43,6 +43,7 @@ import CarTimeline from "./Components/CarTimeline";
 import NextServiceCard from "./Components/NextServiceCard";
 import DocumentHistory from "../Components/DocumentHistory";
 import { MdDescription, MdNotificationsActive } from "react-icons/md";
+import CerrarModal from "../Components/CerrarModal";
 
 // ── Campo de solo lectura reutilizable ─────────────────────────────────────
 const InfoField: React.FC<{
@@ -474,6 +475,7 @@ const CarDetailPage: React.FC = () => {
       <Modal
         isOpen={isEditing}
         onClose={() => setIsEditing(false)}
+        closeButton={<CerrarModal />}
         size="4xl"
         placement="center"
         backdrop="blur"

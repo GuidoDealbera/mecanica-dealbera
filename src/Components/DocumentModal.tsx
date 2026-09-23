@@ -25,6 +25,7 @@ import { computeTotals, eligibleJobsForDocument } from "../Utils/documentRules";
 import { formatARS } from "../Utils/utils";
 import EmptyState from "./EmptyState";
 import { useResetOn } from "../Hooks/useResetOn";
+import CerrarModal from "./CerrarModal";
 
 /** Color del chip de estado, igual que en la tabla de trabajos. */
 const STATUS_COLOR: Record<
@@ -132,6 +133,7 @@ const DocumentModal: React.FC<DocumentModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
+      closeButton={<CerrarModal />}
       size="2xl"
       placement="center"
       backdrop="blur"

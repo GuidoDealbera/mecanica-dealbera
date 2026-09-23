@@ -9,7 +9,13 @@ const Providers: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
     <Provider store={store}>
       <ThemeProvider>
-        <HeroUIProvider>
+        {/* HeroUI fija `en-US` por defecto y le gana al idioma del sistema:
+            por eso el autocompletar se anunciaba como "Show suggestions" en
+            una Windows en castellano. Con esto, todo lo que traduce
+            react-aria —botones, listas, avisos para lectores de pantalla—
+            sale en castellano. Lo que HeroUI escribe a mano no pasa por acá:
+            ver `CerrarModal`. */}
+        <HeroUIProvider locale="es-AR">
           <ToastProvider
             placement="bottom-right"
             maxVisibleToasts={3}

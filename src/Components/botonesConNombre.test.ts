@@ -54,6 +54,69 @@ const sinNombre = (contenido: string, archivo: string): string[] => {
   return fallas;
 };
 
+/**
+ * La etiqueta de apertura de un `<Modal`, hasta su `>`.
+ *
+ * El cierre se busca por renglón y no por carácter: dentro de las props suele
+ * haber un `=>`, y cortar ahí dejaría afuera la mitad de la etiqueta.
+ */
+const etiquetaDeApertura = (lineas: string[], i: number): string => {
+  const bloque: string[] = [];
+  for (let j = i; j < Math.min(lineas.length, i + 25); j++) {
+    bloque.push(lineas[j]);
+    const t = lineas[j].trim();
+    if (t === ">" || (j === i && /[^=]>$/.test(t))) break;
+  }
+  return bloque.join("\n");
+};
+
+/**
+ * Los modales que muestran la cruz de cerrar sin `CerrarModal`.
+ *
+ * HeroUI la rotula "Close" escrito a mano, y el `locale` del provider no la
+ * alcanza. Un modal nuevo que se olvide de `closeButton={<CerrarModal />}` se
+ * vuelve a anunciar en inglés, y nada en la pantalla lo delata. Uno que la
+ * esconda siempre (`hideCloseButton` a secas) no la necesita; uno que la
+ * esconda a veces (`hideCloseButton={...}`), sí.
+ */
+const modalesEnIngles = (contenido: string, archivo: string): string[] => {
+  const lineas = contenido.split("\n");
+  const fallas: string[] = [];
+
+  lineas.forEach((linea, i) => {
+    if (!/<Modal(\s|$)/.test(linea)) return;
+    const etiqueta = etiquetaDeApertura(lineas, i);
+    const sinCruz = etiqueta
+      .split("\n")
+      .some((l) => l.trim() === "hideCloseButton");
+    if (!sinCruz && !etiqueta.includes("closeButton={<CerrarModal")) {
+      fallas.push(`${path.basename(archivo)}:${i + 1}`);
+    }
+  });
+
+  return fallas;
+};
+
+describe("la cruz de los modales", () => {
+  it("hay varios modales, o esta prueba no está probando nada", () => {
+    const total = archivos(RAIZ)
+      .map((f) => fs.readFileSync(f, "utf8"))
+      .join("\n")
+      .split("\n")
+      .filter((l) => /<Modal(\s|$)/.test(l)).length;
+
+    expect(total).toBeGreaterThanOrEqual(8);
+  });
+
+  it("todos la muestran con su nombre en castellano, o no la muestran", () => {
+    const fallas = archivos(RAIZ).flatMap((archivo) =>
+      modalesEnIngles(fs.readFileSync(archivo, "utf8"), archivo)
+    );
+
+    expect(fallas).toEqual([]);
+  });
+});
+
 describe("botones de sólo ícono", () => {
   it("hay varios, o esta prueba no está probando nada", () => {
     const total =
