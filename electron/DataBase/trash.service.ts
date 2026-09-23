@@ -226,6 +226,28 @@ export const restoreFromTrash = async (
     }
   }
 
+  // Un trabajo vuelve a su vehículo: o viene con él, o sigue en la base. Si no
+  // está en ningún lado no hay adónde devolverlo, y es lo que pasa con los
+  // trabajos sin vehículo que la migración TightenJobColumns apartó acá.
+  const vuelven = new Set(payload.car.map((car) => car.id));
+  for (const trabajo of payload.job) {
+    if (vuelven.has(trabajo.carId)) continue;
+    const [existe] =
+      trabajo.carId == null
+        ? []
+        : await filasDe(manager, `SELECT "id" FROM "car" WHERE "id" = ?`, [
+            trabajo.carId,
+          ]);
+    if (!existe) {
+      return {
+        ok: false,
+        message:
+          "Estos trabajos no tienen un vehículo al que volver, así que no se " +
+          "pueden restaurar. Se pueden eliminar definitivamente.",
+      };
+    }
+  }
+
   for (const tabla of ORDEN) {
     for (const registro of payload[tabla]) {
       // El cliente puede seguir estando —se borró sólo el auto, o ya se

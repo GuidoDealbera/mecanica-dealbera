@@ -4,6 +4,7 @@ import {
   CreateDateColumn,
   Entity,
   Index,
+  JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
@@ -42,8 +43,12 @@ export class ServiceReminder {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
 
+  // El nombre de la FK es el que le puso CreateServiceReminders. Sin
+  // declararlo, TypeORM usa uno generado y cree que hay que reconstruir la
+  // tabla para renombrarla.
   @Index("IDX_service_reminder_car")
   @ManyToOne(() => Car, { onDelete: "CASCADE", nullable: false })
+  @JoinColumn({ foreignKeyConstraintName: "FK_service_reminder_car" })
   car!: Car;
 
   @Column("varchar", { default: ReminderStatus.PENDING })

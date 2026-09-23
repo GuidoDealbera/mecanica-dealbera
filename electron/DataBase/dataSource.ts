@@ -34,6 +34,7 @@ import { RoundPartPrices1700000014000 } from "./Migrations/RoundPartPrices170000
 import { AddDocumentDateIndex1700000015000 } from "./Migrations/AddDocumentDateIndex1700000015000";
 import { AddDocumentSnapshot1700000016000 } from "./Migrations/AddDocumentSnapshot1700000016000";
 import { CreateTrash1700000017000 } from "./Migrations/CreateTrash1700000017000";
+import { TightenJobColumns1700000018000 } from "./Migrations/TightenJobColumns1700000018000";
 
 export const AppDataSource = new DataSource({
   type: "better-sqlite3",
@@ -66,6 +67,7 @@ export const AppDataSource = new DataSource({
     AddDocumentDateIndex1700000015000,
     AddDocumentSnapshot1700000016000,
     CreateTrash1700000017000,
+    TightenJobColumns1700000018000,
   ],
   subscribers: [],
 });

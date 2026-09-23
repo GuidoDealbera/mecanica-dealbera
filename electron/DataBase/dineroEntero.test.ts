@@ -201,6 +201,14 @@ describe("la migración que redondea lo que ya estaba guardado", () => {
 
   it("sobrevive a un trabajo sin repuestos", async () => {
     await alDia();
+    // Hoy la columna no admite `NULL` —desde TightenJobColumns—, pero esta
+    // migración corre antes, cuando sí podía haberlos. Se vuelve a ese esquema.
+    const { TightenJobColumns1700000018000 } =
+      await import("./Migrations/TightenJobColumns1700000018000");
+    const qr = ds.createQueryRunner();
+    await new TightenJobColumns1700000018000().down(qr);
+    await qr.release();
+
     await insertarTrabajoCrudo("job-1", JSON.stringify([]));
     await ds.query(
       `INSERT INTO job (id, price, description, isThirdParty, status, parts, createdAt, updatedAt, carId)

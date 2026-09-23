@@ -6,6 +6,7 @@ import {
   CreateDateColumn,
   Entity,
   Index,
+  JoinColumn,
   ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
@@ -92,8 +93,17 @@ export class Car {
   // y el código convivía con las dos ideas —hay lugares que hacen
   // `car.owner?.fullname ?? "Sin titular"` y otros que no—; los que no se
   // defendían funcionaban por suerte, no por garantía.
+  //
+  // El `SET NULL` y el nombre de la FK repiten lo que ya tiene la base desde
+  // InitialSchema. No cambian nada al correr, pero sin ellos la entidad
+  // describía una FK `NO ACTION`, y un `migration:generate` la habría
+  // "corregido" así. Lo fija `esquemaDeLasEntidades.test.ts`.
   @Index("IDX_car_owner")
-  @ManyToOne(() => Client, (client) => client.cars, { nullable: true })
+  @ManyToOne(() => Client, (client) => client.cars, {
+    nullable: true,
+    onDelete: "SET NULL",
+  })
+  @JoinColumn({ foreignKeyConstraintName: "FK_car_client" })
   owner!: Client | null;
 
   // El parámetro es opcional como en el resto de las entidades. TypeORM las

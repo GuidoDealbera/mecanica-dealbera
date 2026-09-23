@@ -3,6 +3,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   OneToMany,
   PrimaryGeneratedColumn,
 } from "typeorm";
@@ -17,9 +18,15 @@ export class Client {
   // y una familia puede compartir un número. Al cliente se lo identifica por
   // `id`; el duplicado se avisa al cargarlo, no se impide. Ver la migración
   // `AllowHomonymClients`.
+  //
+  // Los índices los repuso esa misma migración al quitar los `UNIQUE`, que los
+  // traían de regalo: de ellos dependen el orden del listado y la búsqueda del
+  // duplicado. Se declaran para que la entidad describa la tabla que hay.
+  @Index("IDX_client_fullname")
   @Column("varchar", { nullable: false })
   fullname!: string;
 
+  @Index("IDX_client_phone")
   @Column("varchar", { nullable: false })
   phone!: string;
 

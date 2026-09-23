@@ -31,7 +31,7 @@ export default defineConfig({
   },
   test: {
     // Los 5 segundos por defecto no alcanzan para los tests de base de datos:
-    // cada archivo levanta un `DataSource` y corre las once migraciones, y en
+    // cada archivo levanta un `DataSource` y corre todas las migraciones, y en
     // frío —como corre siempre en CI— la primera pasada se lleva más de diez.
     //
     // `hookTimeout` va aparte y es el que faltaba: el plazo del `beforeEach`

@@ -4,6 +4,7 @@ import {
   CreateDateColumn,
   Entity,
   Index,
+  JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
@@ -33,15 +34,17 @@ export class Job {
   @Column("boolean", { default: false })
   isThirdParty!: boolean;
 
-  @Column("varchar")
+  @Column("varchar", { default: JobStatus.PENDING })
   status!: JobStatus;
 
   // Repuestos/insumos del trabajo. Se guardan como JSON: son ítems de línea
   // simples (nombre + precio), no ameritan una tabla propia.
-  // `| null` porque la columna lo es: los trabajos anteriores a que existieran
-  // los repuestos no tienen ninguno.
-  @Column("simple-json", { nullable: true })
-  parts!: { name: string; price: number }[] | null;
+  //
+  // "Sin repuestos" es la lista vacía, y es la única forma: hasta
+  // TightenJobColumns también podía ser `NULL`, y cada lector tenía que
+  // acordarse de las dos.
+  @Column("simple-json", { default: () => "'[]'" })
+  parts!: { name: string; price: number }[];
 
   // Notas internas del taller. Uso interno: no se muestran al cliente ni se
   // incluyen en el presupuesto/factura.
@@ -74,6 +77,7 @@ export class Job {
     onDelete: "CASCADE",
     nullable: false,
   })
+  @JoinColumn({ foreignKeyConstraintName: "FK_job_car" })
   car!: Car;
 
   constructor(partial?: Partial<Job>) {
